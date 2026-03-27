@@ -32,7 +32,6 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd());
 
   const isProd = mode === "production";
-  const isTest = env.VITE_IS_TEST;
   const useHTTPS = env.VITE_USE_HTTPS === "true";
 
   return {
@@ -43,7 +42,7 @@ export default defineConfig(({ mode }) => {
       createHtmlPlugin({
         inject: {
           data: {
-            title: isTest ? "Meshtastic Web (TEST)" : "Meshtastic Web",
+            title: "DarkMesh Dashboard",
             cookieYesScript:
               isProd && env.VITE_COOKIEYES_CLIENT_ID
                 ? // This is for GDPR/CCPA compliance

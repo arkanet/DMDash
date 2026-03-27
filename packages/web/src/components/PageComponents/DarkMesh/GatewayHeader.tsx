@@ -1,4 +1,5 @@
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
+import { useTheme } from "@core/hooks/useTheme.ts";
 import { useAppStore } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { useEffect, useRef, useState } from "react";
@@ -184,11 +185,13 @@ function SignalMetric({
 }
 
 export function GatewayHeader({ className }: GatewayHeaderProps) {
+  const { theme } = useTheme();
   const selectedDeviceId = useAppStore((state) => state.selectedDeviceId);
   const gatewaysByDevice = useDarkMeshStore((state) => state.gatewaysByDevice);
   const gateway = selectedDeviceId !== undefined ? gatewaysByDevice[selectedDeviceId] : undefined;
   const [highlight, setHighlight] = useState(false);
   const lastObservedAtRef = useRef<number | undefined>(gateway?.observedAt);
+  const isDarkTheme = theme === "dark";
 
   useEffect(() => {
     if (!gateway?.observedAt || lastObservedAtRef.current === gateway.observedAt) {
@@ -219,7 +222,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
           highlight ? "border-emerald-400" : "border-zinc-800",
         )}
         style={{
-          backgroundColor: "#222",
+          backgroundColor: isDarkTheme ? "#222" : "#f1f1f1",
           ...(highlight
             ? {
                 boxShadow:
@@ -228,12 +231,24 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
             : {}),
         }}
       >
-        <div className="flex min-w-0 flex-1 flex-col justify-center border-r-0 px-3.5 py-3 text-zinc-100">
-          <div className="truncate text-[0.7rem] font-semibold text-zinc-100 md:text-[1rem]">
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 flex-col justify-center border-r-0 px-3.5 py-3",
+            isDarkTheme ? "text-zinc-100" : "text-zinc-900",
+          )}
+        >
+          <div
+            className={cn(
+              "truncate text-[0.7rem] font-semibold md:text-[1rem]",
+              isDarkTheme ? "text-zinc-100" : "text-zinc-900",
+            )}
+          >
             {gateway?.nodeName ?? "No gateway detected yet"}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[0.7rem] md:text-[0.8125rem]">
-            <span className="text-zinc-400">Gateway Relay Confidence:</span>
+            <span className={isDarkTheme ? "text-zinc-400" : "text-zinc-600"}>
+              Gateway Relay Confidence:
+            </span>
             <span
               className="rounded-md px-1.5 py-0.5 font-semibold"
               style={{
@@ -246,7 +261,10 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
           </div>
         </div>
 
-        <div className="flex w-fit shrink-0 flex-col p-0.5" style={{ backgroundColor: "#222" }}>
+        <div
+          className="flex w-fit shrink-0 flex-col p-0.5"
+          style={{ backgroundColor: isDarkTheme ? "#222" : "#f1f1f1" }}
+        >
           <SignalMetric
             label="RSSI"
             value={formatRssi(gateway?.rxRssi)}

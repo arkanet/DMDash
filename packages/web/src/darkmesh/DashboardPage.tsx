@@ -350,10 +350,6 @@ const DarkMeshDashboardPage = () => {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(220,38,38,0.18),_transparent_30%)]" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-300">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Full-offgrid compatible
-            </div>
             <h1 className="text-3xl font-semibold tracking-[0.12em] text-white sm:text-4xl">
               DarkMesh dashboard on Meshtastic Web
             </h1>
