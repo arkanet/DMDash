@@ -56,6 +56,7 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
 
   const [showNeighbor, setShowNeighbor] = useState(false);
   const [showEnvironment, setShowEnvironment] = useState(false);
+  const [showPublicKey, setShowPublicKey] = useState(false);
 
   const name = node.user?.longName ?? t("unknown.shortName");
   const hwModel = node.user?.hwModel ?? 0;
@@ -70,6 +71,10 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
 
   const neighborInfo = getNeighborInfo(node.num);
   const environmentMetrics = getEnvironmentMetrics(node.num);
+  const publicKey =
+    node.user?.publicKey && node.user.publicKey.length > 0
+      ? fromByteArray(node.user.publicKey)
+      : undefined;
 
   function handleDirectMessage() {
     navigate({ to: `/messages/direct/${node.num}` });
@@ -119,18 +124,7 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
   }
 
   function handlePublicKeyClick() {
-    if (node.user?.publicKey && node.user.publicKey.length > 0) {
-      toast({
-        title: t("nodeDetail.publicKey", "Public Key"),
-        description: fromByteArray(node.user.publicKey),
-      });
-      return;
-    }
-
-    toast({
-      title: t("nodeDetail.noPublicKey.label", "No public key"),
-      description: t("nodeDetail.noPublicKey", "No public key available"),
-    });
+    setShowPublicKey((current) => !current);
   }
 
   return (
@@ -318,6 +312,19 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
                   </div>
                 )}
               </div>
+
+              {showPublicKey && (
+                <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[0.75rem] dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100">
+                  <div className="font-semibold text-slate-700 dark:text-slate-200">
+                    {publicKey
+                      ? t("nodeDetail.publicKey", "Public Key")
+                      : t("nodeDetail.noPublicKey.label", "No public key")}
+                  </div>
+                  <Mono className="mt-1 block break-all text-[0.75rem]">
+                    {publicKey ?? t("nodeDetail.noPublicKey", "No public key available")}
+                  </Mono>
+                </div>
+              )}
             </div>
 
             {showNeighbor && (

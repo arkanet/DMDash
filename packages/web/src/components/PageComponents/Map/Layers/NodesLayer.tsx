@@ -12,7 +12,6 @@ import { StackBadge } from "@components/PageComponents/Map/Markers/StackBadge.ts
 import { NodeDetail } from "@components/PageComponents/Map/Popups/NodeDetail.tsx";
 import type { PopupState } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
 import { PopupWrapper } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
-import { useMapFitting } from "@core/hooks/useMapFitting";
 import { useNodeDB } from "@core/stores";
 import { hasPos, toLngLat } from "@core/utils/geo.ts";
 import type { Protobuf } from "@meshtastic/core";
@@ -33,7 +32,7 @@ export interface NodeMarkerProps {
 }
 
 export const NodesLayer = ({
-  mapRef,
+  mapRef: _mapRef,
   filteredNodes,
   myNode,
   expandedCluster,
@@ -46,7 +45,6 @@ export const NodesLayer = ({
   const { t } = useTranslation("map");
 
   const { hasNodeError } = useNodeDB();
-  const { focusLngLat } = useMapFitting(mapRef);
 
   const selectedNode = useMemo(
     () =>
@@ -60,12 +58,8 @@ export const NodesLayer = ({
     (num: number, offset: PxOffset, e: { originalEvent: MouseEvent }) => {
       e.originalEvent?.stopPropagation();
       setPopupState({ type: "node", num, offset });
-      const node = filteredNodes.find((node) => node.num === num) ?? undefined;
-      if (node) {
-        focusLngLat(toLngLat(node.position));
-      }
     },
-    [filteredNodes, focusLngLat, setPopupState],
+    [setPopupState],
   );
 
   const clusters = groupNodesByIdenticalCoords(filteredNodes);

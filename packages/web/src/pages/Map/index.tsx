@@ -347,17 +347,28 @@ const MapPage = () => {
     ],
   );
 
-  useEffect(() => {
-    if (!tracerouteOverlay) {
-      return;
-    }
-
-    fitToNodes(tracerouteOverlay.involvedNodes);
-  }, [fitToNodes, tracerouteOverlay]);
-
   const pendingTraceRouteNode = pendingTraceRouteTarget
     ? getNode(pendingTraceRouteTarget)
     : undefined;
+  const showTraceroutePanel = Boolean(tracerouteOverlay) || pendingTraceRouteTarget !== undefined;
+
+  useEffect(() => {
+    if (!mapRef) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      mapRef.resize();
+
+      if (tracerouteOverlay) {
+        fitToNodes(tracerouteOverlay.involvedNodes);
+      }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [fitToNodes, mapRef, showTraceroutePanel, tracerouteOverlay]);
 
   return (
     <PageLayout
@@ -367,160 +378,169 @@ const MapPage = () => {
       leftBar={<Sidebar />}
       headerContent={<GatewayHeader />}
     >
-      <div className="relative flex-1">
-        <BaseMap
-          onLoad={getMapBounds}
-          onMouseMove={onMouseMove}
-          onClick={onMapBackgroundClick}
-          interactiveLayerIds={[snrLayerElementId, `${heatmapLayerElementId}-interaction`]}
-        >
-          {heatmapLayerElement}
-          {markerElements}
-          {snrLayerElement}
-          {precisionCirclesElement}
-          {waypointLayerElement}
-          {tracerouteOverlay && (
-            <Source
-              id="darkmesh-traceroute-overlay"
-              type="geojson"
-              data={tracerouteOverlay.featureCollection}
-            >
-              <Layer
-                id="darkmesh-traceroute-forward"
-                type="line"
-                filter={["==", ["get", "role"], "forward"]}
-                paint={{
-                  "line-color": "#ef4444",
-                  "line-width": 4,
-                  "line-opacity": 0.9,
-                }}
+      <div className="flex flex-1 overflow-hidden">
+        {showTraceroutePanel && (
+          <aside className="w-52 lg:w-64 shrink-0 border-r border-slate-300 bg-background px-2 py-3 text-balance dark:border-slate-700">
+            {tracerouteOverlay ? (
+              <VisualTracerouteCard
+                traceroute={tracerouteOverlay.trace}
+                totalDistance={tracerouteOverlay.totalDistance}
+                onClear={clearVisualTraceroute}
+                className="h-full shadow-none"
               />
-              <Layer
-                id="darkmesh-traceroute-backward"
-                type="line"
-                filter={["==", ["get", "role"], "backward"]}
-                paint={{
-                  "line-color": "#38bdf8",
-                  "line-width": 4,
-                  "line-dasharray": [1, 1.5],
-                  "line-opacity": 0.9,
-                }}
+            ) : (
+              <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-[#222] p-4 text-[0.75rem] text-zinc-100 shadow-none backdrop-blur-sm">
+                <div className="font-semibold">Waiting for traceroute response</div>
+                <div className="mt-2 text-[0.75rem] text-zinc-400">
+                  {pendingTraceRouteNode
+                    ? getNodeDisplayName(pendingTraceRouteNode, pendingTraceRouteNode.num)
+                    : `!${numberToHexUnpadded(pendingTraceRouteTarget ?? 0).toUpperCase()}`}
+                </div>
+                <div className="mt-4 flex gap-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-[0.75rem]"
+                    onClick={clearVisualTraceroute}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </aside>
+        )}
+
+        <div className="relative min-w-0 flex-1">
+          <BaseMap
+            onLoad={getMapBounds}
+            onMouseMove={onMouseMove}
+            onClick={onMapBackgroundClick}
+            interactiveLayerIds={[snrLayerElementId, `${heatmapLayerElementId}-interaction`]}
+          >
+            {heatmapLayerElement}
+            {markerElements}
+            {snrLayerElement}
+            {precisionCirclesElement}
+            {waypointLayerElement}
+            {tracerouteOverlay && (
+              <Source
+                id="darkmesh-traceroute-overlay"
+                type="geojson"
+                data={tracerouteOverlay.featureCollection}
+              >
+                <Layer
+                  id="darkmesh-traceroute-forward"
+                  type="line"
+                  filter={["==", ["get", "role"], "forward"]}
+                  paint={{
+                    "line-color": "#ef4444",
+                    "line-width": 4,
+                    "line-opacity": 0.9,
+                  }}
+                />
+                <Layer
+                  id="darkmesh-traceroute-backward"
+                  type="line"
+                  filter={["==", ["get", "role"], "backward"]}
+                  paint={{
+                    "line-color": "#38bdf8",
+                    "line-width": 4,
+                    "line-dasharray": [1, 1.5],
+                    "line-opacity": 0.9,
+                  }}
+                />
+              </Source>
+            )}
+
+            {snrHover && (
+              <SNRTooltip
+                pos={snrHover.pos}
+                snr={snrHover.snr}
+                from={snrHover.from}
+                to={snrHover.to}
               />
-            </Source>
-          )}
-
-          {snrHover && (
-            <SNRTooltip
-              pos={snrHover.pos}
-              snr={snrHover.snr}
-              from={snrHover.from}
-              to={snrHover.to}
-            />
-          )}
-        </BaseMap>
-
-        {tracerouteOverlay && (
-          <VisualTracerouteCard
-            traceroute={tracerouteOverlay.trace}
-            totalDistance={tracerouteOverlay.totalDistance}
-            onClear={clearVisualTraceroute}
-          />
-        )}
-        {!tracerouteOverlay && pendingTraceRouteTarget !== undefined && (
-          <div className="absolute left-6 top-20 z-20 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-zinc-950/92 p-4 text-zinc-100 shadow-2xl backdrop-blur-sm lg:left-28">
-            <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-              Visual Traceroute
-            </div>
-            <div className="mt-2 text-lg font-semibold">Waiting for traceroute response</div>
-            <div className="mt-2 text-sm text-zinc-400">
-              {pendingTraceRouteNode
-                ? getNodeDisplayName(pendingTraceRouteNode, pendingTraceRouteNode.num)
-                : `!${numberToHexUnpadded(pendingTraceRouteTarget).toUpperCase()}`}
-            </div>
-            <div className="mt-4 flex gap-3">
-              <Button size="sm" variant="outline" onClick={clearVisualTraceroute}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-        <div className="absolute top-2.5 right-2.5 z-20 flex flex-col space-y-1">
-          <button
-            type="button"
-            className={cn(
-              "rounded align-center",
-              "w-[29px] px-1 py-1 shadow-l outline-[2px] outline-stone-600/20",
-              "bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300",
-              "text-slate-600 hover:text-slate-700",
-              "dark:text-slate-600 hover:dark:text-slate-700",
             )}
-            aria-label={t("maplibre.NavigationControl.ZoomIn")}
-            onClick={handleZoomIn}
-          >
-            <PlusIcon className="w-[21px]" />
-          </button>
+          </BaseMap>
 
-          <button
-            type="button"
-            className={cn(
-              "rounded align-center",
-              "w-[29px] px-1 py-1 shadow-l outline-[2px] outline-stone-600/20",
-              "bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300",
-              "text-slate-600 hover:text-slate-700",
-              "dark:text-slate-600 hover:dark:text-slate-700",
-            )}
-            aria-label={t("maplibre.NavigationControl.ZoomOut")}
-            onClick={handleZoomOut}
-          >
-            <MinusIcon className="w-[21px]" />
-          </button>
-
-          {myNode && hasPos(myNode?.position) && (
+          <div className="absolute top-2.5 right-2.5 z-20 flex flex-col space-y-1">
             <button
               type="button"
               className={cn(
                 "rounded align-center",
                 "w-[29px] px-1 py-1 shadow-l outline-[2px] outline-stone-600/20",
-                "bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300 ",
+                "bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300",
                 "text-slate-600 hover:text-slate-700",
                 "dark:text-slate-600 hover:dark:text-slate-700",
               )}
-              aria-label={t("mapMenu.locateAria")}
-              onClick={() => focusLngLat(toLngLat(myNode.position))}
+              aria-label={t("maplibre.NavigationControl.ZoomIn")}
+              onClick={handleZoomIn}
             >
-              <LocateFixedIcon className="w-[21px]" />
+              <PlusIcon className="w-[21px]" />
             </button>
-          )}
 
-          <FilterControl
-            filterState={filterState}
-            defaultFilterValues={defaultFilterValues}
-            setFilterState={setFilterState}
-            isDirty={isFilterDirty(filterState)}
-            parameters={{
-              popoverContentProps: {
-                side: "bottom",
-                align: "end",
-                sideOffset: 7,
-              },
-              popoverTriggerClassName: cn(
-                "w-[29px] px-1 py-1 rounded shadow-l outline-[2px] outline-stone-600/20 ",
-                "dark:text-slate-600 dark:hover:text-slate-700 bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300 dark:active:bg-stone-300",
-                isFilterDirty(filterState)
-                  ? "text-slate-100 dark:text-slate-100 bg-green-600 dark:bg-green-600 hover:bg-green-700 dark:hover:bg-green-700 hover:text-slate-200 dark:hover:text-slate-200 active:bg-green-800 dark:active:bg-green-800 outline-green-600 dark:outline-green-700"
-                  : "",
-              ),
-              triggerIcon: <FunnelIcon className="w-[21px]" />,
-              showTextSearch: true,
-            }}
-          />
+            <button
+              type="button"
+              className={cn(
+                "rounded align-center",
+                "w-[29px] px-1 py-1 shadow-l outline-[2px] outline-stone-600/20",
+                "bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300",
+                "text-slate-600 hover:text-slate-700",
+                "dark:text-slate-600 hover:dark:text-slate-700",
+              )}
+              aria-label={t("maplibre.NavigationControl.ZoomOut")}
+              onClick={handleZoomOut}
+            >
+              <MinusIcon className="w-[21px]" />
+            </button>
 
-          <MapLayerTool
-            visibilityState={visibilityState}
-            setVisibilityState={setVisibilityState}
-            heatmapMode={heatmapMode}
-            setHeatmapMode={setHeatmapMode}
-          />
+            {myNode && hasPos(myNode?.position) && (
+              <button
+                type="button"
+                className={cn(
+                  "rounded align-center",
+                  "w-[29px] px-1 py-1 shadow-l outline-[2px] outline-stone-600/20",
+                  "bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300 ",
+                  "text-slate-600 hover:text-slate-700",
+                  "dark:text-slate-600 hover:dark:text-slate-700",
+                )}
+                aria-label={t("mapMenu.locateAria")}
+                onClick={() => focusLngLat(toLngLat(myNode.position))}
+              >
+                <LocateFixedIcon className="w-[21px]" />
+              </button>
+            )}
+
+            <FilterControl
+              filterState={filterState}
+              defaultFilterValues={defaultFilterValues}
+              setFilterState={setFilterState}
+              isDirty={isFilterDirty(filterState)}
+              parameters={{
+                popoverContentProps: {
+                  side: "bottom",
+                  align: "end",
+                  sideOffset: 7,
+                },
+                popoverTriggerClassName: cn(
+                  "w-[29px] px-1 py-1 rounded shadow-l outline-[2px] outline-stone-600/20 ",
+                  "dark:text-slate-600 dark:hover:text-slate-700 bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300 dark:active:bg-stone-300",
+                  isFilterDirty(filterState)
+                    ? "text-slate-100 dark:text-slate-100 bg-green-600 dark:bg-green-600 hover:bg-green-700 dark:hover:bg-green-700 hover:text-slate-200 dark:hover:text-slate-200 active:bg-green-800 dark:active:bg-green-800 outline-green-600 dark:outline-green-700"
+                    : "",
+                ),
+                triggerIcon: <FunnelIcon className="w-[21px]" />,
+                showTextSearch: true,
+              }}
+            />
+
+            <MapLayerTool
+              visibilityState={visibilityState}
+              setVisibilityState={setVisibilityState}
+              heatmapMode={heatmapMode}
+              setHeatmapMode={setHeatmapMode}
+            />
+          </div>
         </div>
       </div>
     </PageLayout>

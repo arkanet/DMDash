@@ -1,7 +1,8 @@
 import type { PxOffset } from "@components/PageComponents/Map/cluster.ts";
 import type { WaypointWithMetadata } from "@core/stores";
-import { memo, type ReactElement } from "react";
-import { Popup } from "react-map-gl/maplibre";
+import type { Popup as MaplibrePopup } from "maplibre-gl";
+import { memo, type ReactElement, useEffect, useRef } from "react";
+import { Popup, useMap } from "react-map-gl/maplibre";
 
 export type PopupState =
   | { type: "node"; num: number; offset: PxOffset }
@@ -20,8 +21,42 @@ export const PopupWrapper = memo(function SelectedNodePopup({
   onClose: () => void;
   children: ReactElement;
 }) {
+  const popupRef = useRef<MaplibrePopup | null>(null);
+  const { default: mapRef } = useMap();
+
+  useEffect(() => {
+    if (!mapRef || !popupRef.current) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const map = mapRef.getMap();
+      const popupElement = popupRef.current?.getElement();
+      if (!popupElement) {
+        return;
+      }
+
+      const popupRect = popupElement.getBoundingClientRect();
+      const mapRect = map.getContainer().getBoundingClientRect();
+      const projectedPoint = map.project([lng, lat]);
+      const popupCenterX = popupRect.left - mapRect.left + popupRect.width / 2;
+      const popupCenterY = popupRect.top - mapRect.top + popupRect.height / 2;
+
+      mapRef.easeTo({
+        center: [lng, lat],
+        offset: [projectedPoint.x - popupCenterX, projectedPoint.y - popupCenterY],
+        duration: 320,
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [lat, lng, mapRef]);
+
   return (
     <Popup
+      ref={popupRef}
       anchor="top"
       longitude={lng}
       latitude={lat}
