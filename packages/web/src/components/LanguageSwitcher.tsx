@@ -1,7 +1,6 @@
 import type { LangCode } from "@app/i18n-config.ts";
 import useLang from "@core/hooks/useLang.ts";
 import { cn } from "@core/utils/cn.ts";
-import { t } from "i18next";
 import { Check, Languages } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,7 +18,7 @@ interface LanguageSwitcherProps {
 }
 
 export default function LanguageSwitcher({ disableHover = false }: LanguageSwitcherProps) {
-  const { i18n } = useTranslation("ui");
+  const { i18n, t } = useTranslation("ui");
   const { set: setLanguage, current, getSupportedLangs } = useLang();
 
   const handleLanguageChange = useCallback(

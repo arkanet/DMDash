@@ -101,9 +101,7 @@ const DarkMeshDashboardPage = () => {
   const { getMyNode, getNodes, addNode } = useNodeDB();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const schedules = useDarkMeshStore((state) =>
-    state.schedules.filter((schedule) => schedule.deviceId === deviceId),
-  );
+  const allSchedules = useDarkMeshStore((state) => state.schedules);
   const beaconConfig = useDarkMeshStore(
     (state) => state.beaconsByDevice[deviceId] ?? defaultBeaconConfig,
   );
@@ -120,6 +118,10 @@ const DarkMeshDashboardPage = () => {
   const setSelectedTraceRoute = useDarkMeshStore((state) => state.setSelectedTraceRoute);
 
   const myNode = getMyNode();
+  const schedules = useMemo(
+    () => allSchedules.filter((schedule) => schedule.deviceId === deviceId),
+    [allSchedules, deviceId],
+  );
   const nodes = useMemo(
     () => getNodes((node) => node.num !== myNode?.num, true),
     [getNodes, myNode?.num],

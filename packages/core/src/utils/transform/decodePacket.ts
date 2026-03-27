@@ -236,6 +236,15 @@ export const decodePacket = (device: MeshDevice) =>
               break;
             }
 
+            case "deviceuiConfig":
+            case "fileInfo": {
+              device.log.trace(
+                Types.Emitter[Types.Emitter.HandleFromRadio],
+                `ℹ️ Ignoring payload variant: ${decodedMessage.payloadVariant.case}`,
+              );
+              break;
+            }
+
             default: {
               device.log.warn(
                 Types.Emitter[Types.Emitter.HandleFromRadio],

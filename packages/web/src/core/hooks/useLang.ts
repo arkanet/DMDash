@@ -19,12 +19,25 @@ function useLang() {
   const [_, setLanguageInStorage] = useLocalStorage<LanguageState | null>(STORAGE_KEY, null);
 
   const currentLanguage = useMemo((): Lang | undefined => {
-    const lang = supportedLanguages.find((l) => l.code === i18n.language);
-    if (lang) {
-      return lang;
+    const resolvedLanguage = i18n.resolvedLanguage ?? i18n.language;
+
+    const exactMatch = supportedLanguages.find((language) => language.code === resolvedLanguage);
+    if (exactMatch) {
+      return exactMatch;
     }
+
+    const baseLanguage = resolvedLanguage?.split("-")[0];
+    if (baseLanguage) {
+      const familyMatch = supportedLanguages.find(
+        (language) => language.code.split("-")[0] === baseLanguage,
+      );
+      if (familyMatch) {
+        return familyMatch;
+      }
+    }
+
     return supportedLanguages.find((l) => l.code === FALLBACK_LANGUAGE_CODE);
-  }, [i18n.language]);
+  }, [i18n.language, i18n.resolvedLanguage]);
 
   const collator = useMemo(() => {
     return new Intl.Collator(i18n.language, { sensitivity: "base" });
