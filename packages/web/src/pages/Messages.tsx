@@ -1,4 +1,5 @@
 import { messagesWithParamsRoute } from "@app/routes.tsx";
+import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { ChannelChat } from "@components/PageComponents/Messages/ChannelChat.tsx";
 import { MessageInput } from "@components/PageComponents/Messages/MessageInput.tsx";
 import { PageLayout } from "@components/PageLayout.tsx";
@@ -306,6 +307,7 @@ export const MessagesPage = () => {
       `}
       rightBar={rightSidebar}
       leftBar={leftSidebar}
+      headerContent={<GatewayHeader />}
       actions={
         isDirect && otherNode
           ? [

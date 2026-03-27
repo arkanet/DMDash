@@ -21,6 +21,7 @@ export interface ActionItem {
 export interface PageLayoutProps {
   label: string;
   actions?: ActionItem[];
+  headerContent?: React.ReactNode;
   children: React.ReactNode;
   leftBar?: React.ReactNode;
   rightBar?: React.ReactNode;
@@ -34,6 +35,7 @@ export interface PageLayoutProps {
 export const PageLayout = ({
   label,
   actions,
+  headerContent,
   children,
   leftBar,
   rightBar,
@@ -62,12 +64,12 @@ export const PageLayout = ({
           {/* Header */}
           <header
             className={cn(
-              "flex h-14 shrink-0 mt-2 p-2 items-center border-b border-slate-300 dark:border-slate-700",
+              "shrink-0 mt-2 border-b border-slate-300 dark:border-slate-700",
+              headerContent ? "px-2 py-3" : "flex h-14 p-2 items-center",
               topBarClassName,
             )}
           >
-            {/* Header Content */}
-            <div className="flex flex-1 items-center justify-between min-w-0">
+            <div className="flex items-center justify-between min-w-0">
               <span className="text-lg font-medium text-foreground truncate px-2">{label}</span>
               <div className="flex items-center space-x-1 md:space-x-2 shrink-0 pr-6">
                 {actions?.map((action) => {
@@ -99,6 +101,7 @@ export const PageLayout = ({
                 })}
               </div>
             </div>
+            {headerContent ? <div className="px-2 pt-3">{headerContent}</div> : null}
           </header>
 
           <main

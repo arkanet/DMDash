@@ -3,6 +3,7 @@ import {
   MapLayerTool,
   type VisibilityState,
 } from "@app/components/PageComponents/Map/Tools/MapLayerTool.tsx";
+import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { FilterControl } from "@components/generic/Filter/FilterControl.tsx";
 import { type FilterState, useFilterNode } from "@components/generic/Filter/useFilterNode.ts";
 import { BaseMap } from "@components/Map.tsx";
@@ -306,7 +307,13 @@ const MapPage = () => {
   }, [getNode, selectedTraceRoute]);
 
   return (
-    <PageLayout label="Map" noPadding actions={[]} leftBar={<Sidebar />}>
+    <PageLayout
+      label="Map"
+      noPadding
+      actions={[]}
+      leftBar={<Sidebar />}
+      headerContent={<GatewayHeader />}
+    >
       <BaseMap
         onLoad={getMapBounds}
         onMouseMove={onMouseMove}

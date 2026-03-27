@@ -1,4 +1,5 @@
 import { create } from "@bufbuild/protobuf";
+import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
 import { Button } from "@components/UI/Button.tsx";
@@ -106,7 +107,6 @@ const DarkMeshDashboardPage = () => {
     (state) => state.beaconsByDevice[deviceId] ?? defaultBeaconConfig,
   );
   const huntConfig = useDarkMeshStore((state) => state.huntByDevice[deviceId] ?? defaultHuntConfig);
-  const gateway = useDarkMeshStore((state) => state.gatewaysByDevice[deviceId]);
   const selectedTraceRoute = useDarkMeshStore((state) => state.selectedTraceRoute);
 
   const addSchedule = useDarkMeshStore((state) => state.addSchedule);
@@ -340,7 +340,12 @@ const DarkMeshDashboardPage = () => {
   };
 
   return (
-    <PageLayout label="DarkMesh Dashboard" leftBar={<Sidebar />} contentClassName="overflow-y-auto">
+    <PageLayout
+      label="DarkMesh Dashboard"
+      leftBar={<Sidebar />}
+      contentClassName="overflow-y-auto"
+      headerContent={<GatewayHeader />}
+    >
       <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 px-6 py-8 text-zinc-100 shadow-2xl">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(220,38,38,0.18),_transparent_30%)]" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -706,45 +711,6 @@ const DarkMeshDashboardPage = () => {
         </div>
 
         <div className="space-y-6">
-          <DashboardCard
-            title="Gateway Detection"
-            description="Heuristic gateway tracking derived from direct packets, relay suffixes and traceroute responses."
-          >
-            {gateway ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-4 text-zinc-100">
-                  <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                    Last detected gateway
-                  </div>
-                  <div className="mt-2 text-2xl font-semibold">{gateway.nodeName}</div>
-                  <div className="mt-1 text-sm text-zinc-400">
-                    Source: {gateway.source} · Confidence {gateway.confidence}%
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-zinc-800">
-                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-zinc-400">
-                      RSSI
-                    </div>
-                    <div className="mt-2 text-xl font-semibold">{gateway.rxRssi ?? "n/a"}</div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-zinc-800">
-                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-zinc-400">
-                      SNR
-                    </div>
-                    <div className="mt-2 text-xl font-semibold">{gateway.rxSnr ?? "n/a"}</div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-zinc-800 dark:text-zinc-400">
-                No gateway candidate detected yet. The runtime will update this panel automatically
-                once traffic starts flowing.
-              </div>
-            )}
-          </DashboardCard>
-
           <DashboardCard
             title="Hunting Forwarder"
             description="Mirror position, telemetry and traceroute packets to a DarkMesh-compatible web endpoint."

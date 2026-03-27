@@ -1,5 +1,6 @@
 import { LocationResponseDialog } from "@app/components/Dialog/LocationResponseDialog.tsx";
 import { TracerouteResponseDialog } from "@app/components/Dialog/TracerouteResponseDialog.tsx";
+import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { FilterControl } from "@components/generic/Filter/FilterControl.tsx";
 import { type FilterState, useFilterNode } from "@components/generic/Filter/useFilterNode.ts";
 import { Mono } from "@components/generic/Mono.tsx";
@@ -26,7 +27,7 @@ export interface DeleteNoteDialogProps {
 }
 
 const NodesPage = (): JSX.Element => {
-  const { t } = useTranslation("nodes");
+  const { t } = useTranslation(["nodes", "ui"]);
   const { current } = useLang();
   const { hardware, connection, setDialogOpen } = useDevice();
 
@@ -222,7 +223,11 @@ const NodesPage = (): JSX.Element => {
   });
 
   return (
-    <PageLayout label="" leftBar={<Sidebar />}>
+    <PageLayout
+      label={t("navigation.nodes", { ns: "ui" })}
+      leftBar={<Sidebar />}
+      headerContent={<GatewayHeader />}
+    >
       <div className="pl-2 pt-2 flex flex-row">
         <div className="flex-1 mr-2">
           <Input
