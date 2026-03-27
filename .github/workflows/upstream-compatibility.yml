@@ -1,0 +1,54 @@
+name: Upstream Compatibility Watch
+
+on:
+  schedule:
+    - cron: "30 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility-watch:
+    name: Watch Meshtastic and DarkMesh upstreams
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Sync upstream mirrors
+        run: bash ./scripts/sync-upstreams.sh
+
+      - name: Generate compatibility report
+        run: bash ./scripts/report-compatibility.sh --write
+
+      - name: Publish report in job summary
+        run: cat docs/compatibility-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload compatibility report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dmdash-compatibility-report
+          path: docs/compatibility-report.md
+          if-no-files-found: error
+
+      - name: Fail when upstream drift is detected
+        shell: bash
+        run: |
+          set -euo pipefail
+          if awk -F'|' '
+            /^\|/ && $0 !~ /^\| ---/ {
+              status = $6
+              gsub(/^[[:space:]]+|[[:space:]]+$/, "", status)
+              if (status == "drifted") {
+                found = 1
+              }
+            }
+            END { exit found ? 0 : 1 }
+          ' docs/compatibility-report.md; then
+            echo "Detected upstream drift in docs/compatibility-report.md" >&2
+            exit 1
+          fi

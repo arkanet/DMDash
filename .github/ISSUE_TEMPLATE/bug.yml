@@ -1,0 +1,158 @@
+name: Bug report
+description: Report a problem in DMDash or its DarkMesh/Meshtastic integration layer
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # DMDash bug report
+        Thanks for helping improve the DarkMesh dashboard. The more precise the report is, the faster we can tell whether the issue lives in the dashboard layer, the Meshtastic base, or the DarkMesh feature extensions.
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Before submitting
+      description: Please confirm the following before opening the issue
+      options:
+        - label: I have searched existing issues to make sure this bug has not already been reported
+          required: true
+        - label: I have tested with the latest DMDash branch, image, or artifact that I can access
+          required: true
+        - label: I have included logs, screenshots, or reproduction steps where possible
+          required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected area
+      description: Which part of DMDash appears to be broken?
+      options:
+        - Dashboard UI or navigation
+        - Device connection or transport
+        - DarkMesh-specific feature
+        - Meshtastic compatibility or protobuf behavior
+        - Build, packaging, or GitHub Actions
+        - Documentation or onboarding
+        - Not sure yet
+    validations:
+      required: true
+  - type: input
+    id: dashboard_version
+    attributes:
+      label: DMDash version or commit
+      description: Include the deployed version, Docker tag, or commit SHA if you know it.
+      placeholder: e.g. 6bdce3230, nightly-20260327, local main
+    validations:
+      required: true
+  - type: input
+    id: firmware_version
+    attributes:
+      label: Firmware version
+      description: Include the DarkMesh or Meshtastic firmware version used by the affected node, if relevant.
+      placeholder: e.g. 2.7.15-ghost
+    validations:
+      required: false
+  - type: input
+    id: hardware
+    attributes:
+      label: Node hardware or board
+      description: Mention the radio hardware involved, if the issue depends on it.
+      placeholder: e.g. T-Deck, Heltec V3, RAK4631, DIY ESP32, not applicable
+    validations:
+      required: false
+  - type: dropdown
+    id: connection_type
+    attributes:
+      label: Connection type
+      description: How is DMDash talking to the device?
+      options:
+        - HTTP
+        - Bluetooth
+        - Serial
+        - Multiple transports
+        - Not connected yet
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment_mode
+    attributes:
+      label: Deployment mode
+      description: Where are you running DMDash?
+      options:
+        - Local development (`pnpm dev`)
+        - Self-hosted web build
+        - Container image / GHCR
+        - Hosted preview or static deployment
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      description: What OS are you running? Include version if possible.
+      placeholder: e.g., Windows 11, macOS 13.1, Android 13, iOS 16.2
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: What browser are you using? Include version if possible.
+      placeholder: e.g., Chrome 108, Firefox 107, Safari 16.2
+    validations:
+      required: false
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe what you expected to occur...
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Describe what occurred instead...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide clear steps to reproduce the issue
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or console output
+      description: Paste browser console, build logs, transport errors, or any useful traces here.
+      render: Shell
+    validations:
+      required: false
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain your problem.
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here.
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve DMDash.

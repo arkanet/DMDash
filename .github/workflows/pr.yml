@@ -1,0 +1,62 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}-ci
+  cancel-in-progress: true
+
+env:
+  CI: true
+
+jobs:
+  validate:
+    name: Validate dashboard for pull request
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.draft == false }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint and format checks
+        run: pnpm check
+
+      - name: Typecheck dashboard
+        run: pnpm --filter meshtastic-web typecheck
+
+      - name: Run workspace tests
+        run: pnpm test --run
+
+      - name: Build dashboard
+        run: pnpm --filter meshtastic-web build
+
+      - name: Package dashboard artifact
+        run: pnpm --filter meshtastic-web package
+
+      - name: Upload packaged dashboard
+        uses: actions/upload-artifact@v4
+        with:
+          name: dmdash-web-pr-${{ github.event.pull_request.number }}
+          path: packages/web/dist/build.tar
+          if-no-files-found: error

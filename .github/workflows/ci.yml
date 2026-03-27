@@ -1,0 +1,63 @@
+name: Main Branch Validation
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-main-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+
+jobs:
+  validate:
+    name: Validate dashboard on main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint and format checks
+        run: pnpm check
+
+      - name: Typecheck dashboard
+        run: pnpm --filter meshtastic-web typecheck
+
+      - name: Run workspace tests
+        run: pnpm test --run
+
+      - name: Build dashboard
+        run: pnpm --filter meshtastic-web build
+
+      - name: Package dashboard artifact
+        run: pnpm --filter meshtastic-web package
+
+      - name: Upload packaged dashboard
+        uses: actions/upload-artifact@v4
+        with:
+          name: dmdash-web-main
+          path: packages/web/dist/build.tar
+          if-no-files-found: error

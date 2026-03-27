@@ -1,0 +1,24 @@
+name: Close inactive issues
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+jobs:
+  close-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v10
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-issue-stale: 60
+          days-before-issue-close: 14
+          stale-issue-label: "stale"
+          stale-issue-message: "This DMDash issue has been marked as stale after 60 days without activity. If it is still relevant, add fresh context, logs, or reproduction details and we will keep working from there."
+          close-issue-message: "This DMDash issue was closed after 14 additional days without activity. It can be reopened with updated context if the problem or request is still current."
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          only-issue-labels: "bug,enhancement"
+          remove-stale-when-updated: true
