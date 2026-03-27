@@ -151,19 +151,32 @@ function formatConfidence(value?: number): string {
   return `${Math.max(0, Math.min(100, value))}%`;
 }
 
-function SignalMetric({ label, value, tone }: { label: string; value: string; tone: SignalTone }) {
+function SignalMetric({
+  label,
+  value,
+  tone,
+  className,
+}: {
+  label: string;
+  value: string;
+  tone: SignalTone;
+  className?: string;
+}) {
   return (
     <div
-      className="flex flex-1 flex-col justify-center rounded-xl px-3 py-2"
+      className={cn("flex flex-1 flex-col justify-center rounded-xl px-2.5 py-1.5", className)}
       style={{ backgroundColor: tone.background }}
     >
       <div
-        className="text-xs uppercase tracking-[0.16em] md:text-[11px]"
+        className="text-[0.7rem] uppercase tracking-[0.14em] md:text-[10px]"
         style={{ color: tone.label }}
       >
         {label}
       </div>
-      <div className="mt-1 text-xs font-semibold md:text-sm" style={{ color: tone.value }}>
+      <div
+        className="mt-0.5 text-[0.7rem] font-semibold md:text-[0.8125rem]"
+        style={{ color: tone.value }}
+      >
         {value}
       </div>
     </div>
@@ -172,9 +185,8 @@ function SignalMetric({ label, value, tone }: { label: string; value: string; to
 
 export function GatewayHeader({ className }: GatewayHeaderProps) {
   const selectedDeviceId = useAppStore((state) => state.selectedDeviceId);
-  const gateway = useDarkMeshStore((state) =>
-    selectedDeviceId !== undefined ? state.gatewaysByDevice[selectedDeviceId] : undefined,
-  );
+  const gatewaysByDevice = useDarkMeshStore((state) => state.gatewaysByDevice);
+  const gateway = selectedDeviceId !== undefined ? gatewaysByDevice[selectedDeviceId] : undefined;
   const [highlight, setHighlight] = useState(false);
   const lastObservedAtRef = useRef<number | undefined>(gateway?.observedAt);
 
@@ -203,29 +215,27 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
     <div className={cn("w-full", className)}>
       <div
         className={cn(
-          "flex min-h-[102px] w-full overflow-hidden rounded-2xl border bg-zinc-950/96 transition-[border-color,box-shadow] duration-500",
+          "flex min-h-[92px] w-full overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-500",
           highlight ? "border-emerald-400" : "border-zinc-800",
         )}
-        style={
-          highlight
+        style={{
+          backgroundColor: "#222",
+          ...(highlight
             ? {
                 boxShadow:
                   "0 0 0 1px rgba(52,211,153,0.58), 0 0 18px rgba(52,211,153,0.75), 0 0 34px rgba(16,185,129,0.34)",
               }
-            : undefined
-        }
+            : {}),
+        }}
       >
-        <div className="flex min-w-0 flex-1 flex-col justify-center border-r-0 px-4 py-4 text-zinc-100">
-          <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-            Last detected gateway
-          </div>
-          <div className="mt-2 truncate text-xs font-semibold text-zinc-100 md:text-lg">
+        <div className="flex min-w-0 flex-1 flex-col justify-center border-r-0 px-3.5 py-3 text-zinc-100">
+          <div className="truncate text-[0.7rem] font-semibold text-zinc-100 md:text-[1rem]">
             {gateway?.nodeName ?? "No gateway detected yet"}
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs md:text-sm">
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[0.7rem] md:text-[0.8125rem]">
             <span className="text-zinc-400">Gateway Relay Confidence:</span>
             <span
-              className="rounded-md px-2 py-1 font-semibold"
+              className="rounded-md px-1.5 py-0.5 font-semibold"
               style={{
                 backgroundColor: confidenceTone.background,
                 color: confidenceTone.value,
@@ -236,9 +246,19 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
           </div>
         </div>
 
-        <div className="flex w-fit shrink-0 flex-col gap-px bg-white/5 p-1">
-          <SignalMetric label="RSSI" value={formatRssi(gateway?.rxRssi)} tone={rssiTone} />
-          <SignalMetric label="SNR" value={formatSnr(gateway?.rxSnr)} tone={snrTone} />
+        <div className="flex w-fit shrink-0 flex-col p-0.5" style={{ backgroundColor: "#222" }}>
+          <SignalMetric
+            label="RSSI"
+            value={formatRssi(gateway?.rxRssi)}
+            tone={rssiTone}
+            className="mr-1 mb-1 mt-1"
+          />
+          <SignalMetric
+            label="SNR"
+            value={formatSnr(gateway?.rxSnr)}
+            tone={snrTone}
+            className="mr-1 mb-1"
+          />
         </div>
       </div>
     </div>

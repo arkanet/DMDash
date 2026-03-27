@@ -161,6 +161,15 @@ body {
 }
 
 @layer components {
+  .maplibregl-popup.darkmesh-map-popup {
+    max-width: fit-content !important;
+  }
+
+  .maplibregl-popup.darkmesh-map-popup .maplibregl-popup-content {
+    max-width: fit-content;
+    width: max-content;
+  }
+
   .maplibregl-popup-close-button {
     padding: 4px 10px 8px 0;
     font-size: 1.2rem;

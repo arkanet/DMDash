@@ -33,7 +33,7 @@ export interface PageLayoutProps {
 }
 
 export const PageLayout = ({
-  label,
+  label: _label,
   actions,
   headerContent,
   children,
@@ -64,13 +64,12 @@ export const PageLayout = ({
           {/* Header */}
           <header
             className={cn(
-              "shrink-0 mt-2 border-b border-slate-300 dark:border-slate-700",
-              headerContent ? "px-2 py-3" : "flex h-14 p-2 items-center",
+              "shrink-0 border-b border-slate-300 dark:border-slate-700",
+              headerContent ? "px-2 pb-2" : "flex h-14 items-center px-2 pb-2",
               topBarClassName,
             )}
           >
-            <div className="flex items-center justify-between min-w-0">
-              <span className="text-lg font-medium text-foreground truncate px-2">{label}</span>
+            <div className="flex min-w-0 items-center justify-end">
               <div className="flex items-center space-x-1 md:space-x-2 shrink-0 pr-6">
                 {actions?.map((action) => {
                   return (
@@ -101,7 +100,7 @@ export const PageLayout = ({
                 })}
               </div>
             </div>
-            {headerContent ? <div className="px-2 pt-3">{headerContent}</div> : null}
+            {headerContent ? <div className="px-2 pt-2">{headerContent}</div> : null}
           </header>
 
           <main

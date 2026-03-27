@@ -29,6 +29,7 @@ export interface NodeMarkerProps {
   popupState: PopupState | undefined;
   setPopupState: (state: PopupState | undefined) => void;
   isVisible: boolean;
+  getNodeMarkerClassName?: (node: Protobuf.Mesh.NodeInfo) => string | undefined;
 }
 
 export const NodesLayer = ({
@@ -40,6 +41,7 @@ export const NodesLayer = ({
   popupState,
   setPopupState,
   isVisible,
+  getNodeMarkerClassName,
 }: NodeMarkerProps): React.ReactNode[] => {
   const { t } = useTranslation("map");
 
@@ -94,6 +96,7 @@ export const NodesLayer = ({
           tooltipLabel={node.user?.longName ?? t("unknown.longName")}
           hasError={hasNodeError(node.num)}
           isFavorite={node.isFavorite ?? false}
+          avatarClassName={getNodeMarkerClassName?.(node)}
           isVisible={isVisible}
           onClick={(num, e) => {
             e.originalEvent?.stopPropagation();
@@ -162,6 +165,7 @@ export const NodesLayer = ({
         tooltipLabel={t("myNode.tooltip")}
         hasError={false}
         isFavorite={true}
+        avatarClassName={getNodeMarkerClassName?.(myNode)}
         onClick={(_, e) => onMarkerClick(myNode.num, [0, 0], e)}
       />,
     );

@@ -1,6 +1,9 @@
+import { useDarkMeshStore } from "@app/darkmesh/store.ts";
+import { Button } from "@components/UI/Button.tsx";
 import { useNodeDB } from "@core/stores";
 import type { Protobuf, Types } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
+import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { TraceRoute } from "../PageComponents/Messages/TraceRoute.tsx";
@@ -26,6 +29,8 @@ export const TracerouteResponseDialog = ({
 }: TracerouteResponseDialogProps) => {
   const { t } = useTranslation("dialog");
   const { getNode } = useNodeDB();
+  const navigate = useNavigate();
+  const setSelectedTraceRoute = useDarkMeshStore((state) => state.setSelectedTraceRoute);
   const route: number[] = traceroute?.data.route ?? [];
   const routeBack: number[] = traceroute?.data.routeBack ?? [];
   const snrTowards = (traceroute?.data.snrTowards ?? []).map((snr) => snr / 4);
@@ -41,6 +46,16 @@ export const TracerouteResponseDialog = ({
 
   if (!toUser || !from) {
     return null;
+  }
+
+  function handleViewOnMap() {
+    if (!traceroute) {
+      return;
+    }
+
+    setSelectedTraceRoute(traceroute);
+    navigate({ to: "/map" });
+    onOpenChange();
   }
 
   return (
@@ -64,6 +79,11 @@ export const TracerouteResponseDialog = ({
             snrBack={snrBack}
           />
         </DialogDescription>
+        <div className="mt-4 flex justify-end">
+          <Button size="sm" variant="outline" onClick={handleViewOnMap}>
+            {t("tracerouteResponse.viewOnMap", "View on Map")}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

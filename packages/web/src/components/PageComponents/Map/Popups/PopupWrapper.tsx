@@ -26,10 +26,12 @@ export const PopupWrapper = memo(function SelectedNodePopup({
       longitude={lng}
       latitude={lat}
       onClose={onClose}
-      className="w-full"
+      className="darkmesh-map-popup w-full max-w-fit"
+      maxWidth="fit-content"
       style={{
         left: `${offset?.[0] ?? 0}px`,
         top: `${(offset?.[1] ?? 0) + 22}px`,
+        maxWidth: "fit-content",
       }}
     >
       {children as never}

@@ -1,3 +1,4 @@
+import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import PacketToMessageDTO from "@core/dto/PacketToMessageDTO.ts";
 import { useNewNodeNum } from "@core/hooks/useNewNodeNum";
 import { type Device, type MessageStore, MessageType, type NodeDB } from "@core/stores";
@@ -34,8 +35,8 @@ export const subscribeAll = (
     }
   });
 
-  connection.events.onTelemetryPacket.subscribe(() => {
-    // device.setMetrics(telemetryPacket);
+  connection.events.onTelemetryPacket.subscribe((telemetryPacket) => {
+    nodeDB.addTelemetry(telemetryPacket);
   });
 
   connection.events.onDeviceStatus.subscribe((status) => {
@@ -98,6 +99,15 @@ export const subscribeAll = (
     device.addTraceRoute({
       ...traceRoutePacket,
     });
+
+    const darkMeshState = useDarkMeshStore.getState();
+    const pendingTarget = darkMeshState.pendingTraceRouteTargetByDevice[device.id];
+    if (pendingTarget !== undefined && traceRoutePacket.from === pendingTarget) {
+      darkMeshState.setSelectedTraceRoute({
+        ...traceRoutePacket,
+      });
+      darkMeshState.setPendingTraceRouteTarget(device.id, undefined);
+    }
   });
 
   connection.events.onPendingSettingsChange.subscribe((state) => {
