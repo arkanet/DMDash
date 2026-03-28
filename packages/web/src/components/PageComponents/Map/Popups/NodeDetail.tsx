@@ -87,7 +87,9 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
       toast({ title: t("traceroute.sent", "Visual Traceroute request sent") });
     } catch (error) {
       console.warn("visual traceroute request failed", error);
-      toast({ title: t("traceroute.error", "Failed to send traceroute request") });
+      toast({
+        title: t("traceroute.error", "Failed to send traceroute request"),
+      });
     }
   }
 
@@ -103,7 +105,9 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
       setShowNeighbor(true);
     } catch (error) {
       console.warn("neighbor request failed", error);
-      toast({ title: t("nodeDetail.neighbor.error", "Failed to request neighbor info") });
+      toast({
+        title: t("nodeDetail.neighbor.error", "Failed to request neighbor info"),
+      });
     }
   }
 
@@ -119,7 +123,9 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
       setShowEnvironment(true);
     } catch (error) {
       console.warn("environment request failed", error);
-      toast({ title: t("nodeDetail.metrics.error", "Failed to request environmental metrics") });
+      toast({
+        title: t("nodeDetail.metrics.error", "Failed to request environmental metrics"),
+      });
     }
   }
 
@@ -257,7 +263,10 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
                         : t("nodeDetail.notFavorite.label")
                     }
                     onClick={() =>
-                      updateFavorite({ nodeNum: node.num, isFavorite: !node.isFavorite })
+                      updateFavorite({
+                        nodeNum: node.num,
+                        isFavorite: !node.isFavorite,
+                      })
                     }
                   >
                     <Star

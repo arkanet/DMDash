@@ -108,7 +108,9 @@ export const DeviceInfoPanel = ({
       id: "airUtil",
       label: t("nodeDetails.airTxUtilization", "Airtime Util"),
       value:
-        deviceMetrics.airUtilTx !== undefined ? `${deviceMetrics.airUtilTx.toFixed(2)}%` : t("unknown.notAvailable", "N/A"),
+        deviceMetrics.airUtilTx !== undefined
+          ? `${deviceMetrics.airUtilTx.toFixed(2)}%`
+          : t("unknown.notAvailable", "N/A"),
     },
     {
       id: "battery",

@@ -206,7 +206,9 @@ const DarkMeshDashboardPage = () => {
 
     const nextRunAt = new Date(scheduleAt).getTime();
     if (!Number.isFinite(nextRunAt) || nextRunAt <= Date.now()) {
-      toast({ title: "Choose a future date and time for the scheduled message" });
+      toast({
+        title: "Choose a future date and time for the scheduled message",
+      });
       return;
     }
 

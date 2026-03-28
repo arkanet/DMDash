@@ -233,7 +233,8 @@ const MapPage = () => {
   const initialMapView = useMemo(() => {
     const spanKm = 300; // target visible span across map in km
     const computeZoomForSpanKm = (spanKm: number, lat: number) => {
-      const mapWidth = typeof window !== "undefined" ? Math.max(360, Math.min(window.innerWidth, 1600)) : 1024;
+      const mapWidth =
+        typeof window !== "undefined" ? Math.max(360, Math.min(window.innerWidth, 1600)) : 1024;
       const metersPerPixel = (spanKm * 1000) / mapWidth;
       const zoom = Math.log2((156543.03392 * Math.cos((lat * Math.PI) / 180)) / metersPerPixel);
       return Number(zoom.toFixed(2));
@@ -303,31 +304,31 @@ const MapPage = () => {
         features: [
           ...(forwardCoordinates.length >= 2
             ? [
-              {
-                type: "Feature" as const,
-                properties: {
-                  role: "forward",
+                {
+                  type: "Feature" as const,
+                  properties: {
+                    role: "forward",
+                  },
+                  geometry: {
+                    type: "LineString" as const,
+                    coordinates: forwardCoordinates,
+                  },
                 },
-                geometry: {
-                  type: "LineString" as const,
-                  coordinates: forwardCoordinates,
-                },
-              },
-            ]
+              ]
             : []),
           ...(backwardCoordinates.length >= 2
             ? [
-              {
-                type: "Feature" as const,
-                properties: {
-                  role: "backward",
+                {
+                  type: "Feature" as const,
+                  properties: {
+                    role: "backward",
+                  },
+                  geometry: {
+                    type: "LineString" as const,
+                    coordinates: backwardCoordinates,
+                  },
                 },
-                geometry: {
-                  type: "LineString" as const,
-                  coordinates: backwardCoordinates,
-                },
-              },
-            ]
+              ]
             : []),
         ],
       },

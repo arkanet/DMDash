@@ -91,7 +91,9 @@ export function ErrorPage({ error }: { error: unknown }) {
           )}
           {!normalizedError.message && !normalizedError.stack && (
             <p className="text-slate-400">
-              {t("errorPage.fallbackError", { error: normalizedError.toString() })}
+              {t("errorPage.fallbackError", {
+                error: normalizedError.toString(),
+              })}
             </p>
           )}
         </span>

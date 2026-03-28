@@ -152,7 +152,6 @@ export const Sidebar = ({ children }: SidebarProps) => {
           isCollapsed && "justify-center px-0",
         )}
       >
-
         <img
           src="/darkmesh-logo.png"
           alt="DarkMesh"

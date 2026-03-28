@@ -66,7 +66,9 @@ interface DarkMeshState extends DarkMeshPersistedState {
   pendingTraceRouteTargetByDevice: Record<number, number | undefined>;
   gatewaysByDevice: Record<number, GatewaySnapshot | undefined>;
   addSchedule: (
-    schedule: Omit<ScheduledDarkMeshMessage, "id" | "createdAt"> & { id?: string },
+    schedule: Omit<ScheduledDarkMeshMessage, "id" | "createdAt"> & {
+      id?: string;
+    },
   ) => void;
   removeSchedule: (scheduleId: string) => void;
   markScheduleSent: (scheduleId: string, nextRunAt?: number) => void;

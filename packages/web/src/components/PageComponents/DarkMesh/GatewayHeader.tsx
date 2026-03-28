@@ -241,9 +241,9 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
           backgroundColor: `var(--gateway-bg, ${isDarkTheme ? "#222" : "#f1f1f1"})`,
           ...(highlight
             ? {
-              boxShadow:
-                "0 0 0 1px rgba(52,211,153,0.58), 0 0 18px rgba(52,211,153,0.75), 0 0 34px rgba(16,185,129,0.34)",
-            }
+                boxShadow:
+                  "0 0 0 1px rgba(52,211,153,0.58), 0 0 18px rgba(52,211,153,0.75), 0 0 34px rgba(16,185,129,0.34)",
+              }
             : {}),
         }}
       >
@@ -289,7 +289,9 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
 
         <div
           className="flex w-fit shrink-0 flex-col p-0.5"
-          style={{ backgroundColor: `var(--gateway-bg, ${isDarkTheme ? "#222" : "#f1f1f1"})` }}
+          style={{
+            backgroundColor: `var(--gateway-bg, ${isDarkTheme ? "#222" : "#f1f1f1"})`,
+          }}
         >
           <SignalMetric
             label="RSSI"

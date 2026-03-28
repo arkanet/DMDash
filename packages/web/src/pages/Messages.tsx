@@ -109,7 +109,9 @@ export const MessagesPage = () => {
   const sendText = useCallback(
     async (message: string) => {
       if (isDirect && myNodeNum === undefined) {
-        toast({ title: "Unable to resolve the local node for this direct chat" });
+        toast({
+          title: "Unable to resolve the local node for this direct chat",
+        });
         return;
       }
 

@@ -3,4 +3,10 @@
   "search.exclude": {
     "**/i18n/locales/*-*/**": true
   },
+  "chat.tools.terminal.autoApprove": {
+    "/^gh pr edit 2 --body '- Aggiornamenti UI \\\n- Aggiornamenti documentazione: README\\.md e README_it\\.md\\n'$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  },
 }
