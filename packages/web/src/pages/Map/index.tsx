@@ -229,6 +229,35 @@ const MapPage = () => {
     [mapRef, myNode, visibilityState.waypoints, popupState],
   );
 
+  // Default initial view: center on local node when available, otherwise Rome.
+  const initialMapView = useMemo(() => {
+    const spanKm = 300; // target visible span across map in km
+    const computeZoomForSpanKm = (spanKm: number, lat: number) => {
+      const mapWidth = typeof window !== "undefined" ? Math.max(360, Math.min(window.innerWidth, 1600)) : 1024;
+      const metersPerPixel = (spanKm * 1000) / mapWidth;
+      const zoom = Math.log2((156543.03392 * Math.cos((lat * Math.PI) / 180)) / metersPerPixel);
+      return Number(zoom.toFixed(2));
+    };
+
+    if (myNode && myNode.position && hasPos(myNode.position)) {
+      const [lng, lat] = toLngLat(myNode.position);
+      return {
+        latitude: lat,
+        longitude: lng,
+        zoom: computeZoomForSpanKm(spanKm, lat),
+      } as const;
+    }
+
+    // Rome fallback
+    const romeLat = 41.9027835;
+    const romeLng = 12.4963655;
+    return {
+      latitude: romeLat,
+      longitude: romeLng,
+      zoom: computeZoomForSpanKm(spanKm, romeLat),
+    } as const;
+  }, [myNode]);
+
   const tracerouteOverlay = useMemo(() => {
     if (!selectedTraceRoute) {
       return undefined;
@@ -274,31 +303,31 @@ const MapPage = () => {
         features: [
           ...(forwardCoordinates.length >= 2
             ? [
-                {
-                  type: "Feature" as const,
-                  properties: {
-                    role: "forward",
-                  },
-                  geometry: {
-                    type: "LineString" as const,
-                    coordinates: forwardCoordinates,
-                  },
+              {
+                type: "Feature" as const,
+                properties: {
+                  role: "forward",
                 },
-              ]
+                geometry: {
+                  type: "LineString" as const,
+                  coordinates: forwardCoordinates,
+                },
+              },
+            ]
             : []),
           ...(backwardCoordinates.length >= 2
             ? [
-                {
-                  type: "Feature" as const,
-                  properties: {
-                    role: "backward",
-                  },
-                  geometry: {
-                    type: "LineString" as const,
-                    coordinates: backwardCoordinates,
-                  },
+              {
+                type: "Feature" as const,
+                properties: {
+                  role: "backward",
                 },
-              ]
+                geometry: {
+                  type: "LineString" as const,
+                  coordinates: backwardCoordinates,
+                },
+              },
+            ]
             : []),
         ],
       },
@@ -413,6 +442,7 @@ const MapPage = () => {
 
         <div className="relative min-w-0 flex-1">
           <BaseMap
+            initialViewState={initialMapView}
             onLoad={getMapBounds}
             onMouseMove={onMouseMove}
             onClick={onMapBackgroundClick}

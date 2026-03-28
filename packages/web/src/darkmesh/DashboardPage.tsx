@@ -346,103 +346,16 @@ const DarkMeshDashboardPage = () => {
       contentClassName="overflow-y-auto"
       headerContent={<GatewayHeader />}
     >
-      <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 px-6 py-8 text-zinc-100 shadow-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(220,38,38,0.18),_transparent_30%)]" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-3xl">
-            <h1 className="text-3xl font-semibold tracking-[0.12em] text-white sm:text-4xl">
-              DarkMesh dashboard on Meshtastic Web
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300 sm:text-base">
-              This build keeps the official Meshtastic protobuf contract intact while surfacing
-              DarkMesh-specific workflows: scheduled messaging, distress beaconing, hunting
-              forwarding, gateway detection, traceroute visualization and `.dmdb` import/export.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">NodeDB</div>
-              <div className="mt-2 text-2xl font-semibold">{nodes.length}</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">Channels</div>
-              <div className="mt-2 text-2xl font-semibold">{channelOptions.length}</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">Unread</div>
-              <div className="mt-2 text-2xl font-semibold">{unreadCount}</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">Status</div>
-              <div className="mt-2 text-lg font-semibold">{connection ? "Linked" : "Offline"}</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Top dashboard header removed per design update */}
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-6">
+          {/* Traceroute Visualization removed per design update */}
           <DashboardCard
-            title="Message Scheduling"
-            description="Queue DarkMesh-style planned messages using the existing Meshtastic text message flow."
+            title="Scheduled Messages"
+            description="Create and manage scheduled DarkMesh messages."
           >
-            <div className="grid gap-3 md:grid-cols-[1.15fr_1fr_0.8fr]">
-              <label className="text-sm">
-                <span className="mb-1 block text-slate-500 dark:text-slate-400">Destination</span>
-                <select
-                  className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  value={scheduleDestination}
-                  onChange={(event) => setScheduleDestination(event.target.value)}
-                >
-                  {destinationOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="text-sm">
-                <span className="mb-1 block text-slate-500 dark:text-slate-400">Run at</span>
-                <input
-                  className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  type="datetime-local"
-                  value={scheduleAt}
-                  onChange={(event) => setScheduleAt(event.target.value)}
-                />
-              </label>
-
-              <label className="text-sm">
-                <span className="mb-1 block text-slate-500 dark:text-slate-400">Recurrence</span>
-                <select
-                  className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  value={scheduleRecurrence}
-                  onChange={(event) =>
-                    setScheduleRecurrence(event.target.value as "once" | "daily" | "weekly")
-                  }
-                >
-                  <option value="once">Once</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                </select>
-              </label>
-            </div>
-
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-500 dark:text-slate-400">Message</span>
-              <textarea
-                className="min-h-24 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                value={scheduleText}
-                onChange={(event) => setScheduleText(event.target.value)}
-                placeholder="Write the DarkMesh scheduled message"
-              />
-            </label>
-
             <div className="flex flex-wrap gap-3">
-              <Button icon={<CalendarClock className="h-4 w-4" />} onClick={handleAddSchedule}>
-                Add schedule
-              </Button>
               <Button
                 variant="outline"
                 icon={<MapIcon className="h-4 w-4" />}
@@ -704,7 +617,7 @@ const DarkMeshDashboardPage = () => {
               )}
             </div>
           </DashboardCard>
-        </div>
+        </div >
 
         <div className="space-y-6">
           <DashboardCard
@@ -845,40 +758,10 @@ const DarkMeshDashboardPage = () => {
             </div>
           </DashboardCard>
 
-          <DashboardCard
-            title="Protocol Notes"
-            description="Compatibility notes derived from the repository comparison."
-          >
-            <div className="space-y-3 text-sm text-slate-600 dark:text-zinc-300">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                <span>
-                  DarkMesh Firmware `2.7.15-ghost` points its `protobufs/` submodule to the official
-                  Meshtastic protobuf repository, so this dashboard keeps the shared schema
-                  untouched.
-                </span>
-              </div>
-              <div className="flex items-start gap-3">
-                <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-                <span>
-                  Features implemented here are layered on top of the Meshtastic web runtime:
-                  scheduling, beaconing, `.dmdb` exchange, reply threading, hunt forwarding and
-                  traceroute overlays.
-                </span>
-              </div>
-              <div className="flex items-start gap-3">
-                <Route className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
-                <span>
-                  Firmware-specific modules such as the DarkMesh console still rely on radio-side
-                  behavior; the dashboard remains compatible by using standard text/admin/traceroute
-                  paths rather than introducing custom web-only protobufs.
-                </span>
-              </div>
-            </div>
-          </DashboardCard>
+          {/* Protocol Notes removed per design update */}
         </div>
-      </div>
-    </PageLayout>
+      </div >
+    </PageLayout >
   );
 };
 

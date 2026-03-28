@@ -52,7 +52,7 @@ export const PageLayout = ({
         {leftBar && (
           <aside
             className={cn(
-              "px-2 pr-0 shrink-0 border-r-[0.5px] border-slate-300 dark:border-slate-700 ",
+              "px-2 pr-0 shrink-0 border-r-[0.5px] border-slate-300 dark:border-slate-700 h-full overflow-y-auto",
               leftBarClassName,
             )}
           >

@@ -97,6 +97,20 @@ export const DeviceInfoPanel = ({
 
   const deviceInfoItems: InfoDisplayItem[] = [
     {
+      id: "channelUtil",
+      label: t("nodeDetails.channelUtilization", "Channel Util"),
+      value:
+        deviceMetrics.channelUtilization !== undefined
+          ? `${deviceMetrics.channelUtilization.toFixed(2)}%`
+          : t("unknown.notAvailable", "N/A"),
+    },
+    {
+      id: "airUtil",
+      label: t("nodeDetails.airTxUtilization", "Airtime Util"),
+      value:
+        deviceMetrics.airUtilTx !== undefined ? `${deviceMetrics.airUtilTx.toFixed(2)}%` : t("unknown.notAvailable", "N/A"),
+    },
+    {
       id: "battery",
       label: t("batteryStatus.title"),
       customComponent: <BatteryStatus deviceMetrics={deviceMetrics} />,

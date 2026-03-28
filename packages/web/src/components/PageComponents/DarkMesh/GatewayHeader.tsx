@@ -214,6 +214,22 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
   const rssiTone = getRssiTone(gateway?.rxRssi);
   const confidenceTone = getConfidenceTone(gateway?.confidence);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    const computed = getComputedStyle(root);
+    // If gateway vars are not defined, set sensible night defaults (device default = night)
+    if (!computed.getPropertyValue("--gateway-bg")) {
+      root.style.setProperty("--gateway-bg", "#222");
+    }
+    if (!computed.getPropertyValue("--color-zinc-100")) {
+      root.style.setProperty("--color-zinc-100", "#e6eef8");
+    }
+    if (!computed.getPropertyValue("--color-gray-800")) {
+      root.style.setProperty("--color-gray-800", "#1f2937");
+    }
+  }, []);
+
   return (
     <div className={cn("w-full", className)}>
       <div
@@ -222,12 +238,12 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
           highlight ? "border-emerald-400" : "border-zinc-800",
         )}
         style={{
-          backgroundColor: isDarkTheme ? "#222" : "#f1f1f1",
+          backgroundColor: `var(--gateway-bg, ${isDarkTheme ? "#222" : "#f1f1f1"})`,
           ...(highlight
             ? {
-                boxShadow:
-                  "0 0 0 1px rgba(52,211,153,0.58), 0 0 18px rgba(52,211,153,0.75), 0 0 34px rgba(16,185,129,0.34)",
-              }
+              boxShadow:
+                "0 0 0 1px rgba(52,211,153,0.58), 0 0 18px rgba(52,211,153,0.75), 0 0 34px rgba(16,185,129,0.34)",
+            }
             : {}),
         }}
       >
@@ -236,12 +252,22 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
             "flex min-w-0 flex-1 flex-col justify-center border-r-0 px-3.5 py-3",
             isDarkTheme ? "text-zinc-100" : "text-zinc-900",
           )}
+          style={{
+            color: isDarkTheme
+              ? `var(--color-zinc-100, ${"#e6eef8"})`
+              : `var(--color-gray-800, ${"#0b1220"})`,
+          }}
         >
           <div
             className={cn(
               "truncate text-[0.7rem] font-semibold md:text-[1rem]",
-              isDarkTheme ? "text-zinc-100" : "text-zinc-900",
+              isDarkTheme ? "text-zinc-100" : "text-gray-800",
             )}
+            style={{
+              color: isDarkTheme
+                ? `var(--color-zinc-100, ${"#e6eef8"})`
+                : `var(--color-gray-800, ${"#0b1220"})`,
+            }}
           >
             {gateway?.nodeName ?? "No gateway detected yet"}
           </div>
@@ -263,7 +289,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
 
         <div
           className="flex w-fit shrink-0 flex-col p-0.5"
-          style={{ backgroundColor: isDarkTheme ? "#222" : "#f1f1f1" }}
+          style={{ backgroundColor: `var(--gateway-bg, ${isDarkTheme ? "#222" : "#f1f1f1"})` }}
         >
           <SignalMetric
             label="RSSI"
