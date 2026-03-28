@@ -90,78 +90,86 @@ export const Table = ({ headings, rows }: TableProps) => {
   }, [rows, sortColumn, sortOrder, headings]);
 
   return (
-    <table className="min-w-full" style={{ contentVisibility: "auto" }}>
-      <thead className="text-xs font-semibold">
-        <tr>
-          {headings.map((heading) => (
-            <th
-              key={heading.title}
-              scope="col"
-              className={cn(
-                "py-2 pr-3 text-left",
-                heading.sortable && "cursor-pointer hover:brightness-hover active:brightness-press",
-              )}
-              onClick={() => heading.sortable && handleSort(heading.title)}
-              onKeyUp={(e) => {
-                if (heading.sortable && (e.key === "Enter" || e.key === " ")) {
-                  handleSort(heading.title);
+    <div className="w-full overflow-x-auto">
+      <table
+        className="w-fit max-w-full table-auto"
+        style={{
+          width: "fit-content",
+          maxWidth: "100%",
+          tableLayout: "auto",
+          contentVisibility: "auto",
+        }}
+      >
+        <thead className="text-xs font-semibold">
+          <tr>
+            {headings.map((heading) => (
+              <th
+                key={heading.title}
+                scope="col"
+                className={cn(
+                  "py-1 px-2 text-left text-sm",
+                  heading.sortable &&
+                    "cursor-pointer hover:brightness-hover active:brightness-press",
+                )}
+                onClick={() => heading.sortable && handleSort(heading.title)}
+                onKeyUp={(e) => {
+                  if (heading.sortable && (e.key === "Enter" || e.key === " ")) {
+                    handleSort(heading.title);
+                  }
+                }}
+                tabIndex={heading.sortable ? 0 : -1}
+                aria-sort={
+                  sortColumn === heading.title
+                    ? sortOrder === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
                 }
-              }}
-              tabIndex={heading.sortable ? 0 : -1}
-              aria-sort={
-                sortColumn === heading.title
-                  ? sortOrder === "asc"
-                    ? "ascending"
-                    : "descending"
-                  : "none"
-              }
-            >
-              <div className="flex items-center gap-2">
-                {heading.title}
-                {heading.sortable &&
-                  sortColumn === heading.title &&
-                  (sortOrder === "asc" ? (
-                    <ChevronUpIcon size={16} aria-hidden="true" />
-                  ) : (
-                    <ChevronDownIcon size={16} aria-hidden="true" />
-                  ))}
-              </div>
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody className="max-w-fit">
-        {sortedRows.map((row) => (
-          <tr
-            key={row.id}
-            className={cn(
-              row.isFavorite
-                ? "bg-yellow-100/30 dark:bg-slate-800 odd:bg-yellow-200/30 dark:odd:bg-slate-600/40"
-                : "bg-white dark:bg-slate-900 odd:bg-slate-200/40 dark:odd:bg-slate-800/40",
-            )}
-          >
-            {row.cells.map((cell, cellIndex) => {
-              const key = `${row.id}_${cellIndex}`;
-              const isFirstCell = cellIndex === 0;
-
-              const cellElement = isFirstCell ? (
-                <th
-                  className="whitespace-nowrap px-3 py-2 text-sm text-left text-text-secondary"
-                  scope="row"
-                >
-                  {cell.content}
-                </th>
-              ) : (
-                <td className="whitespace-nowrap px-3 py-2 text-sm text-text-secondary">
-                  {cell.content}
-                </td>
-              );
-
-              return React.cloneElement(cellElement, { key });
-            })}
+              >
+                <div className="flex items-center gap-2">
+                  {heading.title}
+                  {heading.sortable &&
+                    sortColumn === heading.title &&
+                    (sortOrder === "asc" ? (
+                      <ChevronUpIcon size={16} aria-hidden="true" />
+                    ) : (
+                      <ChevronDownIcon size={16} aria-hidden="true" />
+                    ))}
+                </div>
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {sortedRows.map((row) => (
+            <tr
+              key={row.id}
+              className={cn(
+                row.isFavorite
+                  ? "bg-yellow-100/30 dark:bg-slate-800 odd:bg-yellow-200/30 dark:odd:bg-slate-600/40"
+                  : "bg-white dark:bg-slate-900 odd:bg-slate-200/40 dark:odd:bg-slate-800/40",
+              )}
+            >
+              {row.cells.map((cell, cellIndex) => {
+                const key = `${row.id}_${cellIndex}`;
+                const isFirstCell = cellIndex === 0;
+
+                const cellElement = isFirstCell ? (
+                  <th className="px-2 py-1 text-sm text-left text-text-secondary" scope="row">
+                    {cell.content}
+                  </th>
+                ) : (
+                  <td className="px-2 py-1 text-sm text-text-secondary break-words max-w-[14rem]">
+                    {cell.content}
+                  </td>
+                );
+
+                return React.cloneElement(cellElement, { key });
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
