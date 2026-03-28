@@ -100,7 +100,7 @@ export const DeviceInfoPanel = ({
       id: "channelUtil",
       label: t("nodeDetails.channelUtilization", "Channel Util"),
       value:
-        deviceMetrics.channelUtilization !== undefined
+        deviceMetrics.channelUtilization != null
           ? `${deviceMetrics.channelUtilization.toFixed(2)}%`
           : t("unknown.notAvailable", "N/A"),
     },
@@ -108,7 +108,7 @@ export const DeviceInfoPanel = ({
       id: "airUtil",
       label: t("nodeDetails.airTxUtilization", "Airtime Util"),
       value:
-        deviceMetrics.airUtilTx !== undefined
+        deviceMetrics.airUtilTx != null
           ? `${deviceMetrics.airUtilTx.toFixed(2)}%`
           : t("unknown.notAvailable", "N/A"),
     },

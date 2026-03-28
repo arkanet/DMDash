@@ -24,7 +24,6 @@ import {
   createNodeInfoFromSharedContact,
   getNodeDisplayName,
   parseDmdbContents,
-  toLocalDateTimeValue,
 } from "./utils.ts";
 
 function DashboardCard({
@@ -87,13 +86,7 @@ const DarkMeshDashboardPage = () => {
   const { updateFavorite } = useFavoriteNode();
   const { selectedDeviceId } = useAppStore();
   const deviceId = selectedDeviceId ?? -1;
-  const {
-    channels,
-    traceroutes,
-    unreadCounts,
-    sendAdminMessage,
-    connection: _connection,
-  } = useDevice();
+  const { channels, traceroutes, sendAdminMessage, connection: _connection } = useDevice();
   const { getMyNode, getNodes, addNode } = useNodeDB();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,7 +97,6 @@ const DarkMeshDashboardPage = () => {
   const huntConfig = useDarkMeshStore((state) => state.huntByDevice[deviceId] ?? defaultHuntConfig);
   const selectedTraceRoute = useDarkMeshStore((state) => state.selectedTraceRoute);
 
-  const addSchedule = useDarkMeshStore((state) => state.addSchedule);
   const removeSchedule = useDarkMeshStore((state) => state.removeSchedule);
   const upsertBeaconConfig = useDarkMeshStore((state) => state.upsertBeaconConfig);
   const upsertHuntConfig = useDarkMeshStore((state) => state.upsertHuntConfig);
@@ -161,34 +153,12 @@ const DarkMeshDashboardPage = () => {
     [traceroutes],
   );
 
-  const _unreadCount = useMemo(
-    () => Array.from(unreadCounts.values()).reduce((total, value) => total + value, 0),
-    [unreadCounts],
-  );
-
-  const [scheduleDestination, setScheduleDestination] = useState(
-    destinationOptions[0]?.value ?? encodeDestinationValue("broadcast", 0),
-  );
-  const [scheduleText, setScheduleText] = useState("");
-  const [scheduleAt, setScheduleAt] = useState(
-    toLocalDateTimeValue(new Date(Date.now() + 10 * 60_000)),
-  );
-  const [scheduleRecurrence, _setScheduleRecurrence] = useState<"once" | "daily" | "weekly">(
-    "once",
-  );
+  // schedule UI state is not currently wired in; keep schedules from store
   const [beaconDraft, setBeaconDraft] = useState<BeaconConfig>(beaconConfig);
   const [huntDraft, setHuntDraft] = useState<HuntConfig>(huntConfig);
   const [exportFavoriteOnly, setExportFavoriteOnly] = useState(false);
 
-  useEffect(() => {
-    if (destinationOptions.length > 0) {
-      setScheduleDestination((current) =>
-        destinationOptions.some((option) => option.value === current)
-          ? current
-          : (destinationOptions[0]?.value ?? current),
-      );
-    }
-  }, [destinationOptions]);
+  // destinationOptions available for future schedule UI
 
   useEffect(() => {
     setBeaconDraft(beaconConfig);
@@ -198,38 +168,8 @@ const DarkMeshDashboardPage = () => {
     setHuntDraft(huntConfig);
   }, [huntConfig]);
 
-  const _handleAddSchedule = () => {
-    if (!scheduleText.trim()) {
-      toast({ title: "Add a message before scheduling it" });
-      return;
-    }
-
-    const nextRunAt = new Date(scheduleAt).getTime();
-    if (!Number.isFinite(nextRunAt) || nextRunAt <= Date.now()) {
-      toast({
-        title: "Choose a future date and time for the scheduled message",
-      });
-      return;
-    }
-
-    const destination = decodeDestinationValue(scheduleDestination);
-    const destinationLabel =
-      destinationOptions.find((option) => option.value === scheduleDestination)?.label ??
-      "Unknown destination";
-
-    addSchedule({
-      deviceId,
-      destination: destination.destination,
-      kind: destination.kind,
-      label: destinationLabel,
-      text: scheduleText.trim(),
-      nextRunAt,
-      recurrence: scheduleRecurrence,
-    });
-
-    setScheduleText("");
-    setScheduleAt(toLocalDateTimeValue(new Date(Date.now() + 10 * 60_000)));
-  };
+  // Add-schedule handler removed because it's not currently wired into the UI.
+  // Keep implementation history in git if needed later.
 
   const handleSaveBeacon = () => {
     upsertBeaconConfig(deviceId, beaconDraft);
