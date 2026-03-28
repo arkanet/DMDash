@@ -111,6 +111,26 @@ pnpm exec tsc --noEmit -p packages/web/tsconfig.json
 pnpm --filter meshtastic-web build
 ```
 
+## Useful scripts
+
+The repository exposes several helpful workspace scripts through the top-level `package.json`. Useful commands include:
+
+- **Install prerequisites**: `pnpm install`
+- **Run dev server (web package)**: `pnpm --filter meshtastic-web dev`
+- **Typecheck (runtime-focused)**: `pnpm --filter meshtastic-web typecheck`
+- **Full package TypeScript check**: `pnpm exec tsc --noEmit -p packages/web/tsconfig.json`
+- **Build all packages**: `pnpm run build:all` (runs `build` for all workspace packages)
+- **Clean all packages**: `pnpm run clean:all`
+- **Sync upstream mirrors**: `pnpm sync:upstreams`
+- **Update upstream mirrors (fast-forward when clean)**: `pnpm sync:upstreams:update`
+- **Regenerate compatibility report**: `pnpm report:compatibility`
+- **Lint**: `pnpm run lint` and `pnpm run lint:fix`
+- **Format**: `pnpm run format` and `pnpm run format:fix`
+- **Check (lint + format)**: `pnpm run check` and `pnpm run check:fix`
+- **Run tests**: `pnpm run test`
+
+These map to the scripts defined in the repository root `package.json` and are useful during development and CI.
+
 ## Upstream Sync Workflow
 
 Refresh remotes and local mirrors:
