@@ -262,7 +262,9 @@ const NodesPage = (): JSX.Element => {
         </div>
       </div>
       <div className="overflow-y-auto">
-        <Table headings={tableHeadings} rows={tableRows} />
+        <div className="max-w-full">
+          <Table headings={tableHeadings} rows={tableRows} />
+        </div>
         <TracerouteResponseDialog
           traceroute={selectedTraceroute}
           open={!!selectedTraceroute}
