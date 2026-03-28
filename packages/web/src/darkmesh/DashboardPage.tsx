@@ -9,18 +9,7 @@ import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useToast } from "@core/hooks/useToast.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import { Protobuf } from "@meshtastic/core";
-import {
-  Activity,
-  CalendarClock,
-  Download,
-  Gauge,
-  MapIcon,
-  Radar,
-  RefreshCcw,
-  Route,
-  ShieldCheck,
-  Upload,
-} from "lucide-react";
+import { Activity, Download, MapIcon, Radar, RefreshCcw, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -98,7 +87,13 @@ const DarkMeshDashboardPage = () => {
   const { updateFavorite } = useFavoriteNode();
   const { selectedDeviceId } = useAppStore();
   const deviceId = selectedDeviceId ?? -1;
-  const { channels, traceroutes, unreadCounts, sendAdminMessage, connection } = useDevice();
+  const {
+    channels,
+    traceroutes,
+    unreadCounts,
+    sendAdminMessage,
+    connection: _connection,
+  } = useDevice();
   const { getMyNode, getNodes, addNode } = useNodeDB();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -166,7 +161,7 @@ const DarkMeshDashboardPage = () => {
     [traceroutes],
   );
 
-  const unreadCount = useMemo(
+  const _unreadCount = useMemo(
     () => Array.from(unreadCounts.values()).reduce((total, value) => total + value, 0),
     [unreadCounts],
   );
@@ -178,7 +173,9 @@ const DarkMeshDashboardPage = () => {
   const [scheduleAt, setScheduleAt] = useState(
     toLocalDateTimeValue(new Date(Date.now() + 10 * 60_000)),
   );
-  const [scheduleRecurrence, setScheduleRecurrence] = useState<"once" | "daily" | "weekly">("once");
+  const [scheduleRecurrence, _setScheduleRecurrence] = useState<"once" | "daily" | "weekly">(
+    "once",
+  );
   const [beaconDraft, setBeaconDraft] = useState<BeaconConfig>(beaconConfig);
   const [huntDraft, setHuntDraft] = useState<HuntConfig>(huntConfig);
   const [exportFavoriteOnly, setExportFavoriteOnly] = useState(false);
@@ -201,7 +198,7 @@ const DarkMeshDashboardPage = () => {
     setHuntDraft(huntConfig);
   }, [huntConfig]);
 
-  const handleAddSchedule = () => {
+  const _handleAddSchedule = () => {
     if (!scheduleText.trim()) {
       toast({ title: "Add a message before scheduling it" });
       return;
@@ -617,7 +614,7 @@ const DarkMeshDashboardPage = () => {
               )}
             </div>
           </DashboardCard>
-        </div >
+        </div>
 
         <div className="space-y-6">
           <DashboardCard
@@ -760,8 +757,8 @@ const DarkMeshDashboardPage = () => {
 
           {/* Protocol Notes removed per design update */}
         </div>
-      </div >
-    </PageLayout >
+      </div>
+    </PageLayout>
   );
 };
 
