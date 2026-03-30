@@ -21,12 +21,14 @@ type NodeDBData = {
 };
 
 export interface NodeDB extends NodeDBData {
+  environmentMetricsMap: Map<number, Protobuf.Telemetry.EnvironmentMetrics>;
   // Ephemeral state (not persisted)
   addNode: (nodeInfo: Protobuf.Mesh.NodeInfo) => void;
   removeNode: (nodeNum: number) => void;
   removeAllNodes: (keepMyNode?: boolean) => void;
   pruneStaleNodes: () => number;
   processPacket: (data: ProcessPacketParams) => void;
+  addTelemetry: (telemetry: Types.PacketMetadata<Protobuf.Telemetry.Telemetry>) => void;
   addUser: (user: Types.PacketMetadata<Protobuf.Mesh.User>) => void;
   addPosition: (position: Types.PacketMetadata<Protobuf.Mesh.Position>) => void;
   updateFavorite: (nodeNum: number, isFavorite: boolean) => void;
@@ -43,6 +45,7 @@ export interface NodeDB extends NodeDBData {
     includeSelf?: boolean,
   ) => Protobuf.Mesh.NodeInfo[];
   getMyNode: () => Protobuf.Mesh.NodeInfo | undefined;
+  getEnvironmentMetrics: (nodeNum: number) => Protobuf.Telemetry.EnvironmentMetrics | undefined;
 
   getNodeError: (nodeNum: number) => NodeError | undefined;
   hasNodeError: (nodeNum: number) => boolean;
@@ -72,12 +75,14 @@ function nodeDBFactory(
   const nodeMap = data?.nodeMap ?? new Map<number, Protobuf.Mesh.NodeInfo>();
   const nodeErrors = data?.nodeErrors ?? new Map<number, NodeError>();
   const myNodeNum = data?.myNodeNum;
+  const environmentMetricsMap = new Map<number, Protobuf.Telemetry.EnvironmentMetrics>();
 
   return {
     id,
     myNodeNum,
     nodeMap,
     nodeErrors,
+    environmentMetricsMap,
 
     addNode: (node) =>
       set(
@@ -164,6 +169,19 @@ function nodeDBFactory(
             );
           }
           nodeDB.nodeMap = newNodeMap;
+          nodeDB.environmentMetricsMap = keepMyNode
+            ? new Map(
+                nodeDB.myNodeNum !== undefined && nodeDB.environmentMetricsMap.has(nodeDB.myNodeNum)
+                  ? [
+                      [
+                        nodeDB.myNodeNum,
+                        nodeDB.environmentMetricsMap.get(nodeDB.myNodeNum) ??
+                          create(Protobuf.Telemetry.EnvironmentMetricsSchema),
+                      ],
+                    ]
+                  : [],
+              )
+            : new Map<number, Protobuf.Telemetry.EnvironmentMetrics>();
         }),
       ),
 
@@ -281,6 +299,47 @@ function nodeDBFactory(
         }),
       ),
 
+    addTelemetry: (telemetry) =>
+      set(
+        produce<PrivateNodeDBState>((draft) => {
+          const nodeDB = draft.nodeDBs.get(id);
+          if (!nodeDB) {
+            throw new Error(`No nodeDB found (id: ${id})`);
+          }
+
+          const current = nodeDB.nodeMap.get(telemetry.from);
+          const nowSec = Math.floor(Date.now() / 1000);
+          const telemetryTimeSec = Math.floor(telemetry.rxTime.getTime() / 1000);
+          const baseNode =
+            current ??
+            create(Protobuf.Mesh.NodeInfoSchema, {
+              num: telemetry.from,
+              lastHeard: telemetryTimeSec > 0 ? telemetryTimeSec : nowSec,
+              snr: telemetry.rxSnr ?? 0,
+            });
+
+          const updatedNode = {
+            ...baseNode,
+            num: telemetry.from,
+            lastHeard: telemetryTimeSec > 0 ? telemetryTimeSec : baseNode.lastHeard,
+            snr: telemetry.rxSnr ?? baseNode.snr,
+            deviceMetrics:
+              telemetry.data.variant.case === "deviceMetrics"
+                ? telemetry.data.variant.value
+                : baseNode.deviceMetrics,
+          };
+
+          nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(telemetry.from, updatedNode);
+
+          if (telemetry.data.variant.case === "environmentMetrics") {
+            nodeDB.environmentMetricsMap = new Map(nodeDB.environmentMetricsMap).set(
+              telemetry.from,
+              telemetry.data.variant.value,
+            );
+          }
+        }),
+      ),
+
     addUser: (user) =>
       set(
         produce<PrivateNodeDBState>((draft) => {
@@ -347,6 +406,7 @@ function nodeDBFactory(
 
               const mergedNodes = new Map(oldDB.nodeMap);
               const mergedErrors = new Map(oldDB.nodeErrors);
+              const mergedEnvironmentMetrics = new Map(oldDB.environmentMetricsMap);
 
               const getNodesProxy = (
                 filter?: (node: Protobuf.Mesh.NodeInfo) => boolean,
@@ -374,9 +434,14 @@ function nodeDBFactory(
                 }
               }
 
+              for (const [num, metrics] of newDB.environmentMetricsMap) {
+                mergedEnvironmentMetrics.set(num, metrics);
+              }
+
               // finalize: move maps into newDB and drop oldDB entry
               newDB.nodeMap = mergedNodes;
               newDB.nodeErrors = mergedErrors;
+              newDB.environmentMetricsMap = mergedEnvironmentMetrics;
               draft.nodeDBs.delete(oldDB.id);
             }
           }
@@ -455,6 +520,15 @@ function nodeDBFactory(
       if (nodeDB.myNodeNum) {
         return nodeDB.nodeMap.get(nodeDB.myNodeNum) ?? create(Protobuf.Mesh.NodeInfoSchema);
       }
+    },
+
+    getEnvironmentMetrics: (nodeNum) => {
+      const nodeDB = get().nodeDBs.get(id);
+      if (!nodeDB) {
+        throw new Error(`No nodeDB found (id: ${id})`);
+      }
+
+      return nodeDB.environmentMetricsMap.get(nodeNum);
     },
 
     getNodeError: (nodeNum) => {

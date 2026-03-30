@@ -88,7 +88,11 @@ export const ModuleConfig = ({ onFormInit }: ConfigProps) => {
         label: t("page.tabDetectionSensor"),
         element: DetectionSensor,
       },
-      { case: "paxcounter", label: t("page.tabPaxcounter"), element: Paxcounter },
+      {
+        case: "paxcounter",
+        label: t("page.tabPaxcounter"),
+        element: Paxcounter,
+      },
     ],
     [t],
   );

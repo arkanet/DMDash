@@ -5,7 +5,6 @@ import MapGl, {
   AttributionControl,
   type MapLayerMouseEvent,
   type MapRef,
-  NavigationControl,
   ScaleControl,
 } from "react-map-gl/maplibre";
 
@@ -97,7 +96,6 @@ export const BaseMap = ({
         positionOptions={{ enableHighAccuracy: true }}
         trackUserLocation
       />  */}
-      <NavigationControl position="top-right" showCompass={false} />
       <ScaleControl />
       {children}
     </MapGl>

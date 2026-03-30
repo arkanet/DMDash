@@ -11,6 +11,7 @@ npm/
 **/LICENSE
 .DS_Store
 external-sources/
+log/
 
 packages/protobufs/packages/ts/dist
 .pnpm-store/

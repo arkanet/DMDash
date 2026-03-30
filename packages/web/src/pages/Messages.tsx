@@ -1,4 +1,5 @@
 import { messagesWithParamsRoute } from "@app/routes.tsx";
+import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { ChannelChat } from "@components/PageComponents/Messages/ChannelChat.tsx";
 import { MessageInput } from "@components/PageComponents/Messages/MessageInput.tsx";
 import { PageLayout } from "@components/PageLayout.tsx";
@@ -108,7 +109,9 @@ export const MessagesPage = () => {
   const sendText = useCallback(
     async (message: string) => {
       if (isDirect && myNodeNum === undefined) {
-        toast({ title: "Unable to resolve the local node for this direct chat" });
+        toast({
+          title: "Unable to resolve the local node for this direct chat",
+        });
         return;
       }
 
@@ -306,6 +309,7 @@ export const MessagesPage = () => {
       `}
       rightBar={rightSidebar}
       leftBar={leftSidebar}
+      headerContent={<GatewayHeader />}
       actions={
         isDirect && otherNode
           ? [

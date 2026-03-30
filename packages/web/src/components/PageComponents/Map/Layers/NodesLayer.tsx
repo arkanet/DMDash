@@ -12,7 +12,6 @@ import { StackBadge } from "@components/PageComponents/Map/Markers/StackBadge.ts
 import { NodeDetail } from "@components/PageComponents/Map/Popups/NodeDetail.tsx";
 import type { PopupState } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
 import { PopupWrapper } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
-import { useMapFitting } from "@core/hooks/useMapFitting";
 import { useNodeDB } from "@core/stores";
 import { hasPos, toLngLat } from "@core/utils/geo.ts";
 import type { Protobuf } from "@meshtastic/core";
@@ -29,10 +28,11 @@ export interface NodeMarkerProps {
   popupState: PopupState | undefined;
   setPopupState: (state: PopupState | undefined) => void;
   isVisible: boolean;
+  getNodeMarkerClassName?: (node: Protobuf.Mesh.NodeInfo) => string | undefined;
 }
 
 export const NodesLayer = ({
-  mapRef,
+  mapRef: _mapRef,
   filteredNodes,
   myNode,
   expandedCluster,
@@ -40,11 +40,11 @@ export const NodesLayer = ({
   popupState,
   setPopupState,
   isVisible,
+  getNodeMarkerClassName,
 }: NodeMarkerProps): React.ReactNode[] => {
   const { t } = useTranslation("map");
 
   const { hasNodeError } = useNodeDB();
-  const { focusLngLat } = useMapFitting(mapRef);
 
   const selectedNode = useMemo(
     () =>
@@ -58,12 +58,8 @@ export const NodesLayer = ({
     (num: number, offset: PxOffset, e: { originalEvent: MouseEvent }) => {
       e.originalEvent?.stopPropagation();
       setPopupState({ type: "node", num, offset });
-      const node = filteredNodes.find((node) => node.num === num) ?? undefined;
-      if (node) {
-        focusLngLat(toLngLat(node.position));
-      }
     },
-    [filteredNodes, focusLngLat, setPopupState],
+    [setPopupState],
   );
 
   const clusters = groupNodesByIdenticalCoords(filteredNodes);
@@ -94,6 +90,7 @@ export const NodesLayer = ({
           tooltipLabel={node.user?.longName ?? t("unknown.longName")}
           hasError={hasNodeError(node.num)}
           isFavorite={node.isFavorite ?? false}
+          avatarClassName={getNodeMarkerClassName?.(node)}
           isVisible={isVisible}
           onClick={(num, e) => {
             e.originalEvent?.stopPropagation();
@@ -162,6 +159,7 @@ export const NodesLayer = ({
         tooltipLabel={t("myNode.tooltip")}
         hasError={false}
         isFavorite={true}
+        avatarClassName={getNodeMarkerClassName?.(myNode)}
         onClick={(_, e) => onMarkerClick(myNode.num, [0, 0], e)}
       />,
     );

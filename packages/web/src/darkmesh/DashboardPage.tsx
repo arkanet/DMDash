@@ -1,4 +1,5 @@
 import { create } from "@bufbuild/protobuf";
+import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
 import { Button } from "@components/UI/Button.tsx";
@@ -8,18 +9,7 @@ import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useToast } from "@core/hooks/useToast.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import { Protobuf } from "@meshtastic/core";
-import {
-  Activity,
-  CalendarClock,
-  Download,
-  Gauge,
-  MapIcon,
-  Radar,
-  RefreshCcw,
-  Route,
-  ShieldCheck,
-  Upload,
-} from "lucide-react";
+import { Activity, Download, MapIcon, Radar, RefreshCcw, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -34,7 +24,6 @@ import {
   createNodeInfoFromSharedContact,
   getNodeDisplayName,
   parseDmdbContents,
-  toLocalDateTimeValue,
 } from "./utils.ts";
 
 function DashboardCard({
@@ -97,21 +86,17 @@ const DarkMeshDashboardPage = () => {
   const { updateFavorite } = useFavoriteNode();
   const { selectedDeviceId } = useAppStore();
   const deviceId = selectedDeviceId ?? -1;
-  const { channels, traceroutes, unreadCounts, sendAdminMessage, connection } = useDevice();
+  const { channels, traceroutes, sendAdminMessage, connection: _connection } = useDevice();
   const { getMyNode, getNodes, addNode } = useNodeDB();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const schedules = useDarkMeshStore((state) =>
-    state.schedules.filter((schedule) => schedule.deviceId === deviceId),
-  );
+  const allSchedules = useDarkMeshStore((state) => state.schedules);
   const beaconConfig = useDarkMeshStore(
     (state) => state.beaconsByDevice[deviceId] ?? defaultBeaconConfig,
   );
   const huntConfig = useDarkMeshStore((state) => state.huntByDevice[deviceId] ?? defaultHuntConfig);
-  const gateway = useDarkMeshStore((state) => state.gatewaysByDevice[deviceId]);
   const selectedTraceRoute = useDarkMeshStore((state) => state.selectedTraceRoute);
 
-  const addSchedule = useDarkMeshStore((state) => state.addSchedule);
   const removeSchedule = useDarkMeshStore((state) => state.removeSchedule);
   const upsertBeaconConfig = useDarkMeshStore((state) => state.upsertBeaconConfig);
   const upsertHuntConfig = useDarkMeshStore((state) => state.upsertHuntConfig);
@@ -120,6 +105,10 @@ const DarkMeshDashboardPage = () => {
   const setSelectedTraceRoute = useDarkMeshStore((state) => state.setSelectedTraceRoute);
 
   const myNode = getMyNode();
+  const schedules = useMemo(
+    () => allSchedules.filter((schedule) => schedule.deviceId === deviceId),
+    [allSchedules, deviceId],
+  );
   const nodes = useMemo(
     () => getNodes((node) => node.num !== myNode?.num, true),
     [getNodes, myNode?.num],
@@ -164,32 +153,12 @@ const DarkMeshDashboardPage = () => {
     [traceroutes],
   );
 
-  const unreadCount = useMemo(
-    () => Array.from(unreadCounts.values()).reduce((total, value) => total + value, 0),
-    [unreadCounts],
-  );
-
-  const [scheduleDestination, setScheduleDestination] = useState(
-    destinationOptions[0]?.value ?? encodeDestinationValue("broadcast", 0),
-  );
-  const [scheduleText, setScheduleText] = useState("");
-  const [scheduleAt, setScheduleAt] = useState(
-    toLocalDateTimeValue(new Date(Date.now() + 10 * 60_000)),
-  );
-  const [scheduleRecurrence, setScheduleRecurrence] = useState<"once" | "daily" | "weekly">("once");
+  // schedule UI state is not currently wired in; keep schedules from store
   const [beaconDraft, setBeaconDraft] = useState<BeaconConfig>(beaconConfig);
   const [huntDraft, setHuntDraft] = useState<HuntConfig>(huntConfig);
   const [exportFavoriteOnly, setExportFavoriteOnly] = useState(false);
 
-  useEffect(() => {
-    if (destinationOptions.length > 0) {
-      setScheduleDestination((current) =>
-        destinationOptions.some((option) => option.value === current)
-          ? current
-          : (destinationOptions[0]?.value ?? current),
-      );
-    }
-  }, [destinationOptions]);
+  // destinationOptions available for future schedule UI
 
   useEffect(() => {
     setBeaconDraft(beaconConfig);
@@ -199,36 +168,8 @@ const DarkMeshDashboardPage = () => {
     setHuntDraft(huntConfig);
   }, [huntConfig]);
 
-  const handleAddSchedule = () => {
-    if (!scheduleText.trim()) {
-      toast({ title: "Add a message before scheduling it" });
-      return;
-    }
-
-    const nextRunAt = new Date(scheduleAt).getTime();
-    if (!Number.isFinite(nextRunAt) || nextRunAt <= Date.now()) {
-      toast({ title: "Choose a future date and time for the scheduled message" });
-      return;
-    }
-
-    const destination = decodeDestinationValue(scheduleDestination);
-    const destinationLabel =
-      destinationOptions.find((option) => option.value === scheduleDestination)?.label ??
-      "Unknown destination";
-
-    addSchedule({
-      deviceId,
-      destination: destination.destination,
-      kind: destination.kind,
-      label: destinationLabel,
-      text: scheduleText.trim(),
-      nextRunAt,
-      recurrence: scheduleRecurrence,
-    });
-
-    setScheduleText("");
-    setScheduleAt(toLocalDateTimeValue(new Date(Date.now() + 10 * 60_000)));
-  };
+  // Add-schedule handler removed because it's not currently wired into the UI.
+  // Keep implementation history in git if needed later.
 
   const handleSaveBeacon = () => {
     upsertBeaconConfig(deviceId, beaconDraft);
@@ -338,108 +279,22 @@ const DarkMeshDashboardPage = () => {
   };
 
   return (
-    <PageLayout label="DarkMesh Dashboard" leftBar={<Sidebar />} contentClassName="overflow-y-auto">
-      <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 px-6 py-8 text-zinc-100 shadow-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(220,38,38,0.18),_transparent_30%)]" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-300">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Full-offgrid compatible
-            </div>
-            <h1 className="text-3xl font-semibold tracking-[0.12em] text-white sm:text-4xl">
-              DarkMesh dashboard on Meshtastic Web
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300 sm:text-base">
-              This build keeps the official Meshtastic protobuf contract intact while surfacing
-              DarkMesh-specific workflows: scheduled messaging, distress beaconing, hunting
-              forwarding, gateway detection, traceroute visualization and `.dmdb` import/export.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">NodeDB</div>
-              <div className="mt-2 text-2xl font-semibold">{nodes.length}</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">Channels</div>
-              <div className="mt-2 text-2xl font-semibold">{channelOptions.length}</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">Unread</div>
-              <div className="mt-2 text-2xl font-semibold">{unreadCount}</div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">Status</div>
-              <div className="mt-2 text-lg font-semibold">{connection ? "Linked" : "Offline"}</div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <PageLayout
+      label="DarkMesh Dashboard"
+      leftBar={<Sidebar />}
+      contentClassName="overflow-y-auto"
+      headerContent={<GatewayHeader />}
+    >
+      {/* Top dashboard header removed per design update */}
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-6">
+          {/* Traceroute Visualization removed per design update */}
           <DashboardCard
-            title="Message Scheduling"
-            description="Queue DarkMesh-style planned messages using the existing Meshtastic text message flow."
+            title="Scheduled Messages"
+            description="Create and manage scheduled DarkMesh messages."
           >
-            <div className="grid gap-3 md:grid-cols-[1.15fr_1fr_0.8fr]">
-              <label className="text-sm">
-                <span className="mb-1 block text-slate-500 dark:text-slate-400">Destination</span>
-                <select
-                  className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  value={scheduleDestination}
-                  onChange={(event) => setScheduleDestination(event.target.value)}
-                >
-                  {destinationOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="text-sm">
-                <span className="mb-1 block text-slate-500 dark:text-slate-400">Run at</span>
-                <input
-                  className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  type="datetime-local"
-                  value={scheduleAt}
-                  onChange={(event) => setScheduleAt(event.target.value)}
-                />
-              </label>
-
-              <label className="text-sm">
-                <span className="mb-1 block text-slate-500 dark:text-slate-400">Recurrence</span>
-                <select
-                  className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  value={scheduleRecurrence}
-                  onChange={(event) =>
-                    setScheduleRecurrence(event.target.value as "once" | "daily" | "weekly")
-                  }
-                >
-                  <option value="once">Once</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                </select>
-              </label>
-            </div>
-
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-500 dark:text-slate-400">Message</span>
-              <textarea
-                className="min-h-24 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                value={scheduleText}
-                onChange={(event) => setScheduleText(event.target.value)}
-                placeholder="Write the DarkMesh scheduled message"
-              />
-            </label>
-
             <div className="flex flex-wrap gap-3">
-              <Button icon={<CalendarClock className="h-4 w-4" />} onClick={handleAddSchedule}>
-                Add schedule
-              </Button>
               <Button
                 variant="outline"
                 icon={<MapIcon className="h-4 w-4" />}
@@ -705,45 +560,6 @@ const DarkMeshDashboardPage = () => {
 
         <div className="space-y-6">
           <DashboardCard
-            title="Gateway Detection"
-            description="Heuristic gateway tracking derived from direct packets, relay suffixes and traceroute responses."
-          >
-            {gateway ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-4 text-zinc-100">
-                  <div className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                    Last detected gateway
-                  </div>
-                  <div className="mt-2 text-2xl font-semibold">{gateway.nodeName}</div>
-                  <div className="mt-1 text-sm text-zinc-400">
-                    Source: {gateway.source} · Confidence {gateway.confidence}%
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-zinc-800">
-                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-zinc-400">
-                      RSSI
-                    </div>
-                    <div className="mt-2 text-xl font-semibold">{gateway.rxRssi ?? "n/a"}</div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-zinc-800">
-                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-zinc-400">
-                      SNR
-                    </div>
-                    <div className="mt-2 text-xl font-semibold">{gateway.rxSnr ?? "n/a"}</div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-zinc-800 dark:text-zinc-400">
-                No gateway candidate detected yet. The runtime will update this panel automatically
-                once traffic starts flowing.
-              </div>
-            )}
-          </DashboardCard>
-
-          <DashboardCard
             title="Hunting Forwarder"
             description="Mirror position, telemetry and traceroute packets to a DarkMesh-compatible web endpoint."
           >
@@ -881,37 +697,7 @@ const DarkMeshDashboardPage = () => {
             </div>
           </DashboardCard>
 
-          <DashboardCard
-            title="Protocol Notes"
-            description="Compatibility notes derived from the repository comparison."
-          >
-            <div className="space-y-3 text-sm text-slate-600 dark:text-zinc-300">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                <span>
-                  DarkMesh Firmware `2.7.15-ghost` points its `protobufs/` submodule to the official
-                  Meshtastic protobuf repository, so this dashboard keeps the shared schema
-                  untouched.
-                </span>
-              </div>
-              <div className="flex items-start gap-3">
-                <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-                <span>
-                  Features implemented here are layered on top of the Meshtastic web runtime:
-                  scheduling, beaconing, `.dmdb` exchange, reply threading, hunt forwarding and
-                  traceroute overlays.
-                </span>
-              </div>
-              <div className="flex items-start gap-3">
-                <Route className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
-                <span>
-                  Firmware-specific modules such as the DarkMesh console still rely on radio-side
-                  behavior; the dashboard remains compatible by using standard text/admin/traceroute
-                  paths rather than introducing custom web-only protobufs.
-                </span>
-              </div>
-            </div>
-          </DashboardCard>
+          {/* Protocol Notes removed per design update */}
         </div>
       </div>
     </PageLayout>

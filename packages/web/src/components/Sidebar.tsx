@@ -52,12 +52,13 @@ const CollapseToggleButton = () => {
       aria-label={buttonLabel}
       onClick={toggleSidebar}
       className={cn(
-        "absolute top-20 right-0 z-10 p-0.5 rounded-full transform translate-x-1/2",
+        "fixed z-[9999] p-0.5 rounded-full",
         "transition-colors duration-300 ease-in-out",
         "border border-slate-300 dark:border-slate-200",
         "text-slate-500 dark:text-slate-200 hover:text-slate-400 dark:hover:text-slate-400",
         "focus:outline-none focus:ring-2 focus:ring-accent transition-transform bg-background-primary",
       )}
+      style={{ top: "1.5rem", left: isCollapsed ? "4.5rem" : "13.5rem" }}
     >
       <CircleChevronLeft
         size={24}
@@ -138,6 +139,7 @@ export const Sidebar = ({ children }: SidebarProps) => {
       className={cn(
         "relative border-slate-300 dark:border-slate-700",
         "transition-all duration-300 ease-in-out flex-shrink-0",
+        "flex flex-col",
         isCollapsed ? "w-24" : "w-52 lg:w-64",
       )}
     >
@@ -186,7 +188,9 @@ export const Sidebar = ({ children }: SidebarProps) => {
         })}
       </SidebarSection>
 
-      <div className={cn("flex-1 min-h-0", isCollapsed && "overflow-hidden")}>{children}</div>
+      <div className={cn("flex-1 min-h-0 overflow-auto", isCollapsed && "overflow-hidden")}>
+        {children}
+      </div>
 
       <div className=" pt-4 border-t-[0.5px] bg-background-primary border-slate-300 dark:border-slate-700 h-full flex-1">
         {myNode === undefined ? (
@@ -214,6 +218,8 @@ export const Sidebar = ({ children }: SidebarProps) => {
                 typeof myNode.deviceMetrics?.voltage === "number"
                   ? Math.abs(myNode.deviceMetrics?.voltage)
                   : undefined,
+              channelUtilization: myNode.deviceMetrics?.channelUtilization,
+              airUtilTx: myNode.deviceMetrics?.airUtilTx,
             }}
             connectionStatus={activeConnection?.status}
             connectionName={activeConnection?.name}
