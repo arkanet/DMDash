@@ -46,6 +46,17 @@ export const NeighborInfo = ({ onFormInit }: NeighborInfoModuleConfigProps) => {
               description: t("neighborInfo.enabled.description"),
             },
             {
+              type: "toggle",
+              name: "transmitOverLora",
+              label: t("neighborInfo.transmitOverLora.label"),
+              description: t("neighborInfo.transmitOverLora.description"),
+              disabledBy: [
+                {
+                  fieldName: "enabled",
+                },
+              ],
+            },
+            {
               type: "number",
               name: "updateInterval",
               label: t("neighborInfo.updateInterval.label"),

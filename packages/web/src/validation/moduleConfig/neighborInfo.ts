@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 
 export const NeighborInfoValidationSchema = z.object({
   enabled: z.boolean(),
+  transmitOverLora: z.boolean(),
   updateInterval: z.coerce.number().int().min(0),
 });
 
