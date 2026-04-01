@@ -33,6 +33,7 @@ export const mockDeviceStore: Device = {
   unreadCounts: new Map(),
   dialog: {
     import: false,
+    nodeImport: false,
     QR: false,
     shutdown: false,
     reboot: false,

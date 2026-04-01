@@ -39,6 +39,7 @@ const ConfigPage = () => {
     getModuleConfigChangeCount,
     getChannelChangeCount,
     getAdminMessageChangeCount,
+    setDialogOpen,
   } = useDevice();
 
   const [isSaving, setIsSaving] = useState(false);
@@ -252,6 +253,13 @@ const ConfigPage = () => {
               count={section.changeCount}
             />
           ))}
+          <SidebarButton
+            key="nodeImport"
+            label={t("navigation.nodeImport", "Node Import")}
+            active={false}
+            onClick={() => setDialogOpen("nodeImport", true)}
+            Icon={RefreshCwIcon}
+          />
         </SidebarSection>
       </Sidebar>
     ),

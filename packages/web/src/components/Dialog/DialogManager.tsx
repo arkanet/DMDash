@@ -4,6 +4,7 @@ import { ClearAllStoresDialog } from "@components/Dialog/ClearAllStoresDialog/Cl
 import { ClientNotificationDialog } from "@components/Dialog/ClientNotificationDialog/ClientNotificationDialog.tsx";
 import { DeleteMessagesDialog } from "@components/Dialog/DeleteMessagesDialog/DeleteMessagesDialog.tsx";
 import { ImportDialog } from "@components/Dialog/ImportDialog.tsx";
+import { NodeImportDialog } from "@components/Dialog/NodeImportDialog.tsx";
 import { NodeDetailsDialog } from "@components/Dialog/NodeDetailsDialog/NodeDetailsDialog.tsx";
 import { PkiBackupDialog } from "@components/Dialog/PKIBackupDialog.tsx";
 import { QRDialog } from "@components/Dialog/QRDialog.tsx";
@@ -33,6 +34,12 @@ export const DialogManager = () => {
           setDialogOpen("import", open);
         }}
         loraConfig={config.lora}
+      />
+      <NodeImportDialog
+        open={dialog.nodeImport}
+        onOpenChange={(open) => {
+          setDialogOpen("nodeImport", open);
+        }}
       />
       <ShutdownDialog
         open={dialog.shutdown}

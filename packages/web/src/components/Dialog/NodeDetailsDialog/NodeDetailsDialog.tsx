@@ -53,6 +53,11 @@ import {
   TrashIcon,
   UsersIcon,
 } from "lucide-react";
+import { Share2 } from "lucide-react";
+// removed duplicate DialogFooter import
+import { Input } from "@components/UI/Input.tsx";
+import { QRCode } from "react-qrcode-logo";
+import { buildSharedContactUrl } from "../../../darkmesh/utils.ts";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -75,6 +80,8 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
 
   const [isFavoriteState, setIsFavoriteState] = useState<boolean>(node?.isFavorite ?? false);
   const [isIgnoredState, setIsIgnoredState] = useState<boolean>(node?.isIgnored ?? false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string>("");
 
   useEffect(() => {
     if (!node) {
@@ -315,6 +322,33 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
                 </Tooltip>
               </TooltipProvider>
 
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="mr-1 p-2"
+                      aria-label={t("nodeDetails.share", "Share contact")}
+                      onClick={() => {
+                        try {
+                          const url = buildSharedContactUrl(currentNode);
+                          setShareUrl(url);
+                          setShareOpen(true);
+                        } catch (err) {
+                          console.warn("failed to build shared contact url", err);
+                          toast({ title: t("nodeDetail.shareError", "Failed to build share URL") });
+                        }
+                      }}
+                    >
+                      <Share2 />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="rounded bg-slate-800 px-4 py-1 text-xs text-white dark:bg-slate-600">
+                    {t("nodeDetails.share", "Share contact")}
+                    <TooltipArrow className="fill-slate-800 dark:fill-slate-600" />
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
               <div className="flex flex-1 justify-start" />
 
               <TooltipProvider delayDuration={300}>
@@ -418,6 +452,34 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
                 />
               </div>
             </div>
+
+            {shareOpen && (
+              <div className="mt-4">
+                <div className="flex gap-4 items-center">
+                  <QRCode value={shareUrl} size={140} qrStyle="dots" />
+                  <div className="flex-1">
+                    <Input value={shareUrl} readOnly />
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(shareUrl);
+                            toast({
+                              title: t("nodeDetails.shareCopied", "Copied URL to clipboard"),
+                            });
+                          } catch {
+                            toast({ title: t("nodeDetails.shareCopyError", "Failed to copy") });
+                          }
+                        }}
+                      >
+                        {t("button.copy", "Copy")}
+                      </Button>
+                      <Button onClick={() => setShareOpen(false)}>{t("close", "Close")}</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-3">
               <div className={sectionClassName}>

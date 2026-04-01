@@ -193,6 +193,7 @@ function deviceFactory(
     activeNode: 0,
     dialog: {
       import: false,
+      nodeImport: false,
       QR: false,
       shutdown: false,
       reboot: false,
@@ -550,16 +551,19 @@ function deviceFactory(
               const summary: Record<string, unknown> = { deviceId: id };
               try {
                 summary.constructorName = connection?.constructor?.name ?? null;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 summary.hasEvents = Boolean(connection && (connection as any).events);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 if ((connection as any)?.events) {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   summary.eventKeys = Object.keys((connection as any).events).slice(0, 20);
                 }
-              } catch (inner) {
+              } catch {
                 // ignore
               }
               // eslint-disable-next-line no-console
               console.debug("deviceStore.addConnection: connection added", summary);
-            } catch (e) {
+            } catch {
               /* ignore */
             }
           }

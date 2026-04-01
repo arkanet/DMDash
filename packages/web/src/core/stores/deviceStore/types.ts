@@ -3,6 +3,7 @@ import type { ValidConfigType, ValidModuleConfigType } from "./changeRegistry.ts
 
 interface Dialogs {
   import: boolean;
+  nodeImport: boolean;
   QR: boolean;
   shutdown: boolean;
   reboot: boolean;
