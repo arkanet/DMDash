@@ -19,7 +19,7 @@ import {
 } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { randId } from "@core/utils/randId.ts";
-import { Protobuf, Types } from "@meshtastic/core";
+import { Protobuf, Types, Constants } from "@meshtastic/core";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { HashIcon, LockIcon, LockOpenIcon } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
@@ -107,7 +107,7 @@ export const MessagesPage = () => {
   }, [deferredSearch, getNodes, getUnreadCount]);
 
   const sendText = useCallback(
-    async (message: string) => {
+    async (message: string, opts?: { compress?: boolean }) => {
       if (isDirect && myNodeNum === undefined) {
         toast({
           title: "Unable to resolve the local node for this direct chat",
@@ -121,13 +121,39 @@ export const MessagesPage = () => {
       let messageId: number | undefined;
 
       try {
-        messageId = await connection?.sendText(
-          message,
-          toValue,
-          true,
-          channelValue,
-          replyTo?.messageId,
-        );
+        if (opts?.compress) {
+          // Build contactKey: channel + destination
+          const destKey =
+            toValue === MessageType.Broadcast ? `${Constants.broadcastNum}` : `${toValue}`;
+          const contactKey = `${channelValue}${destKey}`;
+          try {
+            if (typeof window !== "undefined" && window.localStorage) {
+              window.localStorage.setItem(`compressionPrefs:${contactKey}`, "true");
+            }
+          } catch {
+            // ignore storage errors
+          }
+          messageId = await connection?.sendMessage(message, contactKey, replyTo?.messageId);
+        } else {
+          // If user explicitly disabled compression for this contact, remove stored preference
+          try {
+            if (typeof window !== "undefined" && window.localStorage) {
+              const destKey =
+                toValue === MessageType.Broadcast ? `${Constants.broadcastNum}` : `${toValue}`;
+              const contactKey = `${channelValue}${destKey}`;
+              window.localStorage.removeItem(`compressionPrefs:${contactKey}`);
+            }
+          } catch {
+            // ignore
+          }
+          messageId = await connection?.sendText(
+            message,
+            toValue,
+            true,
+            channelValue,
+            replyTo?.messageId,
+          );
+        }
         if (messageId !== undefined) {
           if (chatType === MessageType.Broadcast) {
             setMessageState({

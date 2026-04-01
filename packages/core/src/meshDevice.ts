@@ -125,6 +125,66 @@ export class MeshDevice {
   }
 
   /**
+   * Compatibility wrapper similar to DarkMesh Android `sendMessage`.
+   * contactKey: optional channel prefix followed by destination (e.g. "0123").
+   * If the first char is a digit it's used as the channel and the rest as destination.
+   * Reads compression prefs from `localStorage` keys when available:
+   *  - `USE_COMPRESSION_MESSAGES` (boolean string)
+   *  - `compressionPrefs:<contactKey>` (boolean string)
+   */
+  public async sendMessage(
+    str: string,
+    contactKey: string = `0${Constants.broadcastNum}`,
+    replyId?: number,
+  ): Promise<number> {
+    // contactKey: unique contact key filter (channel)+(nodeId)
+    const ch = contactKey.charAt(0);
+    const channel = /\d/.test(ch) ? (parseInt(ch, 10) as ChannelNumber) : undefined;
+    const destStr = channel !== undefined ? contactKey.substring(1) : contactKey;
+
+    let destination: Destination;
+    if (destStr === `${Constants.broadcastNum}` || destStr === "broadcast") {
+      destination = "broadcast";
+    } else if (destStr === "self") {
+      destination = "self";
+    } else {
+      const asNum = parseInt(destStr, 10);
+      destination = Number.isNaN(asNum) ? (destStr as Destination) : (asNum as Destination);
+    }
+
+    // Determine whether to send as compressed portnum based on per-contact
+    // preference stored by the UI in localStorage. This is a best-effort
+    // attempt to let the firmware recognize compressed payloads when the
+    // user explicitly requested compression. Note: the client does NOT
+    // perform Unishox compression itself here; this merely toggles the
+    // portnum to test firmware behavior.
+    let portnum = Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP;
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        const pref = window.localStorage.getItem(`compressionPrefs:${contactKey}`);
+        if (pref === "true") {
+          portnum = Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP;
+        }
+      }
+    } catch {
+      // ignore storage access errors and fall back to TEXT_MESSAGE_APP
+    }
+
+    const enc = new TextEncoder();
+
+    return await this.sendPacket(
+      enc.encode(str),
+      portnum,
+      destination,
+      channel,
+      true,
+      false,
+      true,
+      replyId,
+    );
+  }
+
+  /**
    * Sends a text over the radio
    */
   public sendWaypoint(
@@ -892,10 +952,23 @@ export class MeshDevice {
     );
 
     switch (dataPacket.portnum) {
-      case Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP: {
+      case Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP:
+      case Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP: {
+        // Treat compressed text packets the same as plain text for dispatching
+        // If payload is actually compressed, device/firmware is expected to
+        // decompress it. This is a best-effort handling: if payload is UTF-8
+        // text this will work, otherwise upstream should provide decompression.
+        let text: string;
+        try {
+          text = new TextDecoder().decode(dataPacket.payload);
+        } catch {
+          // Fallback: use empty string on decode error
+          text = "";
+        }
+
         this.events.onMessagePacket.dispatch({
           ...packetMetadata,
-          data: new TextDecoder().decode(dataPacket.payload),
+          data: text,
         });
         break;
       }

@@ -8,7 +8,7 @@ import { startTransition, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export interface MessageInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, opts?: { compress?: boolean }) => void;
   to: Types.Destination;
   maxBytes: number;
   replyTo?: Message;
@@ -30,6 +30,7 @@ export const MessageInput = ({
   const initialDraft = getDraft(to);
   const [localDraft, setLocalDraft] = useState(initialDraft);
   const [messageBytes, setMessageBytes] = useState(() => calculateBytes(initialDraft));
+  const [compress, setCompress] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
@@ -51,7 +52,7 @@ export const MessageInput = ({
     setMessageBytes(0);
 
     startTransition(() => {
-      onSend(localDraft.trim());
+      onSend(localDraft.trim(), { compress });
       setLocalDraft("");
       clearDraft(to);
     });
@@ -78,7 +79,7 @@ export const MessageInput = ({
             </button>
           </div>
         )}
-        <div className="flex grow gap-1">
+        <div className="flex grow gap-1 items-center">
           <label className="w-full" htmlFor="messageInput">
             <Input
               minLength={1}
@@ -96,6 +97,16 @@ export const MessageInput = ({
             className="flex items-center w-20 p-1 text-sm place-content-end"
           >
             {messageBytes}/{maxBytes}
+          </label>
+
+          <label className="flex items-center gap-2 text-sm pr-2">
+            <input
+              type="checkbox"
+              checked={compress}
+              onChange={(e) => setCompress(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <span className="select-none">Compress</span>
           </label>
 
           <Button type="submit" variant="default">
