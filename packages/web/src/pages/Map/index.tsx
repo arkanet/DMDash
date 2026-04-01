@@ -304,31 +304,31 @@ const MapPage = () => {
         features: [
           ...(forwardCoordinates.length >= 2
             ? [
-                {
-                  type: "Feature" as const,
-                  properties: {
-                    role: "forward",
-                  },
-                  geometry: {
-                    type: "LineString" as const,
-                    coordinates: forwardCoordinates,
-                  },
+              {
+                type: "Feature" as const,
+                properties: {
+                  role: "forward",
                 },
-              ]
+                geometry: {
+                  type: "LineString" as const,
+                  coordinates: forwardCoordinates,
+                },
+              },
+            ]
             : []),
           ...(backwardCoordinates.length >= 2
             ? [
-                {
-                  type: "Feature" as const,
-                  properties: {
-                    role: "backward",
-                  },
-                  geometry: {
-                    type: "LineString" as const,
-                    coordinates: backwardCoordinates,
-                  },
+              {
+                type: "Feature" as const,
+                properties: {
+                  role: "backward",
                 },
-              ]
+                geometry: {
+                  type: "LineString" as const,
+                  coordinates: backwardCoordinates,
+                },
+              },
+            ]
             : []),
         ],
       },

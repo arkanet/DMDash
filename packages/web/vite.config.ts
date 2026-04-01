@@ -11,18 +11,23 @@ import { VitePWA } from "vite-plugin-pwa";
 let hash = "";
 let version = "v0.0.0";
 try {
-  hash = execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
+  hash = execSync("git rev-parse --short HEAD", {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  }).trim();
 } catch (error) {
-  console.error("Error getting git hash:", error);
   hash = "DEV";
 }
 
 try {
   version = execSync("git describe --tags --abbrev=0", {
     encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
   }).trim();
 } catch (error) {
-  console.error("Error getting git version:", error);
+  // Fail silently and keep default version. Avoid throwing during Vite config load
+  // (some CI/worktrees may not have tags or a git history available).
+  version = "v0.0.0";
 }
 
 const CONTENT_SECURITY_POLICY =
@@ -46,7 +51,7 @@ export default defineConfig(({ mode }) => {
             cookieYesScript:
               isProd && env.VITE_COOKIEYES_CLIENT_ID
                 ? // This is for GDPR/CCPA compliance
-                  `<script async src="https://cdn-cookieyes.com/client_data/${env.VITE_COOKIEYES_CLIENT_ID}/script.js"></script>`
+                `<script async src="https://cdn-cookieyes.com/client_data/${env.VITE_COOKIEYES_CLIENT_ID}/script.js"></script>`
                 : "",
           },
         },
@@ -65,6 +70,18 @@ export default defineConfig(({ mode }) => {
     build: {
       emptyOutDir: true,
       assetsDir: "./",
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("maplibre-gl")) return "maplibre";
+            if (id.includes("react-map-gl")) return "react-map-gl";
+            if (/node_modules\/(react|react-dom)/.test(id)) return "react-vendor";
+            if (id.includes("@turf") || id.includes("turf")) return "turf";
+            // Let Rollup handle other node_modules to avoid circular chunking.
+            return undefined;
+          },
+        },
+      },
     },
     resolve: {
       alias: {

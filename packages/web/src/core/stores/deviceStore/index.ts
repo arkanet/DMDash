@@ -544,6 +544,24 @@ function deviceFactory(
           const device = draft.devices.get(id);
           if (device) {
             device.connection = connection;
+            // Debug: log when a connection is attached to the device
+            try {
+              // eslint-disable-next-line no-console
+              const summary: Record<string, unknown> = { deviceId: id };
+              try {
+                summary.constructorName = connection?.constructor?.name ?? null;
+                summary.hasEvents = Boolean(connection && (connection as any).events);
+                if ((connection as any)?.events) {
+                  summary.eventKeys = Object.keys((connection as any).events).slice(0, 20);
+                }
+              } catch (inner) {
+                // ignore
+              }
+              // eslint-disable-next-line no-console
+              console.debug("deviceStore.addConnection: connection added", summary);
+            } catch (e) {
+              /* ignore */
+            }
           }
         }),
       );
