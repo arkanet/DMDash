@@ -49,6 +49,7 @@ import {
   MapPin,
   MapPinnedIcon,
   MessageSquareIcon,
+  RadioTowerIcon,
   StarIcon,
   TrashIcon,
   UsersIcon,
@@ -80,6 +81,7 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
 
   const [isFavoriteState, setIsFavoriteState] = useState<boolean>(node?.isFavorite ?? false);
   const [isIgnoredState, setIsIgnoredState] = useState<boolean>(node?.isIgnored ?? false);
+  const [isRequestingPosition, setIsRequestingPosition] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>("");
 
@@ -103,18 +105,30 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
     setDialogOpen("nodeDetails", false);
   }
 
-  function handleRequestPosition() {
-    toast({
-      title: t("toast.requestingPosition.title", { ns: "ui" }),
-    });
+  async function handleRequestPosition() {
+    setIsRequestingPosition(true);
 
-    connection?.requestPosition(currentNode.num).then(() =>
+    try {
+      toast({
+        title: t("toast.requestingPosition.title", { ns: "ui" }),
+      });
+
+      await connection?.requestPosition(currentNode.num);
+
       toast({
         title: t("toast.positionRequestSent.title", { ns: "ui" }),
-      }),
-    );
-
-    onOpenChange(false);
+      });
+    } catch (error) {
+      console.warn("dialog position request failed", error);
+      toast({
+        title: t("toast.positionRequestError", {
+          ns: "ui",
+          defaultValue: "Failed to request position",
+        }),
+      });
+    } finally {
+      setIsRequestingPosition(false);
+    }
   }
 
   async function handleVisualTraceroute() {
@@ -139,7 +153,7 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
 
   async function handleRequestNeighborFromDialog() {
     try {
-      toast({ title: t("toast.requestingNeighbor.title", { ns: "ui" }) });
+      toast({ title: "Neighbor Info" });
       await requestNeighborInfo(connection, currentNode.num);
     } catch (error) {
       console.warn("dialog neighbor request failed", error);
@@ -154,7 +168,7 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
 
   async function handleRequestEnvironmentFromDialog() {
     try {
-      toast({ title: t("toast.requestingMetrics.title", { ns: "ui" }) });
+      toast({ title: "Environmental Metrics" });
       await requestEnvironmentMetrics(connection, currentNode.num);
     } catch (error) {
       console.warn("dialog environment request failed", error);
@@ -181,6 +195,11 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
   function handleToggleIgnored() {
     updateIgnored({ nodeNum: currentNode.num, isIgnored: !isIgnoredState });
     setIsIgnoredState(!isIgnoredState);
+  }
+
+  function handleRemoteAdmin() {
+    navigate({ to: `/remote-admin/${currentNode.num}/radio` });
+    setDialogOpen("nodeDetails", false);
   }
 
   const deviceMetricsMap = [
@@ -215,6 +234,15 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
 
   const sectionClassName =
     "rounded-lg bg-slate-100 p-4 text-slate-900 dark:bg-slate-800 dark:text-slate-100";
+  const actionButtonClassName = "w-full";
+  const actionGridClassName = cn(
+    "grid w-full items-center gap-1",
+    currentNode.num !== nodeDB.myNodeNum ? "grid-cols-9" : "grid-cols-8",
+  );
+  const rawMetrics = {
+    ...currentNode,
+    environmentMetrics,
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -233,12 +261,13 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
 
         <DialogFooter>
           <div className="w-full">
-            <div className="flex flex-row flex-wrap items-center justify-evenly gap-2">
+            <div className={actionGridClassName}>
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      className="mr-1 p-2"
+                      size="icon"
+                      className={actionButtonClassName}
                       aria-label={t("nodeDetails.message")}
                       onClick={handleDirectMessage}
                     >
@@ -256,7 +285,8 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      className="mr-1 p-2"
+                      size="icon"
+                      className={actionButtonClassName}
                       aria-label={t("nodeDetails.visualTraceroute", "Visual Traceroute")}
                       onClick={handleVisualTraceroute}
                     >
@@ -274,7 +304,8 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      className="mr-1 p-2"
+                      size="icon"
+                      className={actionButtonClassName}
                       aria-label={t("nodeDetails.neighborPanel", "Neighbor")}
                       onClick={handleRequestNeighborFromDialog}
                     >
@@ -292,7 +323,8 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      className="mr-1 p-2"
+                      size="icon"
+                      className={actionButtonClassName}
                       aria-label={t("nodeDetails.metricsPanel", "Environment")}
                       onClick={handleRequestEnvironmentFromDialog}
                     >
@@ -309,7 +341,11 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button className="mr-1 p-2" onClick={handleToggleFavorite}>
+                    <Button
+                      size="icon"
+                      className={actionButtonClassName}
+                      onClick={handleToggleFavorite}
+                    >
                       <StarIcon
                         className={cn(isFavoriteState ? "fill-yellow-400 stroke-yellow-400" : "")}
                       />
@@ -326,7 +362,8 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      className="mr-1 p-2"
+                      size="icon"
+                      className={actionButtonClassName}
                       aria-label={t("nodeDetails.share", "Share contact")}
                       onClick={() => {
                         try {
@@ -349,14 +386,34 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
                 </Tooltip>
               </TooltipProvider>
 
-              <div className="flex flex-1 justify-start" />
+              {currentNode.num !== nodeDB.myNodeNum && (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        className={actionButtonClassName}
+                        aria-label={t("nodeDetails.remoteAdmin", "Remote Admin")}
+                        onClick={handleRemoteAdmin}
+                      >
+                        <RadioTowerIcon />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="rounded bg-slate-800 px-4 py-1 text-xs text-white dark:bg-slate-600">
+                      {t("nodeDetails.remoteAdmin", "Remote Admin")}
+                      <TooltipArrow className="fill-slate-800 dark:fill-slate-600" />
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
+                      size="icon"
                       className={cn(
-                        "mr-1 flex justify-end text-white",
+                        actionButtonClassName,
                         isIgnoredState
                           ? "bg-red-500 text-white hover:bg-red-600 dark:bg-red-500 dark:text-white hover:dark:bg-red-600"
                           : "",
@@ -378,7 +435,8 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
                   <TooltipTrigger asChild>
                     <Button
                       variant="destructive"
-                      className="flex justify-end"
+                      size="icon"
+                      className={actionButtonClassName}
                       onClick={handleNodeRemove}
                     >
                       <TrashIcon />
@@ -552,7 +610,12 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
                   <p>{t("unknown.longName")}</p>
                 )}
 
-                <Button onClick={handleRequestPosition} name="requestPosition" className="mt-2">
+                <Button
+                  onClick={handleRequestPosition}
+                  name="requestPosition"
+                  className="mt-2"
+                  disabled={isRequestingPosition}
+                >
                   <MapPinnedIcon className="mr-2" />
                   {t("nodeDetails.requestPosition")}
                 </Button>
@@ -596,7 +659,7 @@ export const NodeDetailsDialog = ({ open, onOpenChange }: NodeDetailsDialogProps
                     </p>
                   </AccordionTrigger>
                   <AccordionContent className="overflow-x-scroll">
-                    <pre className="w-full text-xs">{JSON.stringify(currentNode, null, 2)}</pre>
+                    <pre className="w-full text-xs">{JSON.stringify(rawMetrics, null, 2)}</pre>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

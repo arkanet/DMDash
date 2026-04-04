@@ -29,7 +29,7 @@ import { distanceKm, getNodeDisplayName } from "@app/darkmesh/utils.ts";
 import { useMapFitting } from "@core/hooks/useMapFitting.ts";
 import { useDevice, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
-import { hasPos, toLngLat } from "@core/utils/geo.ts";
+import { boundsFromLngLat, hasPos, toLngLat } from "@core/utils/geo.ts";
 import type { Protobuf } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { FunnelIcon, LocateFixedIcon, MinusIcon, PlusIcon } from "lucide-react";
@@ -67,6 +67,17 @@ function pathDistanceKm(coords: [number, number][]): number {
 }
 
 const NODEDB_DEBOUNCE_MS = 250;
+const DEFAULT_MAP_SPAN_KM = 300;
+const TRACEROUTE_SPAN_KM = 500;
+
+function computeZoomForSpanKm(spanKm: number, lat: number) {
+  const mapWidth =
+    typeof window !== "undefined" ? Math.max(360, Math.min(window.innerWidth, 1600)) : 1024;
+  const safeCos = Math.max(0.2, Math.cos((lat * Math.PI) / 180));
+  const metersPerPixel = (spanKm * 1000) / mapWidth;
+  const zoom = Math.log2((156543.03392 * safeCos) / metersPerPixel);
+  return Number(zoom.toFixed(2));
+}
 
 const MapPage = () => {
   const { t } = useTranslation("map");
@@ -231,21 +242,12 @@ const MapPage = () => {
 
   // Default initial view: center on local node when available, otherwise Rome.
   const initialMapView = useMemo(() => {
-    const spanKm = 300; // target visible span across map in km
-    const computeZoomForSpanKm = (spanKm: number, lat: number) => {
-      const mapWidth =
-        typeof window !== "undefined" ? Math.max(360, Math.min(window.innerWidth, 1600)) : 1024;
-      const metersPerPixel = (spanKm * 1000) / mapWidth;
-      const zoom = Math.log2((156543.03392 * Math.cos((lat * Math.PI) / 180)) / metersPerPixel);
-      return Number(zoom.toFixed(2));
-    };
-
     if (myNode && myNode.position && hasPos(myNode.position)) {
       const [lng, lat] = toLngLat(myNode.position);
       return {
         latitude: lat,
         longitude: lng,
-        zoom: computeZoomForSpanKm(spanKm, lat),
+        zoom: computeZoomForSpanKm(DEFAULT_MAP_SPAN_KM, lat),
       } as const;
     }
 
@@ -255,7 +257,7 @@ const MapPage = () => {
     return {
       latitude: romeLat,
       longitude: romeLng,
-      zoom: computeZoomForSpanKm(spanKm, romeLat),
+      zoom: computeZoomForSpanKm(DEFAULT_MAP_SPAN_KM, romeLat),
     } as const;
   }, [myNode]);
 
@@ -304,31 +306,31 @@ const MapPage = () => {
         features: [
           ...(forwardCoordinates.length >= 2
             ? [
-              {
-                type: "Feature" as const,
-                properties: {
-                  role: "forward",
+                {
+                  type: "Feature" as const,
+                  properties: {
+                    role: "forward",
+                  },
+                  geometry: {
+                    type: "LineString" as const,
+                    coordinates: forwardCoordinates,
+                  },
                 },
-                geometry: {
-                  type: "LineString" as const,
-                  coordinates: forwardCoordinates,
-                },
-              },
-            ]
+              ]
             : []),
           ...(backwardCoordinates.length >= 2
             ? [
-              {
-                type: "Feature" as const,
-                properties: {
-                  role: "backward",
+                {
+                  type: "Feature" as const,
+                  properties: {
+                    role: "backward",
+                  },
+                  geometry: {
+                    type: "LineString" as const,
+                    coordinates: backwardCoordinates,
+                  },
                 },
-                geometry: {
-                  type: "LineString" as const,
-                  coordinates: backwardCoordinates,
-                },
-              },
-            ]
+              ]
             : []),
         ],
       },
@@ -339,6 +341,59 @@ const MapPage = () => {
     clearSelectedTraceRoute(undefined);
     setPendingTraceRouteTarget(deviceId, undefined);
   }, [clearSelectedTraceRoute, deviceId, setPendingTraceRouteTarget]);
+
+  const focusTracerouteNodes = useCallback(
+    (nodes: Protobuf.Mesh.NodeInfo[]) => {
+      if (!mapRef) {
+        return;
+      }
+
+      const positionedNodes = nodes.filter((node): node is Protobuf.Mesh.NodeInfo =>
+        Boolean(node.position && hasPos(node.position)),
+      );
+
+      if (positionedNodes.length === 0) {
+        return;
+      }
+
+      const coords = positionedNodes.map((node) => toLngLat(node.position));
+      if (coords.length === 1) {
+        const firstCoord = coords[0];
+        if (!firstCoord) {
+          return;
+        }
+
+        const [lng, lat] = firstCoord;
+        mapRef.easeTo({
+          center: [lng, lat],
+          zoom: computeZoomForSpanKm(TRACEROUTE_SPAN_KM, lat),
+        });
+        return;
+      }
+
+      const bounds = boundsFromLngLat(coords);
+      if (!bounds) {
+        return;
+      }
+
+      const centerLng = (bounds[0][0] + bounds[1][0]) / 2;
+      const centerLat = (bounds[0][1] + bounds[1][1]) / 2;
+      const fittedCamera = mapRef.cameraForBounds(bounds, {
+        padding: { top: 40, bottom: 40, left: 40, right: 40 },
+      });
+      const tracerouteZoom = computeZoomForSpanKm(TRACEROUTE_SPAN_KM, centerLat);
+      const zoom =
+        typeof fittedCamera?.zoom === "number"
+          ? Math.min(fittedCamera.zoom, tracerouteZoom)
+          : tracerouteZoom;
+
+      mapRef.easeTo({
+        center: [centerLng, centerLat],
+        zoom,
+      });
+    },
+    [mapRef],
+  );
 
   const handleZoomIn = useCallback(() => {
     mapRef?.zoomIn();
@@ -391,14 +446,19 @@ const MapPage = () => {
       mapRef.resize();
 
       if (tracerouteOverlay) {
-        fitToNodes(tracerouteOverlay.involvedNodes);
+        focusTracerouteNodes(tracerouteOverlay.involvedNodes);
+        return;
+      }
+
+      if (pendingTraceRouteNode?.position && hasPos(pendingTraceRouteNode.position)) {
+        focusTracerouteNodes([pendingTraceRouteNode]);
       }
     });
 
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [fitToNodes, mapRef, showTraceroutePanel, tracerouteOverlay]);
+  }, [focusTracerouteNodes, mapRef, pendingTraceRouteNode, showTraceroutePanel, tracerouteOverlay]);
 
   return (
     <PageLayout

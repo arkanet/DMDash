@@ -50,6 +50,7 @@ import {
   MapIcon,
   MessageSquareIcon,
   MountainSnow,
+  RadioTowerIcon,
   Star,
   UsersIcon,
 } from "lucide-react";
@@ -63,7 +64,7 @@ export interface NodeDetailProps {
 export const NodeDetail = ({ node }: NodeDetailProps) => {
   const navigate = useNavigate();
   const { t } = useTranslation("nodes");
-  const { connection, id: deviceId, getNeighborInfo } = useDevice();
+  const { connection, hardware, id: deviceId, getNeighborInfo } = useDevice();
   const { getEnvironmentMetrics } = useNodeDB();
   const { updateFavorite } = useFavoriteNode();
 
@@ -146,6 +147,10 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
 
   function handlePublicKeyClick() {
     setShowPublicKey((current) => !current);
+  }
+
+  function handleRemoteAdmin() {
+    navigate({ to: `/remote-admin/${node.num}/radio` });
   }
 
   return (
@@ -291,70 +296,6 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
                     />
                   </button>
                 </TooltipTrigger>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label={t("nodeDetail.share", "Share contact")}
-                      onClick={() => {
-                        try {
-                          const url = buildSharedContactUrl(node);
-                          setShareUrl(url);
-                          setShareOpen(true);
-                        } catch (_err) {
-                          console.warn("failed to build shared contact url", _err);
-                          toast({ title: t("nodeDetail.shareError", "Failed to build share URL") });
-                        }
-                      }}
-                    >
-                      <Share2 size={15} className="cursor-pointer hover:text-blue-500" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipPortal>
-                    <TooltipContent
-                      side="top"
-                      className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
-                    >
-                      {t("nodeDetail.share", "Share contact")}
-                    </TooltipContent>
-                  </TooltipPortal>
-                </Tooltip>
-
-                <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>
-                        {t("nodeDetail.shareDialog.title", "Share Contact")}
-                      </DialogTitle>
-                      <DialogClose />
-                    </DialogHeader>
-                    <div className="flex gap-4 items-center">
-                      <QRCode value={shareUrl} size={140} qrStyle="dots" />
-                      <div className="flex-1">
-                        <Input value={shareUrl} readOnly />
-                        <div className="mt-2 flex gap-2">
-                          <Button
-                            onClick={async () => {
-                              try {
-                                await navigator.clipboard.writeText(shareUrl);
-                                toast({
-                                  title: t("nodeDetail.shareCopied", "Copied URL to clipboard"),
-                                });
-                              } catch {
-                                toast({ title: t("nodeDetail.shareCopyError", "Failed to copy") });
-                              }
-                            }}
-                          >
-                            {t("button.copy", "Copy")}
-                          </Button>
-                          <Button onClick={() => setShareOpen(false)}>{t("close", "Close")}</Button>
-                        </div>
-                      </div>
-                    </div>
-                    <DialogFooter />
-                  </DialogContent>
-                </Dialog>
                 <TooltipPortal>
                   <TooltipContent
                     side="top"
@@ -366,6 +307,90 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
                   </TooltipContent>
                 </TooltipPortal>
               </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t("nodeDetail.share", "Share contact")}
+                    onClick={() => {
+                      try {
+                        const url = buildSharedContactUrl(node);
+                        setShareUrl(url);
+                        setShareOpen(true);
+                      } catch (_err) {
+                        console.warn("failed to build shared contact url", _err);
+                        toast({ title: t("nodeDetail.shareError", "Failed to build share URL") });
+                      }
+                    }}
+                  >
+                    <Share2 size={15} className="cursor-pointer hover:text-blue-500" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipPortal>
+                  <TooltipContent
+                    side="top"
+                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                  >
+                    {t("nodeDetail.share", "Share contact")}
+                  </TooltipContent>
+                </TooltipPortal>
+              </Tooltip>
+
+              {node.num !== hardware.myNodeNum && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={t("nodeDetail.remoteAdmin", "Remote Admin")}
+                      onClick={handleRemoteAdmin}
+                    >
+                      <RadioTowerIcon size={15} className="cursor-pointer hover:text-blue-500" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipPortal>
+                    <TooltipContent
+                      side="top"
+                      className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                    >
+                      {t("nodeDetail.remoteAdmin", "Remote Admin")}
+                    </TooltipContent>
+                  </TooltipPortal>
+                </Tooltip>
+              )}
+
+              <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{t("nodeDetail.shareDialog.title", "Share Contact")}</DialogTitle>
+                    <DialogClose />
+                  </DialogHeader>
+                  <div className="flex gap-4 items-center">
+                    <QRCode value={shareUrl} size={140} qrStyle="dots" />
+                    <div className="flex-1">
+                      <Input value={shareUrl} readOnly />
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(shareUrl);
+                              toast({
+                                title: t("nodeDetail.shareCopied", "Copied URL to clipboard"),
+                              });
+                            } catch {
+                              toast({ title: t("nodeDetail.shareCopyError", "Failed to copy") });
+                            }
+                          }}
+                        >
+                          {t("button.copy", "Copy")}
+                        </Button>
+                        <Button onClick={() => setShareOpen(false)}>{t("close", "Close")}</Button>
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter />
+                </DialogContent>
+              </Dialog>
             </div>
           </TooltipProvider>
         </div>

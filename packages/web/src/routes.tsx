@@ -6,6 +6,7 @@ import React from "react";
 const MapPage = React.lazy(() => import("@pages/Map/index.tsx"));
 import MessagesPage from "@pages/Messages.tsx";
 import NodesPage from "@pages/Nodes/index.tsx";
+import RemoteAdminPage from "@pages/RemoteAdmin/index.tsx";
 import ConfigPage from "@pages/Settings/index.tsx";
 import {
   createRootRouteWithContext,
@@ -136,6 +137,33 @@ export const moduleRoute = createRoute({
   component: ConfigPage,
 });
 
+export const remoteAdminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/remote-admin/$nodeNum",
+  component: RemoteAdminPage,
+  parseParams: (params) => ({
+    nodeNum: z.coerce.number().int().min(0).max(4294967294).parse(params.nodeNum),
+  }),
+});
+
+export const remoteAdminRadioRoute = createRoute({
+  getParentRoute: () => remoteAdminRoute,
+  path: "radio",
+  component: RemoteAdminPage,
+});
+
+export const remoteAdminDeviceRoute = createRoute({
+  getParentRoute: () => remoteAdminRoute,
+  path: "device",
+  component: RemoteAdminPage,
+});
+
+export const remoteAdminModuleRoute = createRoute({
+  getParentRoute: () => remoteAdminRoute,
+  path: "module",
+  component: RemoteAdminPage,
+});
+
 const nodesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/nodes",
@@ -162,6 +190,11 @@ export const routeTree = rootRoute.addChildren([
   mapRoute,
   mapWithParamsRoute,
   settingsRoute.addChildren([radioRoute, deviceRoute, moduleRoute]),
+  remoteAdminRoute.addChildren([
+    remoteAdminRadioRoute,
+    remoteAdminDeviceRoute,
+    remoteAdminModuleRoute,
+  ]),
   nodesRoute,
   dialogWithParamsRoute,
   connectionsRoute,
