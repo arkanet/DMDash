@@ -1,7 +1,7 @@
 import { useWaitForConfig } from "@app/core/hooks/useWaitForConfig";
 import { type PowerValidation, PowerValidationSchema } from "@app/validation/config/power.ts";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { useTranslation } from "react-i18next";
 
@@ -11,7 +11,7 @@ interface PowerConfigProps {
 export const Power = ({ onFormInit }: PowerConfigProps) => {
   useWaitForConfig({ configCase: "power" });
 
-  const { setChange, config, getEffectiveConfig, removeChange } = useDevice();
+  const { setChange, config, getEffectiveConfig, removeChange } = useConfigTarget();
   const { t } = useTranslation("config");
 
   const onSubmit = (data: PowerValidation) => {

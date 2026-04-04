@@ -1,7 +1,7 @@
 import { useWaitForConfig } from "@app/core/hooks/useWaitForConfig";
 import { type DisplayValidation, DisplayValidationSchema } from "@app/validation/config/display.ts";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { useTranslation } from "react-i18next";
@@ -11,7 +11,7 @@ interface DisplayConfigProps {
 }
 export const Display = ({ onFormInit }: DisplayConfigProps) => {
   useWaitForConfig({ configCase: "display" });
-  const { config, setChange, getEffectiveConfig, removeChange } = useDevice();
+  const { config, setChange, getEffectiveConfig, removeChange } = useConfigTarget();
   const { t } = useTranslation("config");
 
   const onSubmit = (data: DisplayValidation) => {

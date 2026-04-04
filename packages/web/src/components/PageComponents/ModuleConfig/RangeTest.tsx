@@ -4,7 +4,7 @@ import {
   RangeTestValidationSchema,
 } from "@app/validation/moduleConfig/rangeTest.ts";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { useTranslation } from "react-i18next";
 
@@ -15,7 +15,7 @@ interface RangeTestModuleConfigProps {
 export const RangeTest = ({ onFormInit }: RangeTestModuleConfigProps) => {
   useWaitForConfig({ moduleConfigCase: "rangeTest" });
 
-  const { moduleConfig, setChange, getEffectiveModuleConfig, removeChange } = useDevice();
+  const { moduleConfig, setChange, getEffectiveModuleConfig, removeChange } = useConfigTarget();
 
   const { t } = useTranslation("moduleConfig");
 

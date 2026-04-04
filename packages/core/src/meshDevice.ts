@@ -222,11 +222,27 @@ export class MeshDevice {
     echoResponse = false,
     replyId?: number,
     emoji?: number,
+    options?: {
+      pkiEncrypted?: boolean;
+      publicKey?: Uint8Array;
+      priority?: Protobuf.Mesh.MeshPacket_Priority;
+      from?: number;
+      includeDecodedRouting?: boolean;
+    },
   ): Promise<number> {
     this.log.trace(
       Emitter[Emitter.SendPacket],
       `📤 Sending ${Protobuf.Portnums.PortNum[portNum]} to ${destination}`,
     );
+
+    const resolvedDestination =
+      destination === "broadcast"
+        ? Constants.broadcastNum
+        : destination === "self"
+          ? this.myNodeInfo.myNodeNum
+          : destination;
+
+    const includeDecodedRouting = options?.includeDecodedRouting ?? true;
 
     const meshPacket = create(Protobuf.Mesh.MeshPacketSchema, {
       payloadVariant: {
@@ -237,21 +253,28 @@ export class MeshDevice {
           wantResponse,
           emoji,
           replyId,
-          dest: 0, //change this!
-          requestId: 0, //change this!
-          source: 0, //change this!
+          ...(includeDecodedRouting
+            ? {
+                dest: resolvedDestination,
+                requestId: 0, //change this!
+                source: this.myNodeInfo.myNodeNum,
+              }
+            : {}),
         },
       },
-      from: this.myNodeInfo.myNodeNum,
-      to:
-        destination === "broadcast"
-          ? Constants.broadcastNum
-          : destination === "self"
-            ? this.myNodeInfo.myNodeNum
-            : destination,
+      from: options?.from ?? this.myNodeInfo.myNodeNum,
+      to: resolvedDestination,
       id: this.generateRandId(),
       wantAck: wantAck,
-      channel,
+      ...(options?.priority !== undefined ? { priority: options.priority } : {}),
+      ...(options?.pkiEncrypted
+        ? {
+            pkiEncrypted: true,
+            publicKey: options.publicKey,
+          }
+        : {
+            channel,
+          }),
     });
 
     const toRadioMessage = create(Protobuf.Mesh.ToRadioSchema, {
@@ -968,6 +991,7 @@ export class MeshDevice {
 
         this.events.onMessagePacket.dispatch({
           ...packetMetadata,
+          compressed: dataPacket.portnum === Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP,
           data: text,
         });
         break;
@@ -1035,7 +1059,9 @@ export class MeshDevice {
         adminMessage = fromBinary(Protobuf.Admin.AdminMessageSchema, dataPacket.payload);
         switch (adminMessage.payloadVariant.case) {
           case "getChannelResponse": {
-            this.events.onChannelPacket.dispatch(adminMessage.payloadVariant.value);
+            if (meshPacket.from === this.myNodeInfo.myNodeNum) {
+              this.events.onChannelPacket.dispatch(adminMessage.payloadVariant.value);
+            }
             break;
           }
           case "getOwnerResponse": {
@@ -1046,11 +1072,15 @@ export class MeshDevice {
             break;
           }
           case "getConfigResponse": {
-            this.events.onConfigPacket.dispatch(adminMessage.payloadVariant.value);
+            if (meshPacket.from === this.myNodeInfo.myNodeNum) {
+              this.events.onConfigPacket.dispatch(adminMessage.payloadVariant.value);
+            }
             break;
           }
           case "getModuleConfigResponse": {
-            this.events.onModuleConfigPacket.dispatch(adminMessage.payloadVariant.value);
+            if (meshPacket.from === this.myNodeInfo.myNodeNum) {
+              this.events.onModuleConfigPacket.dispatch(adminMessage.payloadVariant.value);
+            }
             break;
           }
           case "getDeviceMetadataResponse": {

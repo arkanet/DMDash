@@ -1,7 +1,9 @@
 import { createUserValidationSchema, type UserValidation } from "@app/validation/config/user.ts";
 import { create } from "@bufbuild/protobuf";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice, useNodeDB } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
+import { useNodeDB } from "@core/stores";
+import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,30 +13,37 @@ interface UserConfigProps {
 }
 
 export const User = ({ onFormInit }: UserConfigProps) => {
-  const { hardware, getChange, connection } = useDevice();
+  const { targetNodeNum, getChange, setChange, removeChange } = useConfigTarget();
   const { getNode } = useNodeDB();
   const { t } = useTranslation("config");
   const validationSchema = useMemo(() => createUserValidationSchema(t), [t]);
 
-  const myNode = getNode(hardware.myNodeNum);
-  const defaultUser = myNode?.user ?? {
+  const defaultUser = getNode(targetNodeNum)?.user ?? {
     id: "",
     longName: "",
     shortName: "",
     isLicensed: false,
+    isUnmessagable: false,
   };
 
-  // Get working copy from change registry
   const workingUser = getChange({ type: "user" }) as Protobuf.Mesh.User | undefined;
-
   const effectiveUser = workingUser ?? defaultUser;
 
   const onSubmit = (data: UserValidation) => {
-    connection?.setOwner(
-      create(Protobuf.Mesh.UserSchema, {
-        ...data,
-      }),
-    );
+    const payload = create(Protobuf.Mesh.UserSchema, {
+      id: defaultUser.id,
+      longName: data.longName,
+      shortName: data.shortName,
+      isLicensed: data.isLicensed,
+      isUnmessagable: data.isUnmessageable,
+    });
+
+    if (deepCompareConfig(defaultUser, payload, true)) {
+      removeChange({ type: "user" });
+      return;
+    }
+
+    setChange({ type: "user" }, payload, defaultUser);
   };
 
   return (
@@ -45,14 +54,14 @@ export const User = ({ onFormInit }: UserConfigProps) => {
       defaultValues={{
         longName: defaultUser.longName,
         shortName: defaultUser.shortName,
-        isLicensed: defaultUser.isLicensed,
-        isUnmessageable: false,
+        isLicensed: defaultUser.isLicensed ?? false,
+        isUnmessageable: defaultUser.isUnmessagable ?? false,
       }}
       values={{
         longName: effectiveUser.longName,
         shortName: effectiveUser.shortName,
-        isLicensed: effectiveUser.isLicensed,
-        isUnmessageable: false,
+        isLicensed: effectiveUser.isLicensed ?? false,
+        isUnmessageable: effectiveUser.isUnmessagable ?? false,
       }}
       fieldGroups={[
         {

@@ -1,7 +1,7 @@
 import { useWaitForConfig } from "@app/core/hooks/useWaitForConfig";
 import { type AudioValidation, AudioValidationSchema } from "@app/validation/moduleConfig/audio.ts";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,7 @@ interface AudioModuleConfigProps {
 
 export const Audio = ({ onFormInit }: AudioModuleConfigProps) => {
   useWaitForConfig({ moduleConfigCase: "audio" });
-  const { moduleConfig, setChange, getEffectiveModuleConfig, removeChange } = useDevice();
+  const { moduleConfig, setChange, getEffectiveModuleConfig, removeChange } = useConfigTarget();
   const { t } = useTranslation("moduleConfig");
 
   const onSubmit = (data: AudioValidation) => {

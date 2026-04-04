@@ -5,8 +5,9 @@ import {
 } from "@app/validation/config/position.ts";
 import { create } from "@bufbuild/protobuf";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { type FlagName, usePositionFlags } from "@core/hooks/usePositionFlags.ts";
-import { useDevice, useNodeDB } from "@core/stores";
+import { useNodeDB } from "@core/stores";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { useCallback, useMemo } from "react";
@@ -18,15 +19,15 @@ interface PositionConfigProps {
 export const Position = ({ onFormInit }: PositionConfigProps) => {
   useWaitForConfig({ configCase: "position" });
 
-  const { setChange, config, getEffectiveConfig, removeChange, queueAdminMessage } = useDevice();
-  const { getMyNode } = useNodeDB();
+  const { setChange, config, getEffectiveConfig, removeChange, queueAdminMessage, targetNodeNum } =
+    useConfigTarget();
+  const { getNode } = useNodeDB();
   const { flagsValue, activeFlags, toggleFlag, getAllFlags } = usePositionFlags(
     getEffectiveConfig("position")?.positionFlags ?? 0,
   );
   const { t } = useTranslation("config");
 
-  const myNode = getMyNode();
-  const currentPosition = myNode?.position;
+  const currentPosition = getNode(targetNodeNum)?.position;
 
   const effectiveConfig = getEffectiveConfig("position");
   const displayUnits = getEffectiveConfig("display")?.units;
@@ -58,19 +59,28 @@ export const Position = ({ onFormInit }: PositionConfigProps) => {
 
     // Then handle position coordinates via admin message if fixedPosition is enabled
     if (data.fixedPosition && data.latitude !== undefined && data.longitude !== undefined) {
-      const message = create(Protobuf.Admin.AdminMessageSchema, {
-        payloadVariant: {
-          case: "setFixedPosition",
-          value: create(Protobuf.Mesh.PositionSchema, {
-            latitudeI: Math.round(data.latitude * 1e7),
-            longitudeI: Math.round(data.longitude * 1e7),
-            altitude: data.altitude || 0,
-            time: Math.floor(Date.now() / 1000),
-          }),
-        },
-      });
-
-      queueAdminMessage(message);
+      queueAdminMessage(
+        create(Protobuf.Admin.AdminMessageSchema, {
+          payloadVariant: {
+            case: "setFixedPosition",
+            value: create(Protobuf.Mesh.PositionSchema, {
+              latitudeI: Math.round(data.latitude * 1e7),
+              longitudeI: Math.round(data.longitude * 1e7),
+              altitude: data.altitude || 0,
+              time: Math.floor(Date.now() / 1000),
+            }),
+          },
+        }),
+      );
+    } else if (!data.fixedPosition) {
+      queueAdminMessage(
+        create(Protobuf.Admin.AdminMessageSchema, {
+          payloadVariant: {
+            case: "removeFixedPosition",
+            value: true,
+          },
+        }),
+      );
     }
 
     return configResult;

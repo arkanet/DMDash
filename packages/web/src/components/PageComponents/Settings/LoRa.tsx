@@ -1,7 +1,7 @@
 import { useWaitForConfig } from "@app/core/hooks/useWaitForConfig";
 import { type LoRaValidation, LoRaValidationSchema } from "@app/validation/config/lora.ts";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,7 @@ interface LoRaConfigProps {
 export const LoRa = ({ onFormInit }: LoRaConfigProps) => {
   useWaitForConfig({ configCase: "lora" });
 
-  const { config, setChange, getEffectiveConfig, removeChange } = useDevice();
+  const { config, setChange, getEffectiveConfig, removeChange } = useConfigTarget();
   const { t } = useTranslation("config");
 
   const onSubmit = (data: LoRaValidation) => {

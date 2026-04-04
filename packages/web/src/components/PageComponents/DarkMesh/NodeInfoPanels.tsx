@@ -92,7 +92,7 @@ export function NeighborInfoPanel({
   return (
     <div
       className={cn(
-        "rounded-lg bg-slate-100 p-3 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
+        "rounded-lg bg-slate-100 p-3 text-slate-900 dark:bg-slate-800 dark:text-slate-500",
         className,
       )}
     >
@@ -223,7 +223,7 @@ export function EnvironmentMetricsPanel({
   return (
     <div
       className={cn(
-        "rounded-lg bg-slate-100 p-3 text-slate-900 dark:bg-slate-800 dark:text-slate-100",
+        "rounded-lg bg-slate-100 p-3 text-slate-900 dark:bg-slate-800 dark:text-slate-500",
         className,
       )}
     >

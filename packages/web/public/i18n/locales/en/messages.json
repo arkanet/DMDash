@@ -12,7 +12,17 @@
   },
   "sendMessage": {
     "placeholder": "Enter your message here...",
-    "sendButton": "Send"
+    "sendButton": "Send",
+    "compress": "Compress"
+  },
+  "replyPreview": {
+    "title": "Replying",
+    "clear": "Clear reply"
+  },
+  "replyingTo": "Replying to",
+  "compressed": {
+    "label": "Compressed message",
+    "title": "Compressed message"
   },
   "actionsMenu": {
     "addReactionLabel": "Add Reaction",

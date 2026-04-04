@@ -12,13 +12,18 @@ import { StoreForward } from "@components/PageComponents/ModuleConfig/StoreForwa
 import { Telemetry } from "@components/PageComponents/ModuleConfig/Telemetry.tsx";
 import { Spinner } from "@components/UI/Spinner.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/UI/Tabs.tsx";
-import { useDevice, type ValidModuleConfigType } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
+import { type ValidModuleConfigType } from "@core/stores";
 import { type ComponentType, Suspense, useMemo } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
 interface ConfigProps {
   onFormInit: <T extends object>(methods: UseFormReturn<T>) => void;
+  activeTab?: string;
+  onTabChange?: (value: string) => void;
+  loadedTabs?: ReadonlySet<string>;
+  loadingTabs?: ReadonlySet<string>;
 }
 
 type TabItem = {
@@ -28,8 +33,14 @@ type TabItem = {
   count?: number;
 };
 
-export const ModuleConfig = ({ onFormInit }: ConfigProps) => {
-  const { hasModuleConfigChange } = useDevice();
+export const ModuleConfig = ({
+  onFormInit,
+  activeTab,
+  onTabChange,
+  loadedTabs,
+  loadingTabs,
+}: ConfigProps) => {
+  const { hasModuleConfigChange } = useConfigTarget();
   const { t } = useTranslation("moduleConfig");
   const tabs: TabItem[] = useMemo(
     () => [
@@ -102,11 +113,21 @@ export const ModuleConfig = ({ onFormInit }: ConfigProps) => {
     [tabs, hasModuleConfigChange],
   );
 
+  const isLazyMode = activeTab !== undefined || onTabChange !== undefined;
+  const tabsProps = isLazyMode
+    ? {
+        value: activeTab,
+        onValueChange: onTabChange,
+      }
+    : {
+        defaultValue: tabs[0]?.case,
+      };
+
   return (
-    <Tabs defaultValue={t("page.tabMqtt")}>
+    <Tabs {...tabsProps}>
       <TabsList className="w-full dark:bg-slate-800">
         {tabs.map((tab) => (
-          <TabsTrigger key={tab.label} value={tab.label} className="dark:text-white relative">
+          <TabsTrigger key={tab.case} value={tab.case} className="dark:text-white relative">
             {tab.label}
             {flags.get(tab.case) && (
               <span className="absolute -top-0.5 -right-0.5 z-50 flex size-3">
@@ -117,11 +138,36 @@ export const ModuleConfig = ({ onFormInit }: ConfigProps) => {
           </TabsTrigger>
         ))}
       </TabsList>
+      {isLazyMode && !activeTab ? (
+        <div className="mt-4 rounded-md border border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+          {t(
+            "config:remoteAdmin.selectSubsection",
+            "Select a subsection to load the remote configuration.",
+          )}
+        </div>
+      ) : null}
       {tabs.map((tab) => (
-        <TabsContent key={tab.label} value={tab.label}>
-          <Suspense fallback={<Spinner size="lg" className="my-5" />}>
-            <tab.element onFormInit={onFormInit} />
-          </Suspense>
+        <TabsContent key={tab.case} value={tab.case}>
+          {isLazyMode ? (
+            loadingTabs?.has(tab.case) ? (
+              <Spinner size="lg" className="my-5" />
+            ) : loadedTabs?.has(tab.case) ? (
+              <Suspense fallback={<Spinner size="lg" className="my-5" />}>
+                <tab.element onFormInit={onFormInit} />
+              </Suspense>
+            ) : (
+              <div className="py-5 text-sm text-slate-500 dark:text-slate-400">
+                {t(
+                  "config:remoteAdmin.subsectionUnavailable",
+                  "Remote data is not available yet. Use Refresh to try again.",
+                )}
+              </div>
+            )
+          ) : (
+            <Suspense fallback={<Spinner size="lg" className="my-5" />}>
+              <tab.element onFormInit={onFormInit} />
+            </Suspense>
+          )}
         </TabsContent>
       ))}
     </Tabs>

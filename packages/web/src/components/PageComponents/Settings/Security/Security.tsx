@@ -8,11 +8,11 @@ import { ManagedModeDialog } from "@components/Dialog/ManagedModeDialog.tsx";
 import { PkiRegenerateDialog } from "@components/Dialog/PkiRegenerateDialog.tsx";
 import { createZodResolver } from "@components/Form/createZodResolver.ts";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { getX25519PrivateKey, getX25519PublicKey } from "@core/utils/x25519.ts";
 import { fromByteArray, toByteArray } from "base64-js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type DefaultValues, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
@@ -22,7 +22,7 @@ interface SecurityConfigProps {
 export const Security = ({ onFormInit }: SecurityConfigProps) => {
   useWaitForConfig({ configCase: "security" });
 
-  const { config, setChange, setDialogOpen, getEffectiveConfig, removeChange } = useDevice();
+  const { config, setChange, setDialogOpen, getEffectiveConfig, removeChange } = useConfigTarget();
 
   const { t } = useTranslation("config");
 
@@ -63,10 +63,15 @@ export const Security = ({ onFormInit }: SecurityConfigProps) => {
     values: formValues as RawSecurity,
   });
   const { setValue, trigger, handleSubmit, formState } = formMethods;
+  const hasInitializedFormRef = useRef(false);
+  const formMethodsRef = useRef(formMethods);
 
   useEffect(() => {
-    onFormInit?.(formMethods);
-  }, [onFormInit, formMethods]);
+    if (!hasInitializedFormRef.current) {
+      hasInitializedFormRef.current = true;
+      onFormInit?.(formMethodsRef.current);
+    }
+  }, [onFormInit]);
 
   const [privateKeyDialogOpen, setPrivateKeyDialogOpen] = useState<boolean>(false);
   const [managedModeDialogOpen, setManagedModeDialogOpen] = useState<boolean>(false);

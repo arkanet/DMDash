@@ -2,7 +2,7 @@ import { Channel } from "@app/components/PageComponents/Channels/Channel";
 import { Button } from "@components/UI/Button.tsx";
 import { Spinner } from "@components/UI/Spinner.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/UI/Tabs.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import type { Protobuf } from "@meshtastic/core";
 import i18next from "i18next";
 import { QrCodeIcon, UploadIcon } from "lucide-react";
@@ -26,7 +26,7 @@ export const getChannelName = (channel: Protobuf.Channel.Channel) => {
 };
 
 export const Channels = ({ onFormInit }: ConfigProps) => {
-  const { channels, hasChannelChange, setDialogOpen } = useDevice();
+  const { channels, hasChannelChange, setDialogOpen, isRemote } = useConfigTarget();
   const { t } = useTranslation("channels");
 
   const allChannels = Array.from(channels.values());
@@ -53,14 +53,18 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
             )}
           </TabsTrigger>
         ))}
-        <Button className="ml-auto mr-1 h-8" onClick={() => setDialogOpen("import", true)}>
-          <UploadIcon className="mr-2" size={14} />
-          {t("page.import")}
-        </Button>
-        <Button className=" h-8" onClick={() => setDialogOpen("QR", true)}>
-          <QrCodeIcon className="mr-2" size={14} />
-          {t("page.export")}
-        </Button>
+        {!isRemote && (
+          <Button className="ml-auto mr-1 h-8" onClick={() => setDialogOpen("import", true)}>
+            <UploadIcon className="mr-2" size={14} />
+            {t("page.import")}
+          </Button>
+        )}
+        {!isRemote && (
+          <Button className=" h-8" onClick={() => setDialogOpen("QR", true)}>
+            <QrCodeIcon className="mr-2" size={14} />
+            {t("page.export")}
+          </Button>
+        )}
       </TabsList>
       {allChannels.map((channel) => (
         <TabsContent key={`channel_${channel.index}`} value={`channel_${channel.index}`}>

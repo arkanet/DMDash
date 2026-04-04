@@ -68,6 +68,7 @@ export interface PacketMetadata<T> {
   rxRssi?: number;
   hopStart?: number;
   hopLimit?: number;
+  compressed?: boolean;
   data: T;
 }
 

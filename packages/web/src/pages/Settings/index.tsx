@@ -4,10 +4,11 @@ import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
 import { SidebarButton } from "@components/UI/Sidebar/SidebarButton.tsx";
 import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
-import { useDevice } from "@core/stores";
+import { useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
-import { Protobuf } from "@meshtastic/core";
+import { Protobuf, Types } from "@meshtastic/core";
 import { DeviceConfig } from "@pages/Settings/DeviceConfig.tsx";
 import { ModuleConfig } from "@pages/Settings/ModuleConfig.tsx";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
@@ -35,12 +36,17 @@ const ConfigPage = () => {
     setConfig,
     setModuleConfig,
     addChannel,
+    getChange,
     getConfigChangeCount,
     getModuleConfigChangeCount,
     getChannelChangeCount,
     getAdminMessageChangeCount,
+    hasUserChange,
     setDialogOpen,
-  } = useDevice();
+    targetNodeNum,
+    isRemote,
+  } = useConfigTarget();
+  const nodeDB = useNodeDB();
 
   const [isSaving, setIsSaving] = useState(false);
   const [rhfState, setRhfState] = useState({ isDirty: false, isValid: true });
@@ -55,6 +61,7 @@ const ConfigPage = () => {
   const moduleConfigChangeCount = getModuleConfigChangeCount();
   const channelChangeCount = getChannelChangeCount();
   const adminMessageChangeCount = getAdminMessageChangeCount();
+  const hasUserDraft = hasUserChange();
 
   const sections = useMemo(
     () => [
@@ -125,6 +132,20 @@ const ConfigPage = () => {
       const configChanges = getAllConfigChanges();
       const moduleConfigChanges = getAllModuleConfigChanges();
       const adminMessages = getAllQueuedAdminMessages();
+      const userChange = getChange({ type: "user" }) as Protobuf.Mesh.User | undefined;
+
+      if (userChange) {
+        await connection?.setOwner(userChange);
+        nodeDB.addUser({
+          id: Date.now(),
+          rxTime: new Date(),
+          type: "direct",
+          from: targetNodeNum,
+          to: targetNodeNum,
+          channel: Types.ChannelNumber.Primary,
+          data: userChange,
+        });
+      }
 
       await Promise.all(
         channelChanges.map((channel) =>
@@ -204,6 +225,11 @@ const ConfigPage = () => {
 
         formMethods.trigger();
       }
+
+      toast({
+        title: t("toast.saveAllSuccess.title"),
+        description: t("toast.saveAllSuccess.description"),
+      });
     } catch {
       toast({
         title: t("toast.configSaveError.title"),
@@ -211,10 +237,6 @@ const ConfigPage = () => {
       });
     } finally {
       setIsSaving(false);
-      toast({
-        title: t("toast.saveAllSuccess.title"),
-        description: t("toast.saveAllSuccess.description"),
-      });
     }
   }, [
     toast,
@@ -224,11 +246,14 @@ const ConfigPage = () => {
     getAllModuleConfigChanges,
     getAllChannelChanges,
     getAllQueuedAdminMessages,
+    getChange,
     formMethods,
     addChannel,
     setConfig,
     setModuleConfig,
     clearAllChanges,
+    nodeDB,
+    targetNodeNum,
   ]);
 
   const handleReset = useCallback(() => {
@@ -253,23 +278,26 @@ const ConfigPage = () => {
               count={section.changeCount}
             />
           ))}
-          <SidebarButton
-            key="nodeImport"
-            label={t("navigation.nodeImport", "Node Import")}
-            active={false}
-            onClick={() => setDialogOpen("nodeImport", true)}
-            Icon={RefreshCwIcon}
-          />
+          {!isRemote && (
+            <SidebarButton
+              key="nodeImport"
+              label={t("navigation.nodeImport", "Node Import")}
+              active={false}
+              onClick={() => setDialogOpen("nodeImport", true)}
+              Icon={RefreshCwIcon}
+            />
+          )}
         </SidebarSection>
       </Sidebar>
     ),
-    [sections, activeSection?.key, navigate, t],
+    [sections, activeSection?.key, navigate, t, setDialogOpen, isRemote],
   );
 
   const hasDrafts =
     getConfigChangeCount() > 0 ||
     getModuleConfigChangeCount() > 0 ||
     getChannelChangeCount() > 0 ||
+    hasUserDraft ||
     adminMessageChangeCount > 0;
   const hasPending = hasDrafts || rhfState.isDirty;
   const buttonOpacity = hasPending ? "opacity-100" : "opacity-0";

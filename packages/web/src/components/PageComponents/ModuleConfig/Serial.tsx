@@ -4,7 +4,7 @@ import {
   SerialValidationSchema,
 } from "@app/validation/moduleConfig/serial.ts";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { useTranslation } from "react-i18next";
@@ -16,7 +16,7 @@ interface SerialModuleConfigProps {
 export const Serial = ({ onFormInit }: SerialModuleConfigProps) => {
   useWaitForConfig({ moduleConfigCase: "serial" });
 
-  const { moduleConfig, setChange, getEffectiveModuleConfig, removeChange } = useDevice();
+  const { moduleConfig, setChange, getEffectiveModuleConfig, removeChange } = useConfigTarget();
   const { t } = useTranslation("moduleConfig");
 
   const onSubmit = (data: SerialValidation) => {

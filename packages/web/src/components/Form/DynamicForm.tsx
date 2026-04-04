@@ -4,7 +4,7 @@ import { FieldWrapper } from "@components/Form/FormWrapper.tsx";
 import { Button } from "@components/UI/Button.tsx";
 import { Heading } from "@components/UI/Typography/Heading.tsx";
 import { Subtle } from "@components/UI/Typography/Subtle.tsx";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   type Control,
   type DefaultValues,
@@ -88,14 +88,17 @@ export function DynamicForm<T extends FieldValues>({
   });
 
   const methods = propMethods ?? internalMethods;
+  const hasInitializedFormRef = useRef(false);
+  const internalMethodsRef = useRef(internalMethods);
 
   const { handleSubmit, control, getValues, formState, getFieldState } = methods;
 
   useEffect(() => {
-    if (!propMethods) {
-      onFormInit?.(internalMethods);
+    if (!propMethods && !hasInitializedFormRef.current) {
+      hasInitializedFormRef.current = true;
+      onFormInit?.(internalMethodsRef.current);
     }
-  }, [onFormInit, propMethods, internalMethods]);
+  }, [onFormInit, propMethods]);
 
   const isDisabled = (disabledBy?: DisabledBy<T>[], disabled?: boolean): boolean => {
     if (disabled) {

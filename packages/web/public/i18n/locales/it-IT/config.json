@@ -15,6 +15,14 @@
   "sidebar": {
     "label": "Configurazione"
   },
+  "remoteAdmin": {
+    "toast": {
+      "loadError": {
+        "title": "Impossibile caricare le impostazioni remote",
+        "description": "Il nodo remoto non ha restituito la sua configurazione."
+      }
+    }
+  },
   "device": {
     "title": "Impostazioni del dispositivo",
     "description": "Le impostazioni del dispositivo",

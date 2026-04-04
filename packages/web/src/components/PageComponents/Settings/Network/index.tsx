@@ -2,7 +2,7 @@ import { useWaitForConfig } from "@app/core/hooks/useWaitForConfig";
 import { type NetworkValidation, NetworkValidationSchema } from "@app/validation/config/network.ts";
 import { create } from "@bufbuild/protobuf";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { convertIntToIpAddress, convertIpAddressToInt } from "@core/utils/ip.ts";
 import { Protobuf } from "@meshtastic/core";
@@ -14,7 +14,7 @@ interface NetworkConfigProps {
 export const Network = ({ onFormInit }: NetworkConfigProps) => {
   useWaitForConfig({ configCase: "network" });
 
-  const { config, setChange, getEffectiveConfig, removeChange } = useDevice();
+  const { config, setChange, getEffectiveConfig, removeChange } = useConfigTarget();
   const { t } = useTranslation("config");
 
   const networkConfig = getEffectiveConfig("network");

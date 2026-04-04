@@ -3,7 +3,7 @@ import { create } from "@bufbuild/protobuf";
 import { PkiRegenerateDialog } from "@components/Dialog/PkiRegenerateDialog.tsx";
 import { createZodResolver } from "@components/Form/createZodResolver.ts";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { fromByteArray, toByteArray } from "base64-js";
@@ -18,7 +18,7 @@ export interface SettingsPanelProps {
 }
 
 export const Channel = ({ onFormInit, channel }: SettingsPanelProps) => {
-  const { config, setChange, getChange, removeChange } = useDevice();
+  const { config, setChange, getChange, removeChange } = useConfigTarget();
   const { t } = useTranslation(["channels", "ui", "dialog"]);
 
   const defaultConfig = channel;
@@ -76,10 +76,15 @@ export const Channel = ({ onFormInit, channel }: SettingsPanelProps) => {
     values: formValues as ChannelValidation,
   });
   const { setValue, trigger, handleSubmit, formState } = formMethods;
+  const hasInitializedFormRef = useRef(false);
+  const formMethodsRef = useRef(formMethods);
 
   useEffect(() => {
-    onFormInit?.(formMethods);
-  }, [onFormInit, formMethods]);
+    if (!hasInitializedFormRef.current) {
+      hasInitializedFormRef.current = true;
+      onFormInit?.(formMethodsRef.current);
+    }
+  }, [onFormInit]);
 
   // Since byteCount is an independent state, we need to use the effective value
   // from the channel config to ensure the form updates when the setting changes

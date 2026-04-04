@@ -4,7 +4,7 @@ import {
   BluetoothValidationSchema,
 } from "@app/validation/config/bluetooth.ts";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { useTranslation } from "react-i18next";
@@ -15,7 +15,7 @@ interface BluetoothConfigProps {
 export const Bluetooth = ({ onFormInit }: BluetoothConfigProps) => {
   useWaitForConfig({ configCase: "bluetooth" });
 
-  const { config, setChange, getEffectiveConfig, removeChange } = useDevice();
+  const { config, setChange, getEffectiveConfig, removeChange } = useConfigTarget();
   const { t } = useTranslation("config");
 
   const onSubmit = (data: BluetoothValidation) => {

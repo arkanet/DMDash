@@ -15,6 +15,14 @@
   "sidebar": {
     "label": "Configuration"
   },
+  "remoteAdmin": {
+    "toast": {
+      "loadError": {
+        "title": "Unable to load remote settings",
+        "description": "The remote node did not return its configuration."
+      }
+    }
+  },
   "device": {
     "title": "Device Settings",
     "description": "Settings for the device",

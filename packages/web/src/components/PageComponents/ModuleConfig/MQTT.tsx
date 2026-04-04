@@ -2,7 +2,7 @@ import { useWaitForConfig } from "@app/core/hooks/useWaitForConfig";
 import { type MqttValidation, MqttValidationSchema } from "@app/validation/moduleConfig/mqtt.ts";
 import { create } from "@bufbuild/protobuf";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { useTranslation } from "react-i18next";
@@ -14,7 +14,8 @@ interface MqttModuleConfigProps {
 export const MQTT = ({ onFormInit }: MqttModuleConfigProps) => {
   useWaitForConfig({ moduleConfigCase: "mqtt" });
 
-  const { config, moduleConfig, setChange, getEffectiveModuleConfig, removeChange } = useDevice();
+  const { config, moduleConfig, setChange, getEffectiveModuleConfig, removeChange } =
+    useConfigTarget();
   const { t } = useTranslation("moduleConfig");
 
   const onSubmit = (data: MqttValidation) => {

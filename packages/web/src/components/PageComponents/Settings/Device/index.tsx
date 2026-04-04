@@ -2,7 +2,7 @@ import { useWaitForConfig } from "@app/core/hooks/useWaitForConfig";
 import { type DeviceValidation, DeviceValidationSchema } from "@app/validation/config/device.ts";
 import { useUnsafeRolesDialog } from "@components/Dialog/UnsafeRolesDialog/useUnsafeRolesDialog.ts";
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
-import { useDevice } from "@core/stores";
+import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,7 @@ interface DeviceConfigProps {
 export const Device = ({ onFormInit }: DeviceConfigProps) => {
   useWaitForConfig({ configCase: "device" });
 
-  const { config, setChange, getEffectiveConfig, removeChange } = useDevice();
+  const { config, setChange, getEffectiveConfig, removeChange } = useConfigTarget();
   const { t } = useTranslation("config");
   const { validateRoleSelection } = useUnsafeRolesDialog();
 

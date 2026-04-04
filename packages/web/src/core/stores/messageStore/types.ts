@@ -16,6 +16,7 @@ interface MessageBase {
   state: MessageState;
   message: string;
   replyId?: number;
+  compressed?: boolean;
 }
 
 interface GenericMessage<T extends MessageType> extends MessageBase {
