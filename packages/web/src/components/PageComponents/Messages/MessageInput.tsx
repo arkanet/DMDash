@@ -4,15 +4,20 @@ import { useMessages } from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import type { Types } from "@meshtastic/core";
 import { ReplyIcon, SendIcon, XIcon } from "lucide-react";
-import { startTransition, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+const calculateBytes = (text: string) => new Blob([text]).size;
 
 export interface MessageInputProps {
   onSend: (message: string, opts?: { compress?: boolean }) => void;
   to: Types.Destination;
   maxBytes: number;
   replyTo?: Message;
+  replyMentionToken?: string;
   onClearReply?: () => void;
+  compressionPreferenceKey?: string;
+  compressionAutoSignal?: number;
 }
 
 export const MessageInput = ({
@@ -20,23 +25,87 @@ export const MessageInput = ({
   to,
   maxBytes,
   replyTo,
+  replyMentionToken,
   onClearReply,
+  compressionPreferenceKey,
+  compressionAutoSignal,
 }: MessageInputProps) => {
   const { setDraft, getDraft, clearDraft } = useMessages();
   const { t } = useTranslation("messages");
-
-  const calculateBytes = (text: string) => new Blob([text]).size;
+  const autoInsertedMentionRef = useRef<string | undefined>(undefined);
 
   const initialDraft = getDraft(to);
   const [localDraft, setLocalDraft] = useState(initialDraft);
   const [messageBytes, setMessageBytes] = useState(() => calculateBytes(initialDraft));
   const [compress, setCompress] = useState(false);
 
+  useEffect(() => {
+    const nextDraft = getDraft(to);
+    setLocalDraft(nextDraft);
+    setMessageBytes(calculateBytes(nextDraft));
+    autoInsertedMentionRef.current = undefined;
+
+    let nextCompress = false;
+    if (compressionPreferenceKey && typeof window !== "undefined" && window.localStorage) {
+      try {
+        nextCompress =
+          window.localStorage.getItem(`compressionPrefs:${compressionPreferenceKey}`) === "true";
+      } catch {
+        nextCompress = false;
+      }
+    }
+
+    setCompress(nextCompress);
+  }, [compressionPreferenceKey, getDraft, to]);
+
+  useEffect(() => {
+    if (compressionAutoSignal === undefined) {
+      return;
+    }
+
+    setCompress(true);
+  }, [compressionAutoSignal]);
+
+  useEffect(() => {
+    if (!replyMentionToken) {
+      return;
+    }
+
+    setLocalDraft((currentDraft) => {
+      const previousAutoMention = autoInsertedMentionRef.current;
+      const previousPrefix = previousAutoMention ? `${previousAutoMention} ` : undefined;
+      const draftWithoutPreviousAutoMention =
+        previousPrefix && currentDraft.startsWith(previousPrefix)
+          ? currentDraft.slice(previousPrefix.length)
+          : currentDraft;
+
+      if (draftWithoutPreviousAutoMention.includes(replyMentionToken)) {
+        autoInsertedMentionRef.current = replyMentionToken;
+        return currentDraft;
+      }
+
+      const nextDraft =
+        draftWithoutPreviousAutoMention.length > 0
+          ? `${replyMentionToken} ${draftWithoutPreviousAutoMention}`
+          : `${replyMentionToken} `;
+
+      setDraft(to, nextDraft);
+      setMessageBytes(calculateBytes(nextDraft));
+      autoInsertedMentionRef.current = replyMentionToken;
+      return nextDraft;
+    });
+  }, [replyMentionToken, replyTo?.messageId, setDraft, to]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     const byteLength = calculateBytes(newValue);
 
     if (byteLength <= maxBytes) {
+      const previousAutoMention = autoInsertedMentionRef.current;
+      if (previousAutoMention && !newValue.startsWith(`${previousAutoMention} `)) {
+        autoInsertedMentionRef.current = undefined;
+      }
+
       setLocalDraft(newValue);
       setMessageBytes(byteLength);
       setDraft(to, newValue);
@@ -54,6 +123,7 @@ export const MessageInput = ({
     startTransition(() => {
       onSend(localDraft.trim(), { compress });
       setLocalDraft("");
+      autoInsertedMentionRef.current = undefined;
       clearDraft(to);
     });
   };
@@ -66,12 +136,15 @@ export const MessageInput = ({
             <div className="flex min-w-0 gap-2">
               <ReplyIcon className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-zinc-400" />
               <div className="min-w-0">
-                <div className="font-medium text-slate-800 dark:text-zinc-200">Replying</div>
+                <div className="font-medium text-slate-800 dark:text-zinc-200">
+                  {t("replyPreview.title", { defaultValue: "Replying" })}
+                </div>
                 <div className="truncate text-slate-500 dark:text-zinc-400">{replyTo.message}</div>
               </div>
             </div>
             <button
               type="button"
+              aria-label={t("replyPreview.clear", { defaultValue: "Clear reply" })}
               className="ml-3 shrink-0 text-slate-500 transition-colors hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white"
               onClick={onClearReply}
             >
@@ -106,7 +179,9 @@ export const MessageInput = ({
               onChange={(e) => setCompress(e.target.checked)}
               className="h-4 w-4"
             />
-            <span className="select-none">Compress</span>
+            <span className="select-none">
+              {t("sendMessage.compress", { defaultValue: "Compress" })}
+            </span>
           </label>
 
           <Button type="submit" variant="default">

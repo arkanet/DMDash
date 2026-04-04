@@ -1,4 +1,5 @@
 import { MessageActionsMenu } from "@components/PageComponents/Messages/MessageActionsMenu.tsx";
+import { splitMessageMentions } from "@components/PageComponents/Messages/messageMentions.ts";
 import { Avatar } from "@components/UI/Avatar.tsx";
 import {
   Tooltip,
@@ -12,8 +13,8 @@ import type { Message } from "@core/stores/messageStore/types.ts";
 import { cn } from "@core/utils/cn.ts";
 import { type Protobuf, Types } from "@meshtastic/core";
 import type { LucideIcon } from "lucide-react";
-import { AlertCircle, CheckCircle2, CircleEllipsis } from "lucide-react";
-import { type ReactNode, useMemo } from "react";
+import { AlertCircle, CheckCircle2, CircleEllipsis, FileArchive } from "lucide-react";
+import { Fragment, type ReactNode, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 // Cache for pending promises
@@ -92,8 +93,9 @@ interface MessageItemProps {
 }
 
 export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemProps) => {
-  const { config } = useDevice();
-  const { getNode } = useNodeDB();
+  const { config, setDialogOpen } = useDevice();
+  const { getNode, getNodes } = useNodeDB();
+  const setNodeNumDetails = useAppStore((state) => state.setNodeNumDetails);
   const { t, i18n } = useTranslation("messages");
 
   // This will suspend if myNode is not available yet
@@ -163,6 +165,14 @@ export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemPro
 
   const messageStatusInfo = getMessageStatusInfo(message.state);
   const StatusIconComponent = messageStatusInfo.icon;
+  const mentionNodes = new Map<string, Protobuf.Mesh.NodeInfo>();
+  for (const node of getNodes(undefined, true)) {
+    const mentionId = node.user?.id?.toUpperCase();
+    if (mentionId) {
+      mentionNodes.set(mentionId, node);
+    }
+  }
+  const messageFragments = useMemo(() => splitMessageMentions(message.message), [message.message]);
 
   const messageDate = useMemo(() => (message.date ? new Date(message.date) : null), [message.date]);
   const locale = i18n.language;
@@ -189,6 +199,13 @@ export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemPro
   const isSender = myNodeNum !== undefined && message.from === myNodeNum;
   const isOnPrimaryChannel = message.channel === Types.ChannelNumber.Primary; // Use the enum
   const shouldShowStatusIcon = isSender && isOnPrimaryChannel;
+  const openMentionedNode = useCallback(
+    (nodeNum: number) => {
+      setNodeNumDetails(nodeNum);
+      setDialogOpen("nodeDetails", true);
+    },
+    [setDialogOpen, setNodeNumDetails],
+  );
 
   const messageItemWrapperClass = cn(
     "group w-full py-2 relative list-none",
@@ -213,6 +230,28 @@ export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemPro
                 <span aria-hidden="true">{formattedTime}</span>
                 <span className="sr-only">{fullDateTime}</span>
               </time>
+            )}
+            {message.compressed && (
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      aria-label={t("compressed.label", { defaultValue: "Compressed message" })}
+                      className="inline-flex items-center"
+                      role="img"
+                    >
+                      <FileArchive
+                        className="size-4 shrink-0 text-sky-700 dark:text-sky-300"
+                        aria-hidden="true"
+                      />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-slate-800 dark:bg-slate-600 text-white px-4 py-1 rounded text-xs">
+                    {t("compressed.title", { defaultValue: "Compressed message" })}
+                    <TooltipArrow className="fill-slate-800" />
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
             {shouldShowStatusIcon && (
               <StatusTooltip statusInfo={messageStatusInfo}>
@@ -239,7 +278,43 @@ export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemPro
                 </div>
               )}
               <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
-                {message.message}
+                {messageFragments.map((fragment, index) => {
+                  if (fragment.type === "text") {
+                    return (
+                      <Fragment key={`text-${message.messageId}-${index}`}>
+                        {fragment.value}
+                      </Fragment>
+                    );
+                  }
+
+                  const mentionedNode = mentionNodes.get(fragment.mentionId);
+                  const mentionLabel =
+                    mentionedNode?.user?.longName ??
+                    mentionedNode?.user?.shortName ??
+                    fragment.mentionId;
+
+                  if (!mentionedNode) {
+                    return (
+                      <span
+                        key={`mention-${message.messageId}-${fragment.mentionId}-${index}`}
+                        className="font-medium text-sky-700 dark:text-sky-300"
+                      >
+                        @{mentionLabel}
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <button
+                      key={`mention-${message.messageId}-${fragment.mentionId}-${index}`}
+                      type="button"
+                      className="inline rounded px-0.5 font-medium text-sky-700 underline decoration-sky-400 underline-offset-2 transition-colors hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
+                      onClick={() => openMentionedNode(mentionedNode.num)}
+                    >
+                      @{mentionLabel}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

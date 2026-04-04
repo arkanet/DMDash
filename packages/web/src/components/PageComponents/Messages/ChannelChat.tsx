@@ -4,7 +4,7 @@ import { Skeleton } from "@components/UI/Skeleton.tsx";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import type { TFunction } from "i18next";
 import { InboxIcon } from "lucide-react";
-import { Fragment, Suspense, useMemo } from "react";
+import { Fragment, Suspense, useMemo, useRef, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 export interface ChannelChatProps {
@@ -31,10 +31,10 @@ function formatDateLabelFromDayKey(
   const yestKey = todayKey - 24 * 60 * 60 * 1000;
 
   if (dayKey === todayKey) {
-    return t("unit.day.today"); // "Today" from common.json
+    return t("unit.day.today");
   }
   if (dayKey === yestKey) {
-    return t("unit.day.yesterday"); // "Yesterday" from common.json
+    return t("unit.day.yesterday");
   }
   return fmt.format(new Date(dayKey));
 }
@@ -76,7 +76,6 @@ const DateDelimiter = ({ label }: { label: string }) => (
 );
 
 const MessageSkeleton = () => {
-  console.log("[ChannelChat] Showing MessageSkeleton (Suspense fallback)");
   return (
     <li className="group w-full py-2 relative list-none rounded-md">
       <div className="grid grid-cols-[auto_1fr] gap-x-2">
@@ -136,6 +135,20 @@ export const ChannelChat = ({ messages = [], onReply }: ChannelChatProps) => {
     [sorted],
   );
 
+  const listRef = useRef<HTMLUListElement | null>(null);
+
+  // Auto-scroll to show newest message when messages change.
+  // Because the list uses `flex-col-reverse`, scrolling to `top: 0` shows newest messages.
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    try {
+      el.scrollTo({ top: 0, behavior: "auto" });
+    } catch {
+      /* ignore */
+    }
+  }, [messages.length]);
+
   if (!messages.length) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center">
@@ -145,7 +158,7 @@ export const ChannelChat = ({ messages = [], onReply }: ChannelChatProps) => {
   }
 
   return (
-    <ul className="flex flex-col-reverse flex-grow overflow-y-auto px-3 py-2">
+    <ul ref={listRef} className="flex flex-col-reverse flex-grow overflow-y-auto px-3 py-2">
       {groups.map(({ dayKey, label, items }) => (
         <Fragment key={dayKey}>
           {/* Render messages first, then delimiter — with flex-col-reverse this shows the delimiter above that day's messages */}

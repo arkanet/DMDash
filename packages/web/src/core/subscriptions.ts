@@ -2,7 +2,7 @@ import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import PacketToMessageDTO from "@core/dto/PacketToMessageDTO.ts";
 import { useNewNodeNum } from "@core/hooks/useNewNodeNum";
 import { type Device, type MessageStore, MessageType, type NodeDB } from "@core/stores";
-import { type MeshDevice, Protobuf } from "@meshtastic/core";
+import { Constants, type MeshDevice, Protobuf, Types } from "@meshtastic/core";
 export const subscribeAll = (
   device: Device,
   connection: MeshDevice,
@@ -82,7 +82,52 @@ export const subscribeAll = (
     // incoming and outgoing messages are handled by this event listener
     const dto = new PacketToMessageDTO(messagePacket, myNodeNum);
     const message = dto.toMessage();
-    messageStore.saveMessage(message);
+
+    // Avoid saving duplicate messages (same messageId) if already present
+    let alreadyExists = false;
+    try {
+      if (message.type === MessageType.Direct) {
+        if (myNodeNum !== undefined) {
+          const existing = messageStore.getMessages({
+            type: MessageType.Direct,
+            nodeA: myNodeNum,
+            nodeB: message.from,
+          });
+          alreadyExists = existing.some((m) => m.messageId === message.messageId);
+        }
+      } else {
+        const existing = messageStore.getMessages({
+          type: MessageType.Broadcast,
+          channelId: message.channel,
+        });
+        alreadyExists = existing.some((m) => m.messageId === message.messageId);
+      }
+    } catch {
+      // If store read fails for any reason, fall back to saving the message
+      alreadyExists = false;
+    }
+
+    if (!alreadyExists) {
+      messageStore.saveMessage(message);
+    }
+
+    if (
+      typeof window !== "undefined" &&
+      message.compressed &&
+      message.from !== myNodeNum &&
+      window.localStorage
+    ) {
+      const contactKey =
+        message.type === MessageType.Direct
+          ? `${Types.ChannelNumber.Primary}${message.from}`
+          : `${message.channel}${Constants.broadcastNum}`;
+
+      try {
+        window.localStorage.setItem(`compressionPrefs:${contactKey}`, "true");
+      } catch {
+        // ignore localStorage write failures
+      }
+    }
 
     if (message.type === MessageType.Direct) {
       if (message.to === myNodeNum) {

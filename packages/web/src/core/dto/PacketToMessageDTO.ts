@@ -12,6 +12,7 @@ class PacketToMessageDTO {
   message: string;
   type: MessageType;
   replyId?: number;
+  compressed?: boolean;
 
   constructor(data: Types.PacketMetadata<string>, nodeNum: number) {
     this.channel = data.channel;
@@ -22,6 +23,7 @@ class PacketToMessageDTO {
     this.message = data.data;
     this.type = data.type === "direct" ? MessageType.Direct : MessageType.Broadcast;
     this.replyId = data.replyId;
+    this.compressed = data.compressed;
 
     let dateTimestamp = Date.now();
     if (data.rxTime instanceof Date) {
@@ -49,6 +51,7 @@ class PacketToMessageDTO {
       message: this.message,
       type: this.type,
       replyId: this.replyId,
+      compressed: this.compressed,
     };
   }
 }
