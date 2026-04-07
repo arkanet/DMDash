@@ -109,6 +109,7 @@ const NodesPage = (): JSX.Element => {
     { title: t("nodesTable.headings.longName"), sortable: true },
     { title: t("nodesTable.headings.connection"), sortable: true },
     { title: t("nodesTable.headings.lastHeard"), sortable: true },
+    { title: t("nodesTable.headings.role"), sortable: true },
     { title: t("nodesTable.headings.encryption"), sortable: false },
     { title: t("unit.snr"), sortable: true },
     { title: t("nodesTable.headings.model"), sortable: true },
@@ -185,6 +186,17 @@ const NodesPage = (): JSX.Element => {
             </Mono>
           ),
           sortValue: node.lastHeard,
+        },
+        {
+          content: (
+            <Mono>
+              {(() => {
+                const raw = Protobuf.Config.Config_DeviceConfig_Role[node.user?.role ?? 0];
+                return raw ? raw.replace(/_/g, " ") : "UNSET";
+              })()}
+            </Mono>
+          ),
+          sortValue: node.user?.role ?? 0,
         },
         {
           content: (

@@ -92,6 +92,10 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
       ? fromByteArray(node.user.publicKey)
       : undefined;
 
+  const roleLabelRaw = Protobuf.Config.Config_DeviceConfig_Role[node.user?.role ?? 0];
+  const formatEnumLabel = (label: string) => label.replace(/_/g, " ");
+  const roleLabel = roleLabelRaw ? formatEnumLabel(roleLabelRaw) : undefined;
+
   function handleDirectMessage() {
     navigate({ to: `/messages/direct/${node.num}` });
   }
@@ -409,6 +413,12 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
                 {node.user?.shortName && <div>"{node.user.shortName}"</div>}
                 {node.user?.id && <div>{node.user.id}</div>}
               </div>
+
+              {roleLabel && (
+                <div className="mt-1">
+                  <Subtle>{roleLabel}</Subtle>
+                </div>
+              )}
 
               <div
                 className="flex gap-1"

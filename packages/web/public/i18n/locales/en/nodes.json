@@ -39,7 +39,8 @@
       "longName": "Long Name",
       "connection": "Connection",
       "lastHeard": "Last Heard",
-      "encryption": "Encryption",
+      "role": "Role",
+      "encryption": "Enc",
       "model": "Model",
       "macAddress": "MAC Address"
     },
@@ -52,7 +53,6 @@
       "never": "Never"
     }
   },
-
   "actions": {
     "added": "Added",
     "removed": "Removed",

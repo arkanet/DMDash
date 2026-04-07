@@ -612,6 +612,7 @@ const MapPage = () => {
                   side: "bottom",
                   align: "end",
                   sideOffset: 7,
+                  style: { right: "35px", top: "-150px", position: "fixed" },
                 },
                 popoverTriggerClassName: cn(
                   "w-[29px] px-1 py-1 rounded shadow-l outline-[2px] outline-stone-600/20 ",

@@ -174,6 +174,55 @@ export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemPro
   }
   const messageFragments = useMemo(() => splitMessageMentions(message.message), [message.message]);
 
+  // Split plain text fragments further into URL parts so links become clickable.
+  // Plus Codes (Open Location Codes) are handled separately.
+  const splitTextByUrl = useCallback((text: string) => {
+    const parts: Array<{ type: "text" | "url"; value: string }> = [];
+    if (!text) return parts;
+    // Match URLs starting with a scheme (tel:, mailto:, http:, https:, geo:, maps:, etc.)
+    // or starting with www.
+    const urlRegex = /\b((?:[a-z][a-z0-9+.-]*:|www\.)[^\s<>]*)/gi;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    // eslint-disable-next-line no-cond-assign
+    while ((match = urlRegex.exec(text)) !== null) {
+      const idx = match.index;
+      const url = match[0];
+      if (idx > lastIndex) {
+        parts.push({ type: "text", value: text.slice(lastIndex, idx) });
+      }
+      parts.push({ type: "url", value: url });
+      lastIndex = idx + url.length;
+    }
+    if (lastIndex < text.length) {
+      parts.push({ type: "text", value: text.slice(lastIndex) });
+    }
+    return parts;
+  }, []);
+
+  // Split plain text for Plus Codes (e.g. "8FVC9G8F+6X") and return parts
+  const splitPlusCodes = useCallback((text: string) => {
+    const parts: Array<{ type: "text" | "plus"; value: string }> = [];
+    if (!text) return parts;
+    const plusRegex = /[23456789CFGHJMPQRVWX]{4,}\+[23456789CFGHJMPQRVWX]{2,6}/gi;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    // eslint-disable-next-line no-cond-assign
+    while ((match = plusRegex.exec(text)) !== null) {
+      const idx = match.index;
+      const code = match[0];
+      if (idx > lastIndex) {
+        parts.push({ type: "text", value: text.slice(lastIndex, idx) });
+      }
+      parts.push({ type: "plus", value: code });
+      lastIndex = idx + code.length;
+    }
+    if (lastIndex < text.length) {
+      parts.push({ type: "text", value: text.slice(lastIndex) });
+    }
+    return parts;
+  }, []);
+
   const messageDate = useMemo(() => (message.date ? new Date(message.date) : null), [message.date]);
   const locale = i18n.language;
 
@@ -280,9 +329,62 @@ export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemPro
               <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
                 {messageFragments.map((fragment, index) => {
                   if (fragment.type === "text") {
+                    const pieces = splitTextByUrl(fragment.value);
+                    if (pieces.length === 0) {
+                      return (
+                        <Fragment key={`text-${message.messageId}-${index}`}>
+                          {fragment.value}
+                        </Fragment>
+                      );
+                    }
+
                     return (
                       <Fragment key={`text-${message.messageId}-${index}`}>
-                        {fragment.value}
+                        {pieces.map((p, pi) => {
+                          if (p.type === "text") {
+                            const inner = splitPlusCodes(p.value);
+                            if (inner.length === 0) {
+                              return <Fragment key={`t-${index}-${pi}`}>{p.value}</Fragment>;
+                            }
+                            return (
+                              <Fragment key={`t-${index}-${pi}`}>
+                                {inner.map((ip, ipi) =>
+                                  ip.type === "text" ? (
+                                    <Fragment key={`it-${index}-${pi}-${ipi}`}>{ip.value}</Fragment>
+                                  ) : (
+                                    <a
+                                      key={`plus-${index}-${pi}-${ipi}`}
+                                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                        ip.value,
+                                      )}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: "#00BCD4" }}
+                                      className="underline decoration-sky-400 underline-offset-2"
+                                    >
+                                      {ip.value}
+                                    </a>
+                                  ),
+                                )}
+                              </Fragment>
+                            );
+                          }
+
+                          // url piece
+                          const href = p.value.includes(":") ? p.value : `http://${p.value}`;
+                          return (
+                            <a
+                              key={`u-${index}-${pi}`}
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: "#00BCD4" }}
+                              className="underline decoration-sky-400 underline-offset-2"
+                            >
+                              {p.value}
+                            </a>
+                          );
+                        })}
                       </Fragment>
                     );
                   }
