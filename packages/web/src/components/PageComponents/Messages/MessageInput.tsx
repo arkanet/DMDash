@@ -42,7 +42,7 @@ export const MessageInput = ({
   const [compress, setCompress] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const { theme } = useTheme();
+  const { theme, preference } = useTheme();
   const isLightTheme = theme === "light";
   const outerBg = isLightTheme ? undefined : "var(--gateway-bg, #222)";
   const midBg = isLightTheme ? undefined : "rgba(255,255,255,0.03)";
@@ -54,7 +54,7 @@ export const MessageInput = ({
   const pickerThemeClass =
     theme === "dark"
       ? "epr-dark-theme"
-      : theme === "device" || theme === "system"
+      : preference === "system"
         ? "epr-auto-theme"
         : "";
 
@@ -406,7 +406,6 @@ export const MessageInput = ({
                   })()}
                 >
                   <EmojiPicker
-                    emojiStyle="native"
                     onEmojiClick={handleEmojiClick}
                     previewConfig={{ showPreview: false }}
                   />

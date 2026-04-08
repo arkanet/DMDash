@@ -142,7 +142,10 @@ export const NodesLayer = ({
         offset={popupState?.type === "node" ? popupState.offset : [0, 0]}
         onClose={() => setPopupState(undefined)}
       >
-        <NodeDetail node={selectedNode} />
+        <NodeDetail
+          node={selectedNode}
+          onSelectNode={(num: number) => setPopupState({ type: "node", num, offset: [0, 0] })}
+        />
       </PopupWrapper>,
     );
   }

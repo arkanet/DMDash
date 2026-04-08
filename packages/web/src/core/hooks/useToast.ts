@@ -3,6 +3,8 @@ import { type ReactNode, useSyncExternalStore } from "react";
 
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 1000000;
+// Auto-dismiss informational toasts after 5 seconds
+const AUTO_DISMISS_MS = 5000;
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -30,27 +32,28 @@ type ActionType = typeof actionTypes;
 
 type Action =
   | {
-      type: ActionType["ADD_TOAST"];
-      toast: ToasterToast;
-    }
+    type: ActionType["ADD_TOAST"];
+    toast: ToasterToast;
+  }
   | {
-      type: ActionType["UPDATE_TOAST"];
-      toast: Partial<ToasterToast>;
-    }
+    type: ActionType["UPDATE_TOAST"];
+    toast: Partial<ToasterToast>;
+  }
   | {
-      type: ActionType["DISMISS_TOAST"];
-      toastId?: ToasterToast["id"];
-    }
+    type: ActionType["DISMISS_TOAST"];
+    toastId?: ToasterToast["id"];
+  }
   | {
-      type: ActionType["REMOVE_TOAST"];
-      toastId?: ToasterToast["id"];
-    };
+    type: ActionType["REMOVE_TOAST"];
+    toastId?: ToasterToast["id"];
+  };
 
 interface State {
   toasts: ToasterToast[];
 }
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+const autoDismissTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
@@ -88,9 +91,20 @@ export const reducer = (state: State, action: Action): State => {
       // ! Side effects ! - This could be extracted into a dismissToast() action,
       // but I'll keep it here for simplicity
       if (toastId) {
+        // clear any pending auto-dismiss timer
+        const auto = autoDismissTimeouts.get(toastId);
+        if (auto) {
+          clearTimeout(auto);
+          autoDismissTimeouts.delete(toastId);
+        }
         addToRemoveQueue(toastId);
       } else {
         for (const toast of state.toasts) {
+          const auto = autoDismissTimeouts.get(toast.id);
+          if (auto) {
+            clearTimeout(auto);
+            autoDismissTimeouts.delete(toast.id);
+          }
           addToRemoveQueue(toast.id);
         }
       }
@@ -100,9 +114,9 @@ export const reducer = (state: State, action: Action): State => {
         toasts: state.toasts.map((t) =>
           t.id === toastId || toastId === undefined
             ? {
-                ...t,
-                open: false,
-              }
+              ...t,
+              open: false,
+            }
             : t,
         ),
       };
@@ -160,6 +174,19 @@ function toast({ delay = 0, ...props }: Toast) {
       },
     });
   }, delay);
+
+  // schedule auto-dismiss for informational toasts (non-destructive) after AUTO_DISMISS_MS
+  // only schedule after the toast is added
+  setTimeout(() => {
+    // default to informational (variant !== 'destructive')
+    const variant = (props as any).variant;
+    if (variant !== "destructive") {
+      const auto = setTimeout(() => {
+        dispatch({ type: "DISMISS_TOAST", toastId: id });
+      }, AUTO_DISMISS_MS);
+      autoDismissTimeouts.set(id, auto);
+    }
+  }, delay + 0);
 
   return {
     id: id,

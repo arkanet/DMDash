@@ -261,6 +261,26 @@ const MapPage = () => {
     } as const;
   }, [myNode]);
 
+  // Animate/center map when a popup node is selected
+  useEffect(() => {
+    if (!popupState || popupState.type !== "node" || !mapRef) return;
+    const sel = getNode(popupState.num);
+    if (!sel || !sel.position || !hasPos(sel.position)) return;
+    const [lng, lat] = toLngLat(sel.position);
+    try {
+      // center with animation
+      mapRef.easeTo({ center: [lng, lat], duration: 600 });
+    } catch (e) {
+      // fallback: set center directly
+      try {
+        const map = mapRef.getMap();
+        map.setCenter([lng, lat]);
+      } catch (err) {
+        // ignore
+      }
+    }
+  }, [popupState, mapRef, getNode]);
+
   const tracerouteOverlay = useMemo(() => {
     if (!selectedTraceRoute) {
       return undefined;
@@ -306,31 +326,31 @@ const MapPage = () => {
         features: [
           ...(forwardCoordinates.length >= 2
             ? [
-                {
-                  type: "Feature" as const,
-                  properties: {
-                    role: "forward",
-                  },
-                  geometry: {
-                    type: "LineString" as const,
-                    coordinates: forwardCoordinates,
-                  },
+              {
+                type: "Feature" as const,
+                properties: {
+                  role: "forward",
                 },
-              ]
+                geometry: {
+                  type: "LineString" as const,
+                  coordinates: forwardCoordinates,
+                },
+              },
+            ]
             : []),
           ...(backwardCoordinates.length >= 2
             ? [
-                {
-                  type: "Feature" as const,
-                  properties: {
-                    role: "backward",
-                  },
-                  geometry: {
-                    type: "LineString" as const,
-                    coordinates: backwardCoordinates,
-                  },
+              {
+                type: "Feature" as const,
+                properties: {
+                  role: "backward",
                 },
-              ]
+                geometry: {
+                  type: "LineString" as const,
+                  coordinates: backwardCoordinates,
+                },
+              },
+            ]
             : []),
         ],
       },

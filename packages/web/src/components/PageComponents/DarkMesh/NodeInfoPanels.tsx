@@ -14,6 +14,7 @@ interface NeighborInfoPanelProps {
   className?: string;
   title?: string;
   dense?: boolean;
+  onOpenNode?: (nodeNum: number) => void;
 }
 
 interface EnvironmentMetricsPanelProps {
@@ -47,6 +48,7 @@ export function NeighborInfoPanel({
   className,
   title,
   dense = false,
+  onOpenNode,
 }: NeighborInfoPanelProps) {
   const { t } = useTranslation("dialog");
   const { getNode } = useNodeDB();
@@ -150,8 +152,20 @@ export function NeighborInfoPanel({
                       dense ? "text-[11px]" : "text-xs",
                     )}
                   >
-                    <div className="truncate text-left">{shortName}</div>
-                    <div className="text-center">{hex}</div>
+                    <button
+                      type="button"
+                      className="truncate text-left text-left"
+                      onClick={() => onOpenNode?.(neighbor.nodeId)}
+                    >
+                      {shortName}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-center"
+                      onClick={() => onOpenNode?.(neighbor.nodeId)}
+                    >
+                      {hex}
+                    </button>
                     <div className="text-right">{snr}</div>
                   </div>
                 </li>

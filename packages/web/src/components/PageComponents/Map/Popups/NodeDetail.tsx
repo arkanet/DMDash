@@ -59,13 +59,15 @@ import { useTranslation } from "react-i18next";
 
 export interface NodeDetailProps {
   node: ProtobufType.Mesh.NodeInfo;
+  onSelectNode?: (nodeNum: number) => void;
 }
 
-export const NodeDetail = ({ node }: NodeDetailProps) => {
+export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
   const navigate = useNavigate();
   const { t } = useTranslation("nodes");
   const { connection, hardware, id: deviceId, getNeighborInfo } = useDevice();
   const { getEnvironmentMetrics } = useNodeDB();
+  const { getNode } = useNodeDB();
   const { updateFavorite } = useFavoriteNode();
 
   const [showNeighbor, setShowNeighbor] = useState(false);
@@ -457,6 +459,58 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
                 dense
                 className="w-64 bg-white/5 p-2 dark:bg-black/10"
                 title={t("nodeDetail.neighbor.header", "Neighbor Nodes")}
+                onOpenNode={(num: number) => {
+                  (async () => {
+                    // If node already has GPS, select immediately
+                    const target = getNode(num);
+                    if (target?.position && target.position.latitudeI && target.position.longitudeI) {
+                      onSelectNode?.(num);
+                      return;
+                    }
+
+                    if (!connection) {
+                      toast({ title: t("nodeDetail.gps.noConnection", "No connection") });
+                      return;
+                    }
+
+                    toast({ title: t("nodeDetail.gps.request", "GPS data request") });
+
+                    try {
+                      await connection.requestPosition(num);
+                    } catch (err) {
+                      console.warn("requestPosition failed", err);
+                    }
+
+                    // wait up to 15s for position packet from that node
+                    const got = await new Promise<boolean>((resolve) => {
+                      const handler = (loc: any) => {
+                        try {
+                          const from = loc.from?.valueOf ? loc.from.valueOf() : loc.from;
+                          if (from === num) {
+                            connection.events.onPositionPacket.unsubscribe(handler);
+                            clearTimeout(timer);
+                            resolve(true);
+                          }
+                        } catch (e) {
+                          // ignore
+                        }
+                      };
+
+                      connection.events.onPositionPacket.subscribe(handler);
+
+                      const timer = setTimeout(() => {
+                        connection.events.onPositionPacket.unsubscribe(handler);
+                        resolve(false);
+                      }, 15000);
+                    });
+
+                    if (got) {
+                      onSelectNode?.(num);
+                    } else {
+                      toast({ title: t("nodeDetail.gps.missing", "GPS data missing") });
+                    }
+                  })();
+                }}
               />
             )}
 
