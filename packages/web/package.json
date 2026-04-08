@@ -89,6 +89,7 @@
     "vite-plugin-html": "^3.2.2",
     "vite-plugin-pwa": "^1.0.3",
     "zod": "^4.1.12",
+    "emoji-picker-react": "^4.7.0",
     "zustand": "5.0.8"
   },
   "devDependencies": {

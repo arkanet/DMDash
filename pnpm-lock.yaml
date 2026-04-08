@@ -14,6 +14,9 @@ importers:
       '@meshtastic/protobufs':
         specifier: jsr:^2.7.20
         version: '@jsr/meshtastic__protobufs@2.7.20'
+      emoji-picker-react:
+        specifier: ^4.9.0
+        version: 4.18.0(react@19.2.4)
       ste-simple-events:
         specifier: ^3.0.11
         version: 3.0.11
@@ -21,9 +24,15 @@ importers:
         specifier: ^4.9.3
         version: 4.10.2
     devDependencies:
+      '@jridgewell/sourcemap-codec':
+        specifier: ^1.5.5
+        version: 1.5.5
       '@types/node':
         specifier: ^24.3.1
         version: 24.12.0
+      glob:
+        specifier: ^13.0.6
+        version: 13.0.6
       husky:
         specifier: ^9.1.0
         version: 9.1.7
@@ -36,6 +45,9 @@ importers:
       oxlint:
         specifier: ^1.41.0
         version: 1.52.0
+      source-map:
+        specifier: 0.7.4
+        version: 0.7.4
       tsdown:
         specifier: ^0.15.0
         version: 0.15.12(publint@0.3.18)(typescript@5.9.3)
@@ -301,6 +313,9 @@ importers:
       crypto-random-string:
         specifier: ^5.0.0
         version: 5.0.0
+      emoji-picker-react:
+        specifier: ^4.7.0
+        version: 4.18.0(react@19.2.4)
       i18next:
         specifier: ^25.5.3
         version: 25.8.17(typescript@5.9.3)
@@ -3710,6 +3725,12 @@ packages:
   electron-to-chromium@1.5.307:
     resolution: {integrity: sha512-5z3uFKBWjiNR44nFcYdkcXjKMbg5KXNdciu7mhTPo9tB7NbqSNP2sSnGR+fqknZSCwKkBN+oxiiajWs4dT6ORg==}
 
+  emoji-picker-react@4.18.0:
+    resolution: {integrity: sha512-vLTrLfApXAIciguGE57pXPWs9lPLBspbEpPMiUq03TIli2dHZBiB+aZ0R9/Wat0xmTfcd4AuEzQgSYxEZ8C88Q==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      react: '>=16'
+
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
 
@@ -3841,6 +3862,9 @@ packages:
   fill-range@7.1.1:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
     engines: {node: '>=8'}
+
+  flairup@1.0.0:
+    resolution: {integrity: sha512-IKlE+pNvL2R+kVL1kEhUYqRxVqeFnjiIvHWDMLFXNaqyUdFXQM2wte44EfMYJNHkW16X991t2Zg8apKkhv7OBA==}
 
   for-each@0.3.5:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
@@ -5103,6 +5127,10 @@ packages:
   source-map@0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
+
+  source-map@0.7.4:
+    resolution: {integrity: sha512-l3BikUxvPOcn5E74dZiq5BGsTb5yEwhaTSzccU6t4sDOH8NWJCstKO5QT2CvtFoK6F0saL7p9xHAqHOlCPJygA==}
+    engines: {node: '>= 8'}
 
   source-map@0.7.6:
     resolution: {integrity: sha512-i5uvt8C3ikiWeNZSVZNWcfZPItFQOsYTUAOkcUPGd8DqDy1uOUikjt5dG+uRlwyvR108Fb9DOd4GvXfT0N2/uQ==}
@@ -10162,6 +10190,11 @@ snapshots:
 
   electron-to-chromium@1.5.307: {}
 
+  emoji-picker-react@4.18.0(react@19.2.4):
+    dependencies:
+      flairup: 1.0.0
+      react: 19.2.4
+
   emoji-regex@10.6.0: {}
 
   emoji-regex@8.0.0: {}
@@ -10350,6 +10383,8 @@ snapshots:
   fill-range@7.1.1:
     dependencies:
       to-regex-range: 5.0.1
+
+  flairup@1.0.0: {}
 
   for-each@0.3.5:
     dependencies:
@@ -11674,6 +11709,8 @@ snapshots:
       source-map: 0.6.1
 
   source-map@0.6.1: {}
+
+  source-map@0.7.4: {}
 
   source-map@0.7.6: {}
 
