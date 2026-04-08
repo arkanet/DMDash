@@ -26,6 +26,21 @@ Il livello DarkMesh aggiunge le seguenti funzionalità rispetto alla base Meshta
 - import/export `.dmdb` basato su `SharedContact` di Meshtastic
 - UX dei messaggi con supporto al reply tramite `replyId`
 
+### Anteprime delle funzionalità
+
+Di seguito alcune anteprime rapide delle feature principali della dashboard DarkMesh; clicca la miniatura per vedere l'immagine a dimensione intera.
+
+- **Messaggi (chat / emoji picker)**  
+  [![Messaggi](assets/screenshots/Chat-thumb.png)](assets/screenshots/Chat.png)
+- **Mappa (panoramica + popup nodo)**  
+  [![Mappa](assets/screenshots/EnvironmentalMetrics-thumb.png)](assets/screenshots/EnvironmentalMetrics.png)
+- **Filtri mappa (role/metrics UI)**  
+  [![Filtri](assets/screenshots/Filters-thumb.png)](assets/screenshots/Filters.png)
+- **Popup nodo (lista neighbor / metriche)**  
+  [![Popup nodo](assets/screenshots/NeighborNodes-thumb.png)](assets/screenshots/NeighborNodes.png)
+- **Traceroute overlay (visual tracert)**  
+  [![Traceroute](assets/screenshots/VisualTraceroute-thumb.png)](assets/screenshots/VisualTraceroute.png)
+
 ## Compatibilità del protocollo
 
 `DMDash` non introduce un fork protobuf separato.
@@ -164,3 +179,13 @@ Trattalo come:
 - un'esperienza web DarkMesh
 - una dashboard compatibile Meshtastic
 - un repository che segue upstream in modo intenzionale invece di mescolare tutte le storie dei commit
+
+## Screenshots
+
+Le immagini usate in questo README sono presenti in `assets/screenshots/`:
+
+- `assets/screenshots/Chat.png` — anteprima messaggi/chat
+- `assets/screenshots/EnvironmentalMetrics.png` — popup nodo / metriche
+- `assets/screenshots/Filters.png` — UI filtri mappa
+- `assets/screenshots/NeighborNodes.png` — lista neighbor nel popup nodo
+- `assets/screenshots/VisualTraceroute.png` — overlay traceroute sulla mappa

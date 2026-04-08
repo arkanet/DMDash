@@ -26,6 +26,21 @@ The DarkMesh layer currently adds these features on top of the Meshtastic web ba
 - `.dmdb` import/export based on Meshtastic `SharedContact`
 - reply-aware message UX using `replyId`
 
+### Feature previews
+
+Below are quick previews of selected DarkMesh dashboard features; click a thumbnail to view the full-size image.
+
+- **Messages (chat / emoji picker)**  
+  [![Messages](assets/screenshots/Chat-thumb.png)](assets/screenshots/Chat.png)
+- **Map (overview + node popup)**  
+  [![Map](assets/screenshots/EnvironmentalMetrics-thumb.png)](assets/screenshots/EnvironmentalMetrics.png)
+- **Map filters (role/metrics UI)**  
+  [![Filters](assets/screenshots/Filters-thumb.png)](assets/screenshots/Filters.png)
+- **Node popup (neighbor list / metrics)**  
+  [![Node popup](assets/screenshots/NeighborNodes-thumb.png)](assets/screenshots/NeighborNodes.png)
+- **Traceroute overlay (traced route visual)**  
+  [![Traceroute](assets/screenshots/VisualTraceroute-thumb.png)](assets/screenshots/VisualTraceroute.png)
+
 ## Protocol Compatibility
 
 `DMDash` does not introduce a separate protobuf fork.
@@ -186,3 +201,21 @@ It should be treated as:
 - a DarkMesh web experience
 - a Meshtastic-compatible dashboard
 - a repository that follows upstreams intentionally rather than mixing all histories together
+
+## Screenshots
+
+The following images show several main dashboard features. Image files are expected under `assets/screenshots/`.
+
+- **Messages (chat / emoji picker)**: `assets/screenshots/messages.png`
+- **Map (overview + node popup)**: `assets/screenshots/map.png`
+- **Map filters (role/metrics UI)**: `assets/screenshots/filters.png`
+- **Node popup (neighbor list / metrics)**: `assets/screenshots/node-popup.png`
+- **Traceroute overlay (traced route visual)**: `assets/screenshots/traceroute.png`
+
+The images used in this README are available in `assets/screenshots/`:
+
+- `assets/screenshots/Chat.png` — messages / chat preview
+- `assets/screenshots/EnvironmentalMetrics.png` — node popup / metrics
+- `assets/screenshots/Filters.png` — map filters UI
+- `assets/screenshots/NeighborNodes.png` — neighbor list in node popup
+- `assets/screenshots/VisualTraceroute.png` — traceroute overlay on the map
