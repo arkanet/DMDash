@@ -5,7 +5,7 @@ import type { Message } from "@core/stores/messageStore/types.ts";
 import type { Types } from "@meshtastic/core";
 import { ReplyIcon, SendIcon, XIcon } from "lucide-react";
 import { startTransition, useEffect, useRef, useState } from "react";
-import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
+import EmojiPicker, { EmojiClickData, EmojiStyle } from "emoji-picker-react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@core/hooks/useTheme.ts";
 
@@ -52,11 +52,7 @@ export const MessageInput = ({
   const darkMidBg = "rgba(255,255,255,0.03)";
   const darkSearchBg = "rgba(255,255,255,0.06)";
   const pickerThemeClass =
-    theme === "dark"
-      ? "epr-dark-theme"
-      : preference === "system"
-        ? "epr-auto-theme"
-        : "";
+    theme === "dark" ? "epr-dark-theme" : preference === "system" ? "epr-auto-theme" : "";
 
   // If the EmojiPicker renders into a portal (body), ensure the theme class and
   // CSS variables are available globally so the picker's internal selectors work.
@@ -99,6 +95,50 @@ export const MessageInput = ({
       }
     } catch {
       // ignore DOM errors
+    }
+
+    // Diagnostic logging to help determine why emoji glyphs may be missing.
+    try {
+      // list stylesheet hrefs and detect any emoji-picker matches
+      const links = Array.from(document.querySelectorAll<HTMLLinkElement>("link[rel=stylesheet]"));
+      const linkInfo = links.map((l) => ({ href: l.href, id: l.id || null }));
+      // Try to access cssRules for same-origin stylesheets; cross-origin will throw
+      const cssRuleCounts = links.map((l) => {
+        try {
+          // @ts-ignore access may throw
+          return {
+            href: l.href,
+            rules: (l.sheet && (l.sheet as CSSStyleSheet).cssRules?.length) || 0,
+          };
+        } catch {
+          return { href: l.href, rules: "cross-origin" };
+        }
+      });
+
+      // Inspect a sample emoji element if present
+      const sample = document.querySelector<HTMLElement>(
+        ".epr-emoji, .epr-emoji-item, .epr-emoji-button, button[aria-label^=emoji]",
+      );
+      let sampleInfo: Record<string, unknown> | null = null;
+      if (sample) {
+        const cs = window.getComputedStyle(sample);
+        const rect = sample.getBoundingClientRect();
+        sampleInfo = {
+          text: (sample.textContent || "").slice(0, 40),
+          width: rect.width,
+          height: rect.height,
+          backgroundImage: cs.backgroundImage,
+          fontFamily: cs.fontFamily,
+          color: cs.color,
+          display: cs.display,
+        };
+      }
+
+      // eslint-disable-next-line no-console
+      console.debug("EmojiPicker diagnostics", { linkInfo, cssRuleCounts, sampleInfo });
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.debug("EmojiPicker diagnostics failed", e);
     }
 
     return () => {
@@ -408,6 +448,8 @@ export const MessageInput = ({
                   <EmojiPicker
                     onEmojiClick={handleEmojiClick}
                     previewConfig={{ showPreview: false }}
+                    // force native emoji rendering to avoid external CDN image loads
+                    emojiStyle={EmojiStyle.NATIVE}
                   />
                 </div>
               </div>
@@ -422,3 +464,5 @@ export const MessageInput = ({
     </div>
   );
 };
+
+// Inline fallback removed — rely on emoji-picker-react to render glyphs.
