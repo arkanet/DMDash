@@ -56,6 +56,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
 
 export interface NodeDetailProps {
   node: ProtobufType.Mesh.NodeInfo;
@@ -77,6 +78,39 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
   const [shareUrl, setShareUrl] = useState<string>("");
 
   const name = node.user?.longName ?? t("unknown.shortName");
+
+  function findValidUrlInText(text: string) {
+    const tokens = text.split(/\s+/);
+    for (const token of tokens) {
+      const cleaned = token.replace(/^[("'“]+|[),.!?"'”]+$/g, "");
+      if (!cleaned) continue;
+
+      try {
+        // explicit schemes or www
+        if (/^(https?:\/\/|ftp:\/\/|www\.)/i.test(cleaned)) {
+          const candidate = cleaned.startsWith("www.") ? `http://${cleaned}` : cleaned;
+          const u = new URL(candidate);
+          const hostWithPort = u.port ? `${u.hostname}:${u.port}` : u.hostname;
+          if (urlOrIpv4Schema.safeParse(hostWithPort).success) {
+            const idx = text.indexOf(token);
+            return { url: candidate, start: idx, end: idx + token.length };
+          }
+        }
+
+        // bare domain or ipv4
+        if (cleaned.includes(".") || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(cleaned)) {
+          if (urlOrIpv4Schema.safeParse(cleaned).success) {
+            const idx = text.indexOf(token);
+            return { url: cleaned, start: idx, end: idx + token.length };
+          }
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    return null;
+  }
   const hwModel = node.user?.hwModel ?? 0;
   const rawHardwareType = Protobuf.Mesh.HardwareModel[hwModel] as
     | keyof typeof Protobuf.Mesh.HardwareModel
@@ -404,7 +438,36 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
         <div className="min-w-0 flex-1">
           <div className="flex gap-3">
             <div className="min-w-0 flex-1">
-              <Heading as="h5">{name}</Heading>
+              <Heading as="h5">
+                {(() => {
+                  const ln = node.user?.longName ?? "";
+                  const found = findValidUrlInText(ln);
+                  if (found) {
+                    const before = ln.slice(0, found.start);
+                    const linkText = ln.slice(found.start, found.end);
+                    const after = ln.slice(found.end);
+                    const href = new RegExp("^(https?:\\/\\/)", "i").test(found.url)
+                      ? found.url
+                      : `http://${found.url}`;
+                    return (
+                      <>
+                        {before}
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="no-underline text-current"
+                        >
+                          {linkText}
+                        </a>
+                        {after}
+                      </>
+                    );
+                  }
+
+                  return name;
+                })()}
+              </Heading>
               {hardwareType !== t("unset") && <Subtle>{hardwareType}</Subtle>}
 
               {!!node.deviceMetrics?.batteryLevel && (
@@ -463,7 +526,11 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                   (async () => {
                     // If node already has GPS, select immediately
                     const target = getNode(num);
-                    if (target?.position && target.position.latitudeI && target.position.longitudeI) {
+                    if (
+                      target?.position &&
+                      target.position.latitudeI &&
+                      target.position.longitudeI
+                    ) {
                       onSelectNode?.(num);
                       return;
                     }
@@ -483,15 +550,17 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
 
                     // wait up to 15s for position packet from that node
                     const got = await new Promise<boolean>((resolve) => {
-                      const handler = (loc: any) => {
+                      const handler = (loc: unknown) => {
                         try {
-                          const from = loc.from?.valueOf ? loc.from.valueOf() : loc.from;
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          const l = loc as any;
+                          const from = l.from?.valueOf ? l.from.valueOf() : l.from;
                           if (from === num) {
                             connection.events.onPositionPacket.unsubscribe(handler);
                             clearTimeout(timer);
                             resolve(true);
                           }
-                        } catch (e) {
+                        } catch {
                           // ignore
                         }
                       };

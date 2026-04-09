@@ -61,6 +61,7 @@ import { QRCode } from "react-qrcode-logo";
 import { buildSharedContactUrl } from "../../../darkmesh/utils.ts";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
 
 export interface NodeDetailsDialogProps {
   open: boolean;
@@ -87,9 +88,13 @@ export const NodeDetailsDialog = ({
   // `node` is no longer used directly; use `nodeForRender`/`effectiveNodeNum` instead.
   const effectiveNodeNum = typeof propNodeNum === "number" ? propNodeNum : nodeNumDetails;
   const nodeForRender = nodeDB.getNode(effectiveNodeNum);
-  const environmentMetricsForRender = nodeForRender ? nodeDB.getEnvironmentMetrics(nodeForRender.num) : undefined;
+  const environmentMetricsForRender = nodeForRender
+    ? nodeDB.getEnvironmentMetrics(nodeForRender.num)
+    : undefined;
 
-  const [isFavoriteState, setIsFavoriteState] = useState<boolean>(nodeForRender?.isFavorite ?? false);
+  const [isFavoriteState, setIsFavoriteState] = useState<boolean>(
+    nodeForRender?.isFavorite ?? false,
+  );
   const [isIgnoredState, setIsIgnoredState] = useState<boolean>(nodeForRender?.isIgnored ?? false);
   const [isRequestingPosition, setIsRequestingPosition] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -267,7 +272,6 @@ export const NodeDetailsDialog = ({
     environmentMetrics: environmentMetricsForRender,
   };
 
-
   function openNestedNode(nodeNum: number) {
     setNestedStack((s) => [...s, nodeNum]);
   }
@@ -275,15 +279,80 @@ export const NodeDetailsDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent aria-describedby={undefined} style={{ transform: `translateX(${offsetPercent}%)` }}>
+        <DialogContent
+          aria-describedby={undefined}
+          style={{ transform: `translateX(${offsetPercent}%)` }}
+        >
           <DialogClose />
           <DialogHeader>
             <DialogTitle>
-              {t("nodeDetails.title", {
-                interpolation: { escapeValue: false },
-                identifier: `${currentNode.user?.longName ?? t("unknown.shortName")} (${currentNode.user?.shortName ?? t("unknown.shortName")
-                  })`,
-              })}
+              {(() => {
+                const ln = currentNode.user?.longName ?? "";
+
+                function findValidUrlInText(text: string) {
+                  const tokens = text.split(/\s+/);
+                  for (const token of tokens) {
+                    const cleaned = token.replace(/^[("'“]+|[),.!?"'”]+$/g, "");
+                    if (!cleaned) continue;
+
+                    try {
+                      if (/^(https?:\/\/|ftp:\/\/|www\.)/i.test(cleaned)) {
+                        const candidate = cleaned.startsWith("www.")
+                          ? `http://${cleaned}`
+                          : cleaned;
+                        const u = new URL(candidate);
+                        const hostWithPort = u.port ? `${u.hostname}:${u.port}` : u.hostname;
+                        if (urlOrIpv4Schema.safeParse(hostWithPort).success) {
+                          const idx = text.indexOf(token);
+                          return { url: candidate, start: idx, end: idx + token.length };
+                        }
+                      }
+
+                      if (cleaned.includes(".") || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(cleaned)) {
+                        if (urlOrIpv4Schema.safeParse(cleaned).success) {
+                          const idx = text.indexOf(token);
+                          return { url: cleaned, start: idx, end: idx + token.length };
+                        }
+                      }
+                    } catch {
+                      // ignore
+                    }
+                  }
+
+                  return null;
+                }
+
+                const found = findValidUrlInText(ln);
+                if (found) {
+                  const before = ln.slice(0, found.start);
+                  const linkText = ln.slice(found.start, found.end);
+                  const after = ln.slice(found.end);
+                  const href = new RegExp("^(https?:\\/\\/)", "i").test(found.url)
+                    ? found.url
+                    : `http://${found.url}`;
+                  return (
+                    <span>
+                      {before}
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="no-underline text-current"
+                      >
+                        {linkText}
+                      </a>
+                      {after}
+                      {` (${currentNode.user?.shortName ?? t("unknown.shortName")})`}
+                    </span>
+                  );
+                }
+
+                return (
+                  <span>
+                    {`${currentNode.user?.longName ?? t("unknown.shortName")} (${currentNode.user?.shortName ?? t("unknown.shortName")})`}
+                  </span>
+                );
+              })()}
             </DialogTitle>
           </DialogHeader>
 
@@ -400,7 +469,9 @@ export const NodeDetailsDialog = ({
                             setShareOpen(true);
                           } catch (err) {
                             console.warn("failed to build shared contact url", err);
-                            toast({ title: t("nodeDetail.shareError", "Failed to build share URL") });
+                            toast({
+                              title: t("nodeDetail.shareError", "Failed to build share URL"),
+                            });
                           }
                         }}
                       >
@@ -612,7 +683,10 @@ export const NodeDetailsDialog = ({
                     />
                   )}
                   {showEnvPanel && (
-                    <EnvironmentMetricsPanel className="w-full" metrics={environmentMetricsForRender} />
+                    <EnvironmentMetricsPanel
+                      className="w-full"
+                      metrics={environmentMetricsForRender}
+                    />
                   )}
                 </div>
 
@@ -642,8 +716,9 @@ export const NodeDetailsDialog = ({
                             <td>
                               <a
                                 className="text-blue-500 dark:text-blue-400"
-                                href={`https://www.openstreetmap.org/?mlat=${currentNode.position.latitudeI / 1e7
-                                  }&mlon=${currentNode.position.longitudeI / 1e7}&layers=N`}
+                                href={`https://www.openstreetmap.org/?mlat=${
+                                  currentNode.position.latitudeI / 1e7
+                                }&mlon=${currentNode.position.longitudeI / 1e7}&layers=N`}
                                 target="_blank"
                                 rel="noreferrer"
                               >
