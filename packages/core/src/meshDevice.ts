@@ -244,6 +244,8 @@ export class MeshDevice {
 
     const includeDecodedRouting = options?.includeDecodedRouting ?? true;
 
+    const packetId = this.generateRandId();
+
     const meshPacket = create(Protobuf.Mesh.MeshPacketSchema, {
       payloadVariant: {
         case: "decoded",
@@ -255,26 +257,26 @@ export class MeshDevice {
           replyId,
           ...(includeDecodedRouting
             ? {
-                dest: resolvedDestination,
-                requestId: 0, //change this!
-                source: this.myNodeInfo.myNodeNum,
-              }
+              dest: resolvedDestination,
+              requestId: packetId,
+              source: this.myNodeInfo.myNodeNum,
+            }
             : {}),
         },
       },
       from: options?.from ?? this.myNodeInfo.myNodeNum,
       to: resolvedDestination,
-      id: this.generateRandId(),
+      id: packetId,
       wantAck: wantAck,
       ...(options?.priority !== undefined ? { priority: options.priority } : {}),
       ...(options?.pkiEncrypted
         ? {
-            pkiEncrypted: true,
-            publicKey: options.publicKey,
-          }
+          pkiEncrypted: true,
+          publicKey: options.publicKey,
+        }
         : {
-            channel,
-          }),
+          channel,
+        }),
     });
 
     const toRadioMessage = create(Protobuf.Mesh.ToRadioSchema, {
@@ -1110,8 +1112,7 @@ export class MeshDevice {
           default: {
             this.log.error(
               Emitter[Emitter.HandleMeshPacket],
-              `⚠️ Received unhandled AdminMessage, type ${
-                adminMessage.payloadVariant.case ?? "undefined"
+              `⚠️ Received unhandled AdminMessage, type ${adminMessage.payloadVariant.case ?? "undefined"
               }`,
               dataPacket.payload,
             );

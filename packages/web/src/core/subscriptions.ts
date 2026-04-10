@@ -79,6 +79,36 @@ export const subscribeAll = (
   });
 
   connection.events.onMessagePacket.subscribe((messagePacket) => {
+    // Handle reactions (TEXT_MESSAGE_APP with emoji flag) separately so they
+    // are not stored as normal messages.
+    if (messagePacket.emoji === 1 && messagePacket.replyId !== undefined) {
+      const emoji = messagePacket.data as string;
+      const messageId = messagePacket.replyId as number;
+
+      if (messagePacket.type === "direct") {
+        // For direct messages, reaction targets the conversation between us and the sender
+        if (myNodeNum !== undefined) {
+          messageStore.addReaction({
+            type: MessageType.Direct,
+            nodeA: myNodeNum,
+            nodeB: messagePacket.from,
+            messageId,
+            emoji,
+          });
+        }
+      } else {
+        // Broadcast message reaction
+        messageStore.addReaction({
+          type: MessageType.Broadcast,
+          channelId: messagePacket.channel,
+          messageId,
+          emoji,
+        });
+      }
+
+      return; // don't treat reaction packets as normal messages
+    }
+
     // incoming and outgoing messages are handled by this event listener
     const dto = new PacketToMessageDTO(messagePacket, myNodeNum);
     const message = dto.toMessage();

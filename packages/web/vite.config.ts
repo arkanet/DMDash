@@ -15,7 +15,7 @@ try {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
   }).trim();
-} catch (error) {
+} catch {
   hash = "DEV";
 }
 
@@ -24,7 +24,7 @@ try {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
   }).trim();
-} catch (error) {
+} catch {
   // Fail silently and keep default version. Avoid throwing during Vite config load
   // (some CI/worktrees may not have tags or a git history available).
   version = "v0.0.0";
@@ -51,7 +51,7 @@ export default defineConfig(({ mode }) => {
             cookieYesScript:
               isProd && env.VITE_COOKIEYES_CLIENT_ID
                 ? // This is for GDPR/CCPA compliance
-                `<script async src="https://cdn-cookieyes.com/client_data/${env.VITE_COOKIEYES_CLIENT_ID}/script.js"></script>`
+                  `<script async src="https://cdn-cookieyes.com/client_data/${env.VITE_COOKIEYES_CLIENT_ID}/script.js"></script>`
                 : "",
           },
         },

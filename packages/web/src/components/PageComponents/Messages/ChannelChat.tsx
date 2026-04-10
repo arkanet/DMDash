@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 export interface ChannelChatProps {
   messages?: Message[];
   onReply?: (message: Message) => void;
+  onMention?: (message: Message) => void;
 }
 
 function toTs(d: Message["date"]): number {
@@ -102,7 +103,7 @@ const EmptyState = () => {
   );
 };
 
-export const ChannelChat = ({ messages = [], onReply }: ChannelChatProps) => {
+export const ChannelChat = ({ messages = [], onReply, onMention }: ChannelChatProps) => {
   const { i18n, t } = useTranslation();
 
   const locale = useMemo(
@@ -134,6 +135,14 @@ export const ChannelChat = ({ messages = [], onReply }: ChannelChatProps) => {
     () => new Map(sorted.map((message) => [message.messageId, message])),
     [sorted],
   );
+
+  const replyTargets = useMemo(() => {
+    const s = new Set<number>();
+    for (const m of sorted) {
+      if (typeof m.replyId === "number") s.add(m.replyId);
+    }
+    return s;
+  }, [sorted]);
 
   const listRef = useRef<HTMLUListElement | null>(null);
 
@@ -170,7 +179,9 @@ export const ChannelChat = ({ messages = [], onReply }: ChannelChatProps) => {
               <MessageItem
                 message={message}
                 repliedMessage={message.replyId ? messageIndex.get(message.replyId) : undefined}
+                isReplyTarget={replyTargets.has(message.messageId)}
                 onReply={onReply}
+                onMention={onMention}
               />
             </Suspense>
           ))}

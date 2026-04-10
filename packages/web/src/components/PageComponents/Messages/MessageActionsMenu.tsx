@@ -8,13 +8,31 @@ import {
 import { cn } from "@core/utils/cn.ts";
 import { Reply, SmilePlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useState, useRef, useEffect } from "react";
 
 interface MessageActionsMenuProps {
-  onAddReaction?: () => void;
+  onAddReaction?: (emoji?: string) => void;
   onReply?: () => void;
 }
 
 export const MessageActionsMenu = ({ onAddReaction, onReply }: MessageActionsMenuProps) => {
+  const [showPicker, setShowPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
+
+  // Close picker when clicking outside
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!pickerRef.current) return;
+      if (!pickerRef.current.contains(e.target as Node)) {
+        setShowPicker(false);
+      }
+    }
+    if (showPicker) {
+      document.addEventListener("click", onDocClick);
+      return () => document.removeEventListener("click", onDocClick);
+    }
+    return;
+  }, [showPicker]);
   const { t } = useTranslation();
   const hoverIconBarClass = cn(
     "absolute top-2 right-2",
@@ -47,9 +65,7 @@ export const MessageActionsMenu = ({ onAddReaction, onReply }: MessageActionsMen
               aria-label={t("messages_actionsMenu_addReactionLabel")}
               onClick={(e) => {
                 e.stopPropagation();
-                if (onAddReaction) {
-                  onAddReaction();
-                }
+                setShowPicker((s) => !s);
               }}
               className={hoverIconButtonClass}
             >
@@ -83,7 +99,39 @@ export const MessageActionsMenu = ({ onAddReaction, onReply }: MessageActionsMen
             <TooltipArrow className="fill-gray-800" />
           </TooltipContent>
         </Tooltip>
+        {/* mention button removed — mentions activated by typing '@' in the input */}
       </TooltipProvider>
+
+      {showPicker && (
+        <div
+          ref={pickerRef}
+          role="dialog"
+          aria-label={t("messages_actionsMenu_addReactionLabel")}
+          className="absolute -bottom-12 right-0 z-20 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-md p-2 flex gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {[
+            "👍",
+            "❤️",
+            "😂",
+            "😮",
+            "😢",
+            "👏",
+          ].map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              className="px-2 py-1 text-lg hover:bg-slate-100 dark:hover:bg-zinc-700 rounded"
+              onClick={() => {
+                if (onAddReaction) onAddReaction(emoji);
+                setShowPicker(false);
+              }}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

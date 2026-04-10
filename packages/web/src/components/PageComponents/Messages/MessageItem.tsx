@@ -1,5 +1,5 @@
 import { MessageActionsMenu } from "@components/PageComponents/Messages/MessageActionsMenu.tsx";
-import { splitMessageMentions } from "@components/PageComponents/Messages/messageMentions.ts";
+import { splitMessageMentions, buildMentionId } from "@components/PageComponents/Messages/messageMentions.ts";
 import { Avatar } from "@components/UI/Avatar.tsx";
 import {
   Tooltip,
@@ -11,10 +11,11 @@ import {
 import { MessageState, useAppStore, useDevice, useNodeDB } from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import { cn } from "@core/utils/cn.ts";
-import { type Protobuf, Types } from "@meshtastic/core";
+import { Protobuf, Types } from "@meshtastic/core";
 import type { LucideIcon } from "lucide-react";
 import { AlertCircle, CheckCircle2, CircleEllipsis, FileArchive } from "lucide-react";
-import { Fragment, type ReactNode, useCallback, useMemo } from "react";
+import { Fragment, type ReactNode, useCallback, useMemo, useState } from "react";
+import SwipeReplyMessage from "./SwipeReplyMessage";
 import { useTranslation } from "react-i18next";
 
 // Cache for pending promises
@@ -90,10 +91,14 @@ interface MessageItemProps {
   message: Message;
   repliedMessage?: Message;
   onReply?: (message: Message) => void;
+  onMention?: (message: Message) => void;
+  onAddReaction?: (emoji: string, message: Message) => void;
+  isReplyTarget?: boolean;
 }
 
-export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemProps) => {
-  const { config, setDialogOpen } = useDevice();
+export const MessageItem = ({ message, repliedMessage, onReply, onMention, isReplyTarget }: MessageItemProps) => {
+  const device = useDevice();
+  const { config, setDialogOpen } = device;
   const { getNode, getNodes } = useNodeDB();
   const setNodeNumDetails = useAppStore((state) => state.setNodeNumDetails);
   const { t, i18n } = useTranslation("messages");
@@ -167,25 +172,42 @@ export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemPro
   const StatusIconComponent = messageStatusInfo.icon;
   const mentionNodes = new Map<string, Protobuf.Mesh.NodeInfo>();
   for (const node of getNodes(undefined, true)) {
-    const mentionId = node.user?.id?.toUpperCase();
-    if (mentionId) {
-      mentionNodes.set(mentionId, node);
+    const userId = node.user?.id?.toUpperCase();
+    if (userId) {
+      mentionNodes.set(userId, node);
+    }
+    const built = buildMentionId(node);
+    if (built) {
+      mentionNodes.set(built.toUpperCase(), node);
     }
   }
   const messageFragments = useMemo(() => splitMessageMentions(message.message), [message.message]);
+
+  const myMentionId = buildMentionId(myNode)?.toLowerCase();
+  const isMentioningMe = useMemo(
+    () => messageFragments.some((f) => f.type === "mention" && f.mentionId?.toLowerCase() === myMentionId),
+    [messageFragments, myMentionId],
+  );
+
+  // Local reactions state (temporary UI-only until backend/store integration exists)
+  const [localReactions, setLocalReactions] = useState<string[]>([]);
+  const reducedLocalReactions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of localReactions) map.set(e, (map.get(e) ?? 0) + 1);
+    return map;
+  }, [localReactions]);
 
   // Split plain text fragments further into URL parts so links become clickable.
   // Plus Codes (Open Location Codes) are handled separately.
   const splitTextByUrl = useCallback((text: string) => {
     const parts: Array<{ type: "text" | "url"; value: string }> = [];
     if (!text) return parts;
-    // Match URLs starting with a scheme (tel:, mailto:, http:, https:, geo:, maps:, etc.)
-    // or starting with www.
-    const urlRegex = /\b((?:[a-z][a-z0-9+.-]*:|www\.)[^\s<>]*)/gi;
+    // Match only http(s)://, ftp:// or www. style links to avoid matching single-char schemes like "T:"
+    const schemeOrWww = /\b((?:https?:\/\/|ftp:\/\/|www\.)[^\s<>]*)/gi;
     let lastIndex = 0;
     let match: RegExpExecArray | null;
     // eslint-disable-next-line no-cond-assign
-    while ((match = urlRegex.exec(text)) !== null) {
+    while ((match = schemeOrWww.exec(text)) !== null) {
       const idx = match.index;
       const url = match[0];
       if (idx > lastIndex) {
@@ -259,15 +281,33 @@ export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemPro
   const messageItemWrapperClass = cn(
     "group w-full py-2 relative list-none",
     "rounded-md",
+    // reply target highlight (subtle)
+    isReplyTarget ? "bg-slate-100/80 dark:bg-zinc-900/70" : "",
+    // mention-to-me highlight (accent)
+    isMentioningMe ? "bg-sky-100 dark:bg-sky-900/30" : "",
     "hover:bg-slate-300/15 dark:hover:bg-slate-600/20",
     "transition-colors duration-100 ease-in-out",
   );
   const dateTextStyle = "text-xs text-slate-500 dark:text-slate-400";
 
   return (
-    <li className={messageItemWrapperClass}>
+    <li
+      className={messageItemWrapperClass}
+      onDoubleClick={() => {
+        if (onMention) onMention(message);
+      }}
+    >
       <div className="grid grid-cols-[auto_1fr] gap-x-2">
-        <Avatar size="sm" nodeNum={nodeNum} className="pt-0.5" showFavorite={isFavorite} />
+        <button
+          type="button"
+          onClick={() => {
+            setNodeNumDetails(nodeNum);
+            setDialogOpen("nodeDetails", true);
+          }}
+          aria-label={`Open node ${nodeNum} details`}
+          className="p-0 m-0">
+          <Avatar size="sm" nodeNum={nodeNum} className="pt-0.5" showFavorite={isFavorite} />
+        </button>
 
         <div className="flex flex-col gap-0.5 min-w-0">
           <div className="flex items-center gap-1.5">
@@ -316,6 +356,7 @@ export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemPro
 
           {message?.message && (
             <div className="space-y-1">
+
               {repliedMessage && (
                 <div className="rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 py-2 text-xs text-slate-500 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-400">
                   <div className="font-medium text-slate-700 dark:text-zinc-200">
@@ -326,104 +367,160 @@ export const MessageItem = ({ message, repliedMessage, onReply }: MessageItemPro
                   </div>
                 </div>
               )}
-              <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
-                {messageFragments.map((fragment, index) => {
-                  if (fragment.type === "text") {
-                    const pieces = splitTextByUrl(fragment.value);
-                    if (pieces.length === 0) {
+              <SwipeReplyMessage onReply={onReply ? () => onReply(message) : undefined}>
+                <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
+                  {messageFragments.map((fragment, index) => {
+                    if (fragment.type === "text") {
+                      const pieces = splitTextByUrl(fragment.value);
+                      if (pieces.length === 0) {
+                        return (
+                          <Fragment key={`text-${message.messageId}-${index}`}>
+                            {fragment.value}
+                          </Fragment>
+                        );
+                      }
+
                       return (
                         <Fragment key={`text-${message.messageId}-${index}`}>
-                          {fragment.value}
+                          {pieces.map((p, pi) => {
+                            if (p.type === "text") {
+                              const inner = splitPlusCodes(p.value);
+                              if (inner.length === 0) {
+                                return <Fragment key={`t-${index}-${pi}`}>{p.value}</Fragment>;
+                              }
+                              return (
+                                <Fragment key={`t-${index}-${pi}`}>
+                                  {inner.map((ip, ipi) =>
+                                    ip.type === "text" ? (
+                                      <Fragment key={`it-${index}-${pi}-${ipi}`}>{ip.value}</Fragment>
+                                    ) : (
+                                      <a
+                                        key={`plus-${index}-${pi}-${ipi}`}
+                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                          ip.value,
+                                        )}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ color: "#00BCD4" }}
+                                        className="underline decoration-sky-400 underline-offset-2"
+                                      >
+                                        {ip.value}
+                                      </a>
+                                    ),
+                                  )}
+                                </Fragment>
+                              );
+                            }
+
+                            // url piece
+                            const href = p.value.includes(":") ? p.value : `http://${p.value}`;
+                            return (
+                              <a
+                                key={`u-${index}-${pi}`}
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: "#00BCD4" }}
+                                className="underline decoration-sky-400 underline-offset-2"
+                              >
+                                {p.value}
+                              </a>
+                            );
+                          })}
                         </Fragment>
                       );
                     }
 
+                    const mentionedNode = mentionNodes.get(fragment.mentionId?.toUpperCase());
+                    const mentionLabel =
+                      mentionedNode?.user?.longName ??
+                      mentionedNode?.user?.shortName ??
+                      fragment.mentionId;
+
+                    if (!mentionedNode) {
+                      // Render the raw token (e.g. @!06f57578) when node not found
+                      return (
+                        <span
+                          key={`mention-${message.messageId}-${fragment.mentionId}-${index}`}
+                          className="font-medium text-sky-700 dark:text-sky-300"
+                        >
+                          {fragment.value}
+                        </span>
+                      );
+                    }
+
                     return (
-                      <Fragment key={`text-${message.messageId}-${index}`}>
-                        {pieces.map((p, pi) => {
-                          if (p.type === "text") {
-                            const inner = splitPlusCodes(p.value);
-                            if (inner.length === 0) {
-                              return <Fragment key={`t-${index}-${pi}`}>{p.value}</Fragment>;
-                            }
-                            return (
-                              <Fragment key={`t-${index}-${pi}`}>
-                                {inner.map((ip, ipi) =>
-                                  ip.type === "text" ? (
-                                    <Fragment key={`it-${index}-${pi}-${ipi}`}>{ip.value}</Fragment>
-                                  ) : (
-                                    <a
-                                      key={`plus-${index}-${pi}-${ipi}`}
-                                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                        ip.value,
-                                      )}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{ color: "#00BCD4" }}
-                                      className="underline decoration-sky-400 underline-offset-2"
-                                    >
-                                      {ip.value}
-                                    </a>
-                                  ),
-                                )}
-                              </Fragment>
-                            );
-                          }
-
-                          // url piece
-                          const href = p.value.includes(":") ? p.value : `http://${p.value}`;
-                          return (
-                            <a
-                              key={`u-${index}-${pi}`}
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: "#00BCD4" }}
-                              className="underline decoration-sky-400 underline-offset-2"
-                            >
-                              {p.value}
-                            </a>
-                          );
-                        })}
-                      </Fragment>
-                    );
-                  }
-
-                  const mentionedNode = mentionNodes.get(fragment.mentionId);
-                  const mentionLabel =
-                    mentionedNode?.user?.longName ??
-                    mentionedNode?.user?.shortName ??
-                    fragment.mentionId;
-
-                  if (!mentionedNode) {
-                    return (
-                      <span
+                      <button
                         key={`mention-${message.messageId}-${fragment.mentionId}-${index}`}
-                        className="font-medium text-sky-700 dark:text-sky-300"
+                        type="button"
+                        className="inline rounded px-0.5 font-medium text-sky-700 underline decoration-sky-400 underline-offset-2 transition-colors hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
+                        onClick={() => openMentionedNode(mentionedNode.num)}
                       >
                         @{mentionLabel}
-                      </span>
+                      </button>
                     );
-                  }
-
-                  return (
-                    <button
-                      key={`mention-${message.messageId}-${fragment.mentionId}-${index}`}
-                      type="button"
-                      className="inline rounded px-0.5 font-medium text-sky-700 underline decoration-sky-400 underline-offset-2 transition-colors hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
-                      onClick={() => openMentionedNode(mentionedNode.num)}
-                    >
-                      @{mentionLabel}
-                    </button>
-                  );
-                })}
-              </div>
+                  })}
+                </div>
+              </SwipeReplyMessage>
             </div>
           )}
         </div>
       </div>
+      {/* Reactions displayed bottom-left of the message bubble */}
+      <div className="absolute left-1 bottom-1">
+        <div className="flex items-center gap-1">
+          {Array.from(reducedLocalReactions.entries())
+            .slice(0, 6)
+            .map(([emoji, count]) => (
+              <div
+                key={emoji}
+                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-sm dark:bg-zinc-900"
+                aria-hidden="true"
+              >
+                <span className="text-lg">{emoji}</span>
+                {count > 1 && <span className="text-xs text-slate-500">{count}</span>}
+              </div>
+            ))}
+        </div>
+      </div>
+
       <div className="absolute top-1 right-1">
-        <MessageActionsMenu onReply={onReply ? () => onReply(message) : undefined} />
+        <MessageActionsMenu
+          onReply={onReply ? () => onReply(message) : undefined}
+          onAddReaction={async (emoji) => {
+            if (!emoji) return;
+            // update local UI first
+            setLocalReactions((prev) => prev.concat(emoji));
+
+            // Send reaction using TEXT_MESSAGE_APP with replyId and emoji flag
+            try {
+              if (device.connection && typeof device.connection.sendPacket === "function") {
+                const encoder = new TextEncoder();
+                const emojiBytes = encoder.encode(emoji);
+
+                // Send as TEXT_MESSAGE_APP so Android and other clients recognize it as a reaction.
+                // Pass replyId=message.messageId and emoji=1 to follow Android convention.
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (device.connection as any).sendPacket(
+                  emojiBytes,
+                  (Protobuf.Portnums as any).PortNum.TEXT_MESSAGE_APP,
+                  message.to,
+                  message.channel,
+                  true, // wantAck
+                  false, // wantResponse
+                  false, // echoResponse
+                  message.messageId, // replyId
+                  1, // emoji flag
+                );
+              } else {
+                console.warn("No connection available to send reaction");
+              }
+            } catch (e) {
+              // eslint-disable-next-line no-console
+              console.error("Failed to send reaction", e);
+            }
+          }}
+        />
       </div>
     </li>
   );

@@ -63,6 +63,14 @@ export interface MessageStore extends MessageStoreData {
   getDraft: (key: Types.Destination) => string;
   setDraft: (key: Types.Destination, message: string) => void;
   clearDraft: (key: Types.Destination) => void;
+  addReaction: (params: {
+    type: MessageType;
+    nodeA?: number;
+    nodeB?: number;
+    channelId?: ChannelId;
+    messageId: MessageId;
+    emoji: string;
+  }) => void;
   //clearAllDrafts: (key: Types.Destination) => void;
 
   deleteAllMessages: () => void;
@@ -174,6 +182,47 @@ function messageStoreFactory(
             // Enforce retention limit
             evictOldestEntries(log, MESSAGELOG_RETENTION_NUM);
           }
+        }),
+      );
+    },
+
+    addReaction: (params: {
+      type: MessageType;
+      nodeA?: number;
+      nodeB?: number;
+      channelId?: ChannelId;
+      messageId: MessageId;
+      emoji: string;
+    }) => {
+      set(
+        produce<PrivateMessageStoreState>((draft) => {
+          const state = draft.messageStores.get(id);
+          if (!state) {
+            throw new Error(`No MessageStore found for id: ${id}`);
+          }
+
+          let messageLog: MessageLogMap | undefined;
+          let targetMessage: Message | undefined;
+
+          if (params.type === MessageType.Direct) {
+            if (params.nodeA === undefined || params.nodeB === undefined) return;
+            const conversationId = getConversationId(params.nodeA, params.nodeB);
+            messageLog = state.messages.direct.get(conversationId);
+            if (messageLog) targetMessage = messageLog.get(params.messageId);
+          } else {
+            // Broadcast
+            if (params.channelId === undefined) return;
+            messageLog = state.messages.broadcast.get(params.channelId);
+            if (messageLog) targetMessage = messageLog.get(params.messageId);
+          }
+
+          if (!targetMessage) {
+            // Message not found; nothing to attach reaction to
+            return;
+          }
+
+          if (!targetMessage.reactions) targetMessage.reactions = {};
+          targetMessage.reactions[params.emoji] = (targetMessage.reactions[params.emoji] ?? 0) + 1;
         }),
       );
     },
@@ -422,6 +471,6 @@ console.debug(`MessageStore: Persisting messages is ${persistMessages ? "enabled
 
 export const useMessageStore = persistMessages
   ? createStore<PrivateMessageStoreState, [["zustand/persist", MessageStorePersisted]]>(
-      persist(messageStoreInitializer, persistOptions),
-    )
+    persist(messageStoreInitializer, persistOptions),
+  )
   : createStore<PrivateMessageStoreState>()(messageStoreInitializer);

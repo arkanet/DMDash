@@ -270,12 +270,12 @@ const MapPage = () => {
     try {
       // center with animation
       mapRef.easeTo({ center: [lng, lat], duration: 600 });
-    } catch (e) {
+    } catch {
       // fallback: set center directly
       try {
         const map = mapRef.getMap();
         map.setCenter([lng, lat]);
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
@@ -326,31 +326,31 @@ const MapPage = () => {
         features: [
           ...(forwardCoordinates.length >= 2
             ? [
-              {
-                type: "Feature" as const,
-                properties: {
-                  role: "forward",
+                {
+                  type: "Feature" as const,
+                  properties: {
+                    role: "forward",
+                  },
+                  geometry: {
+                    type: "LineString" as const,
+                    coordinates: forwardCoordinates,
+                  },
                 },
-                geometry: {
-                  type: "LineString" as const,
-                  coordinates: forwardCoordinates,
-                },
-              },
-            ]
+              ]
             : []),
           ...(backwardCoordinates.length >= 2
             ? [
-              {
-                type: "Feature" as const,
-                properties: {
-                  role: "backward",
+                {
+                  type: "Feature" as const,
+                  properties: {
+                    role: "backward",
+                  },
+                  geometry: {
+                    type: "LineString" as const,
+                    coordinates: backwardCoordinates,
+                  },
                 },
-                geometry: {
-                  type: "LineString" as const,
-                  coordinates: backwardCoordinates,
-                },
-              },
-            ]
+              ]
             : []),
         ],
       },

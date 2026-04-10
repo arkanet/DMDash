@@ -2,7 +2,7 @@ import { messagesWithParamsRoute } from "@app/routes.tsx";
 import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { ChannelChat } from "@components/PageComponents/Messages/ChannelChat.tsx";
 import { MessageInput } from "@components/PageComponents/Messages/MessageInput.tsx";
-import { buildNodeMention } from "@components/PageComponents/Messages/messageMentions.ts";
+// mention auto-insert disabled; buildNodeMention intentionally unused
 import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
 import { Avatar } from "@components/UI/Avatar.tsx";
@@ -64,6 +64,7 @@ export const MessagesPage = () => {
   const { isCollapsed } = useSidebar();
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [replyTo, setReplyTo] = useState<Message | undefined>();
+  const [mentionOpen, setMentionOpen] = useState<boolean>(false);
   const { t } = useTranslation(["messages", "channels", "ui"]);
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -152,13 +153,7 @@ export const MessagesPage = () => {
     [currentMessages, myNodeNum],
   );
 
-  const replyMentionToken = useMemo(() => {
-    if (!replyTo || replyTo.from === myNodeNum) {
-      return undefined;
-    }
-
-    return buildNodeMention(getNode(replyTo.from) ?? { num: replyTo.from, user: undefined });
-  }, [getNode, myNodeNum, replyTo]);
+  // replyMentionToken removed: avoid auto-inserting mention tokens when starting a reply
 
   const filteredNodes = useCallback((): NodeInfoWithUnread[] => {
     const lowerCaseSearchTerm = deferredSearch.toLowerCase();
@@ -280,12 +275,12 @@ export const MessagesPage = () => {
   const renderChatContent = () => {
     switch (chatType) {
       case MessageType.Broadcast:
-        return <ChannelChat messages={currentMessages} onReply={setReplyTo} />;
+        return <ChannelChat messages={currentMessages} onReply={setReplyTo} onMention={handleMention} />;
       case MessageType.Direct:
         if (myNodeNum === undefined) {
           return <SelectMessageChat />;
         }
-        return <ChannelChat messages={currentMessages} onReply={setReplyTo} />;
+        return <ChannelChat messages={currentMessages} onReply={setReplyTo} onMention={handleMention} />;
       default:
         return <SelectMessageChat />;
     }
@@ -304,9 +299,9 @@ export const MessagesPage = () => {
                 (channel.index === 0
                   ? t("page.broadcastLabel", { ns: "channels" })
                   : t("page.channelLabel", {
-                      index: channel.index,
-                      ns: "channels",
-                    }))
+                    index: channel.index,
+                    ns: "channels",
+                  }))
               }
               active={numericChatId === channel.index && chatType === MessageType.Broadcast}
               onClick={() => {
@@ -373,6 +368,11 @@ export const MessagesPage = () => {
     </SidebarSection>
   );
 
+  const handleMention = (_msg: Message) => {
+    // Open the mention selector in the input; insertion remains manual.
+    setMentionOpen(true);
+  };
+
   return (
     <PageLayout
       label={`${t("page.title", {
@@ -391,21 +391,21 @@ export const MessagesPage = () => {
       actions={
         isDirect && otherNode
           ? [
-              {
-                key: "encryption",
-                icon: otherNode.user?.publicKey?.length ? LockIcon : LockOpenIcon,
-                iconClasses: otherNode.user?.publicKey?.length
-                  ? "text-green-600"
-                  : "text-yellow-300",
-                onClick() {
-                  toast({
-                    title: otherNode.user?.publicKey?.length
-                      ? t("toast.messages.pkiEncryption.title")
-                      : t("toast.messages.pskEncryption.title"),
-                  });
-                },
+            {
+              key: "encryption",
+              icon: otherNode.user?.publicKey?.length ? LockIcon : LockOpenIcon,
+              iconClasses: otherNode.user?.publicKey?.length
+                ? "text-green-600"
+                : "text-yellow-300",
+              onClick() {
+                toast({
+                  title: otherNode.user?.publicKey?.length
+                    ? t("toast.messages.pkiEncryption.title")
+                    : t("toast.messages.pskEncryption.title"),
+                });
               },
-            ]
+            },
+          ]
           : []
       }
     >
@@ -419,8 +419,9 @@ export const MessagesPage = () => {
               onSend={sendText}
               maxBytes={200}
               replyTo={replyTo}
-              replyMentionToken={replyMentionToken}
               onClearReply={() => setReplyTo(undefined)}
+              mentionOpen={mentionOpen}
+              onMentionHandled={() => setMentionOpen(false)}
               compressionPreferenceKey={compressionPreferenceKey}
               compressionAutoSignal={compressionAutoSignal}
             />

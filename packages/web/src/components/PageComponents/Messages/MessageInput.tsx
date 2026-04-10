@@ -5,6 +5,8 @@ import type { Message } from "@core/stores/messageStore/types.ts";
 import type { Types } from "@meshtastic/core";
 import { ReplyIcon, SendIcon, XIcon } from "lucide-react";
 import { startTransition, useEffect, useRef, useState } from "react";
+// useNodeDB not required in this component
+import MentionAutocomplete from "./MentionAutocomplete";
 import EmojiPicker, { EmojiClickData, EmojiStyle } from "emoji-picker-react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@core/hooks/useTheme.ts";
@@ -20,6 +22,9 @@ export interface MessageInputProps {
   onClearReply?: () => void;
   compressionPreferenceKey?: string;
   compressionAutoSignal?: number;
+  // When `mentionOpen` is true the input should open the mention selector.
+  mentionOpen?: boolean;
+  onMentionHandled?: () => void;
 }
 
 export const MessageInput = ({
@@ -31,6 +36,8 @@ export const MessageInput = ({
   onClearReply,
   compressionPreferenceKey,
   compressionAutoSignal,
+  mentionOpen,
+  onMentionHandled,
 }: MessageInputProps) => {
   const { setDraft, getDraft, clearDraft } = useMessages();
   const { t } = useTranslation("messages");
@@ -42,6 +49,8 @@ export const MessageInput = ({
   const [compress, setCompress] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [caretPos, setCaretPos] = useState<number | null>(null);
+  const [forcedMentionQuery, setForcedMentionQuery] = useState<string | null>(null);
   const { theme, preference } = useTheme();
   const isLightTheme = theme === "light";
   const outerBg = isLightTheme ? undefined : "var(--gateway-bg, #222)";
@@ -315,6 +324,33 @@ export const MessageInput = ({
     });
   }, [replyMentionToken, replyTo?.messageId, setDraft, to]);
 
+  // If parent requests opening the mention selector, focus input and open
+  // the autocomplete with an empty query.
+  useEffect(() => {
+    if (!mentionOpen) return;
+
+    requestAnimationFrame(() => {
+      if (!inputRef.current) {
+        const el = document.querySelector<HTMLInputElement>(
+          '[data-testid="message-input-field"], input[name="messageInput"]',
+        );
+        if (el) inputRef.current = el;
+      }
+
+      if (!inputRef.current) {
+        onMentionHandled?.();
+        return;
+      }
+
+      inputRef.current.focus();
+      const pos = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(pos, pos);
+      setCaretPos(pos);
+      setForcedMentionQuery("");
+      onMentionHandled?.();
+    });
+  }, [mentionOpen, onMentionHandled]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     const byteLength = calculateBytes(newValue);
@@ -326,9 +362,81 @@ export const MessageInput = ({
       }
 
       setLocalDraft(newValue);
+      // update caret position if available
+      const pos = e.target.selectionStart ?? null;
+      setCaretPos(pos);
+      // Detect '@' mention context and open/update the autocomplete immediately.
+      if (pos !== null) {
+        const before = newValue.slice(0, pos);
+        const at = before.lastIndexOf("@");
+        if (at >= 0 && (at === 0 || /\s/.test(before.charAt(at - 1)))) {
+          const q = before.slice(at + 1);
+          setForcedMentionQuery(q);
+        } else {
+          // No active mention context
+          setForcedMentionQuery(null);
+        }
+      }
       setMessageBytes(byteLength);
       setDraft(to, newValue);
     }
+  };
+
+  const handleSelectOrKey = (e?: React.KeyboardEvent | React.SyntheticEvent) => {
+    if (!inputRef.current) return;
+    const pos = inputRef.current.selectionStart ?? null;
+    setCaretPos(pos);
+
+    // If we're in forced-mention mode, update the query as the user types
+    if (forcedMentionQuery !== null) {
+      const before = inputRef.current.value.slice(0, pos ?? 0);
+      const at = before.lastIndexOf("@");
+      const q = at >= 0 ? before.slice(at + 1) : "";
+      setForcedMentionQuery(q);
+      return;
+    }
+
+    // If user just released the '@' key, immediately open the mention selector
+    // Use KeyboardEvent detection when possible
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const key = (e as any)?.key;
+    if (key === "@") {
+      const before = inputRef.current.value.slice(0, pos ?? 0);
+      const at = before.lastIndexOf("@");
+      const q = at >= 0 ? before.slice(at + 1) : "";
+      setForcedMentionQuery(q);
+    }
+  };
+
+  // More reliable keydown handler: open mentions when '@' is typed (covers layouts
+  // where key events may fire before value updates). We schedule a tick so the
+  // input value reflects the newly typed character.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "@") {
+      // Wait next frame so input value & caret are updated
+      requestAnimationFrame(() => {
+        if (!inputRef.current) return;
+        const pos = inputRef.current.selectionStart ?? null;
+        setCaretPos(pos);
+        const before = inputRef.current.value.slice(0, pos ?? 0);
+        const at = before.lastIndexOf("@");
+        const q = at >= 0 ? before.slice(at + 1) : "";
+        setForcedMentionQuery(q);
+      });
+    }
+  };
+
+  // Handle composition end (useful for dead keys / Alt combinations on some layouts)
+  const handleCompositionEnd = (_e: React.CompositionEvent<HTMLInputElement>) => {
+    requestAnimationFrame(() => {
+      if (!inputRef.current) return;
+      const pos = inputRef.current.selectionStart ?? null;
+      setCaretPos(pos);
+      const before = inputRef.current.value.slice(0, pos ?? 0);
+      const at = before.lastIndexOf("@");
+      const q = at >= 0 ? before.slice(at + 1) : "";
+      setForcedMentionQuery(q);
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -336,17 +444,25 @@ export const MessageInput = ({
     if (!localDraft.trim()) {
       return;
     }
+    // Normalize mention tokens to @!hex (lowercase) so Android clients can detect them
+    const normalized = localDraft.replace(/@!?([0-9A-Fa-f]{8})/g, (_m, g1) => `@!${g1.toLowerCase()}`);
+
     // Reset bytes *before* sending (consider if onSend failure needs different handling)
     setMessageBytes(0);
 
     startTransition(() => {
+      const payload = normalized.trim();
+      if (!payload) return;
       if (compress) {
-        onSend(localDraft.trim(), { compress });
+        onSend(payload, { compress });
       } else {
-        onSend(localDraft.trim());
+        onSend(payload);
       }
       setLocalDraft("");
       autoInsertedMentionRef.current = undefined;
+      // ensure mention selector is closed and caret reset after send
+      setForcedMentionQuery(null);
+      setCaretPos(null);
       clearDraft(to);
     });
   };
@@ -375,7 +491,7 @@ export const MessageInput = ({
             </button>
           </div>
         )}
-        <div className="flex grow gap-1 items-center relative">
+        <div className="flex grow gap-1 items-center relative overflow-visible">
           <label className="w-full" htmlFor="messageInput">
             <Input
               minLength={1}
@@ -384,8 +500,86 @@ export const MessageInput = ({
               autoComplete="off"
               value={localDraft}
               onChange={handleInputChange}
+              onSelect={handleSelectOrKey}
+              onKeyUp={handleSelectOrKey}
+              onKeyDown={handleKeyDown}
+              onCompositionEnd={handleCompositionEnd}
+              ref={inputRef}
             />
           </label>
+          {/* debug badge removed */}
+          {/* Mention autocomplete positioned relative to input. Render when forced or when typing '@' */}
+          {forcedMentionQuery !== null ? (
+            <div className="absolute left-0 top-full w-full mt-1">
+              <MentionAutocomplete
+                query={forcedMentionQuery}
+                anchorEl={inputRef.current}
+                onInsert={(mentionToken) => {
+                  // Replace the active partial mention (including '@') if present,
+                  // otherwise insert at caret.
+                  const pos = caretPos ?? localDraft.length;
+                  const before = localDraft.slice(0, pos);
+                  const at = before.lastIndexOf("@");
+                  let newDraft: string;
+                  if (at >= 0 && (at === 0 || /\s/.test(before.charAt(at - 1)))) {
+                    // replace from '@' through caret with mentionToken + space
+                    const after = localDraft.slice(pos);
+                    newDraft = `${localDraft.slice(0, at)}${mentionToken} ${after}`;
+                  } else {
+                    const after = localDraft.slice(pos);
+                    newDraft = `${before}${mentionToken} ${after}`;
+                  }
+                  setLocalDraft(newDraft);
+                  setDraft(to, newDraft);
+                  autoInsertedMentionRef.current = mentionToken;
+                  // place cursor after inserted mention
+                  requestAnimationFrame(() => {
+                    if (!inputRef.current) return;
+                    const newPos = ((at >= 0 ? at : before.length) + mentionToken.length + 1);
+                    inputRef.current.focus();
+                    inputRef.current.setSelectionRange(newPos, newPos);
+                    setCaretPos(newPos);
+                    setForcedMentionQuery(null);
+                  });
+                }}
+              />
+            </div>
+          ) : (
+            caretPos !== null && (() => {
+              const before = localDraft.slice(0, caretPos);
+              const at = before.lastIndexOf("@");
+              if (at >= 0 && (at === 0 || /\s/.test(before.charAt(at - 1)))) {
+                const query = before.slice(at + 1);
+                return (
+                  <div className="absolute left-0 top-full w-full mt-1">
+                    <MentionAutocomplete
+                      query={query}
+                      anchorEl={inputRef.current}
+                      onInsert={(mentionToken) => {
+                        // replace the partial mention with the full mention token + space
+                        const after = localDraft.slice(caretPos);
+                        const newDraft = `${localDraft.slice(0, at)}${mentionToken} ${after}`;
+                        setLocalDraft(newDraft);
+                        setDraft(to, newDraft);
+                        autoInsertedMentionRef.current = mentionToken;
+                        // place cursor after inserted mention
+                        requestAnimationFrame(() => {
+                          if (!inputRef.current) return;
+                          const pos = (at + mentionToken.length + 1);
+                          inputRef.current.focus();
+                          inputRef.current.setSelectionRange(pos, pos);
+                          setCaretPos(pos);
+                          // close node selector after selection
+                          setForcedMentionQuery(null);
+                        });
+                      }}
+                    />
+                  </div>
+                );
+              }
+              return null;
+            })()
+          )}
 
           <label
             data-testid="byte-counter"
