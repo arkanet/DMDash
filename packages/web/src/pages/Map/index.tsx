@@ -293,31 +293,52 @@ const MapPage = () => {
       return undefined;
     }
 
-    const forwardNodes = [
-      sourceNode,
-      ...selectedTraceRoute.data.route.map((nodeNum) => getNode(nodeNum)),
-      destinationNode,
-    ].filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node));
-    const backwardNodes = [
-      destinationNode,
-      ...selectedTraceRoute.data.routeBack.map((nodeNum) => getNode(nodeNum)),
-      sourceNode,
-    ].filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node));
-    const forwardCoordinates = buildTraceCoordinates(forwardNodes);
-    const backwardCoordinates = buildTraceCoordinates(backwardNodes);
+    // Keep full node number paths (including intermediates) even if some nodes
+    // are not yet present in the local `nodeDB`. Coordinates will be computed
+    // only for nodes that have a known position.
+    // Prefer explicit forward route when provided. If empty, reconstruct a
+    // forward route from routeBack by taking unique intermediate hops in order.
+    const rawForward = selectedTraceRoute.data.route ?? [];
+    const rawBack = selectedTraceRoute.data.routeBack ?? [];
+
+    let forwardNodeNums: number[];
+    if (rawForward.length > 0) {
+      forwardNodeNums = [selectedTraceRoute.to, ...rawForward, selectedTraceRoute.from];
+    } else if (rawBack.length > 0) {
+      const uniq: number[] = [];
+      for (const n of rawBack) {
+        if (!uniq.includes(n)) uniq.push(n);
+      }
+      forwardNodeNums = [selectedTraceRoute.to, ...uniq, selectedTraceRoute.from];
+    } else {
+      forwardNodeNums = [selectedTraceRoute.to, selectedTraceRoute.from];
+    }
+    const backwardNodeNums = [...forwardNodeNums].slice().reverse();
+
+    const forwardCoordinates = buildTraceCoordinates(
+      forwardNodeNums
+        .map((n) => getNode(n))
+        .filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node)),
+    );
+    const backwardCoordinates = buildTraceCoordinates(
+      backwardNodeNums
+        .map((n) => getNode(n))
+        .filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node)),
+    );
 
     if (forwardCoordinates.length < 2 && backwardCoordinates.length < 2) {
       return undefined;
     }
 
-    const involvedNodes = [...forwardNodes, ...backwardNodes].filter(
-      (node, index, all) => all.findIndex((candidate) => candidate.num === node.num) === index,
-    );
+    const involvedNodeNums = Array.from(new Set([...forwardNodeNums, ...backwardNodeNums]));
+    const involvedNodes = involvedNodeNums
+      .map((n) => getNode(n))
+      .filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node));
 
     return {
       trace: selectedTraceRoute,
       involvedNodes,
-      involvedNodeNums: new Set(involvedNodes.map((node) => node.num)),
+      involvedNodeNums: new Set(involvedNodeNums),
       sourceLabel: getNodeDisplayName(sourceNode, sourceNode.num),
       destinationLabel: getNodeDisplayName(destinationNode, destinationNode.num),
       totalDistance: pathDistanceKm(forwardCoordinates) + pathDistanceKm(backwardCoordinates),

@@ -116,10 +116,58 @@ export function VisualTracerouteCard({
       };
     };
 
-    const forwardPath = [traceroute.to, ...traceroute.data.route, traceroute.from];
-    const backwardPath = [traceroute.from, ...traceroute.data.routeBack, traceroute.to];
-    const snrTowards = (traceroute.data.snrTowards ?? []).map((snr) => snr / 4);
-    const snrBack = (traceroute.data.snrBack ?? []).map((snr) => snr / 4);
+    // Build forward path from origin -> intermediate route -> destination
+    const rawForward = traceroute.data.route ?? [];
+    const rawBack = traceroute.data.routeBack ?? [];
+
+    let forwardPath: number[];
+    if (rawForward.length > 0) {
+      forwardPath = [traceroute.to, ...rawForward, traceroute.from];
+    } else if (rawBack.length > 0) {
+      // rawBack contains the path traced back from the target to the origin.
+      // To reconstruct the forward path (origin -> ... -> destination) we must
+      // iterate rawBack in reverse order and dedupe while preserving sequence.
+      const uniq: number[] = [];
+      for (const n of [...rawBack].slice().reverse()) {
+        if (!uniq.includes(n)) uniq.push(n);
+      }
+      forwardPath = [traceroute.to, ...uniq, traceroute.from];
+    } else {
+      forwardPath = [traceroute.to, traceroute.from];
+    }
+
+    // For display, construct the backward path as the reverse of the forward path
+    // so it reads: destination, ..., origin.
+    const backwardPath = [...forwardPath].slice().reverse();
+    // Support both camelCase and snake_case fields from protobuf parsing
+    const data = traceroute.data as unknown as {
+      snrTowards?: number[];
+      snr_towards?: number[];
+      snrBack?: number[];
+      snr_back?: number[];
+      route?: number[];
+      routeBack?: number[];
+    };
+
+    const rawSnrTowards: number[] = data.snrTowards ?? data.snr_towards ?? [];
+    const rawSnrBack: number[] = data.snrBack ?? data.snr_back ?? [];
+
+    let snrTowards = (rawSnrTowards ?? []).map((snr) => snr / 4);
+    const snrBack = (rawSnrBack ?? []).map((snr) => snr / 4);
+
+    // Fallback: if `snrTowards` is empty but `snrBack` is present, derive an
+    // estimated forward SNR array by reversing `snrBack`. This is only a client-
+    // side estimate and should be removed when firmware provides real towards
+    // readings.
+    if ((rawSnrTowards ?? []).length === 0 && (rawSnrBack ?? []).length > 0) {
+      // Derive estimated towards SNRs from reversed back SNRs
+      snrTowards = [...(rawSnrBack ?? [])]
+        .slice()
+        .reverse()
+        .map((snr) => snr / 4);
+    }
+
+    // no-op: debug removed
 
     return {
       title: `${toLabelParts(traceroute.to).display} -> ${toLabelParts(traceroute.from).display}`,
@@ -136,6 +184,17 @@ export function VisualTracerouteCard({
               snr: index > 0 ? snrBack[index - 1] : undefined,
             }))
           : [],
+      debug: {
+        rawForward,
+        rawBack,
+        forwardPath,
+        backwardPath,
+        rawSnrTowards,
+        rawSnrBack,
+        snrTowards,
+        snrBack,
+        tracerouteData: traceroute.data,
+      },
     };
   }, [getNode, traceroute]);
 
@@ -151,6 +210,8 @@ export function VisualTracerouteCard({
       )}
     >
       <div className="font-semibold">{sections.title}</div>
+      {/* Temporary debug output to inspect raw traceroute arrays */}
+      {/* debug output removed */}
       <div className="mt-2 text-[0.75rem] text-zinc-400">
         Total route distance: {totalDistance.toFixed(2)} km
       </div>

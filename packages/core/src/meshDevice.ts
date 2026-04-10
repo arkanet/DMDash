@@ -257,10 +257,10 @@ export class MeshDevice {
           replyId,
           ...(includeDecodedRouting
             ? {
-              dest: resolvedDestination,
-              requestId: packetId,
-              source: this.myNodeInfo.myNodeNum,
-            }
+                dest: resolvedDestination,
+                requestId: packetId,
+                source: this.myNodeInfo.myNodeNum,
+              }
             : {}),
         },
       },
@@ -271,12 +271,12 @@ export class MeshDevice {
       ...(options?.priority !== undefined ? { priority: options.priority } : {}),
       ...(options?.pkiEncrypted
         ? {
-          pkiEncrypted: true,
-          publicKey: options.publicKey,
-        }
+            pkiEncrypted: true,
+            publicKey: options.publicKey,
+          }
         : {
-          channel,
-        }),
+            channel,
+          }),
     });
 
     const toRadioMessage = create(Protobuf.Mesh.ToRadioSchema, {
@@ -1112,7 +1112,8 @@ export class MeshDevice {
           default: {
             this.log.error(
               Emitter[Emitter.HandleMeshPacket],
-              `⚠️ Received unhandled AdminMessage, type ${adminMessage.payloadVariant.case ?? "undefined"
+              `⚠️ Received unhandled AdminMessage, type ${
+                adminMessage.payloadVariant.case ?? "undefined"
               }`,
               dataPacket.payload,
             );
@@ -1218,9 +1219,18 @@ export class MeshDevice {
       }
 
       case Protobuf.Portnums.PortNum.TRACEROUTE_APP: {
+        // Decode traceroute payload and emit event. Add debug logs to inspect fields
+        const decoded = fromBinary(Protobuf.Mesh.RouteDiscoverySchema, dataPacket.payload);
+        // eslint-disable-next-line no-console
+        console.debug("meshDevice: TRACEROUTE_APP received", {
+          packetMetadata,
+          rawPayload: dataPacket.payload,
+          decoded,
+        });
+
         this.events.onTraceRoutePacket.dispatch({
           ...packetMetadata,
-          data: fromBinary(Protobuf.Mesh.RouteDiscoverySchema, dataPacket.payload),
+          data: decoded,
         });
         break;
       }
