@@ -189,3 +189,21 @@ Le immagini usate in questo README sono presenti in `assets/screenshots/`:
 - `assets/screenshots/Filters.png` — UI filtri mappa
 - `assets/screenshots/NeighborNodes.png` — lista neighbor nel popup nodo
 - `assets/screenshots/VisualTraceroute.png` — overlay traceroute sulla mappa
+
+## Nuove funzionalità (Aprile 2026)
+
+Gli ultimi aggiornamenti includono miglioramenti di UX e compatibilità:
+
+- Autocompletamento menzioni: il nodo locale viene automaticamente escluso dalle proposte quando corrisponde (evita auto-mention).
+- UX reply: il preview del messaggio reply è cliccabile — cliccando si scorre ed evidenzia il messaggio originale.
+- Evidenziazione messaggi: i messaggi che menzionano il nodo locale e i target di reply hanno uno sfondo evidenziato coerente con lo stile DarkMesh Android.
+- Avatar cliccabili: cliccando l'avatar si apre il pannello dettagli nodo.
+- Swipe-to-reply: gesto di swipe rapido per iniziare una risposta.
+- Affidabilità core: sistemata la correlazione `requestId` in `packages/core` per risolvere correttamente gli ACK di routing.
+- Accessibilità e fix lint: miglioramenti dell'accessibilità (picker reazioni con supporto tastiera), correzioni di typing e conformità a ESLint.
+
+Screenshot (aggiungi l'immagine reale in `assets/screenshots/reply-highlight.png`):
+
+![Anteprima reply highlight](assets/screenshots/reply-highlight.png)
+
+Per aggiornare lo screenshot, sostituisci `assets/screenshots/reply-highlight.png` con un PNG esportato dall'app (es. 1280×720), quindi committa e pusha.

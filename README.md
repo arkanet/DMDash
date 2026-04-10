@@ -219,3 +219,21 @@ The images used in this README are available in `assets/screenshots/`:
 - `assets/screenshots/Filters.png` — map filters UI
 - `assets/screenshots/NeighborNodes.png` — neighbor list in node popup
 - `assets/screenshots/VisualTraceroute.png` — traceroute overlay on the map
+
+## New features (April 2026)
+
+Recent work added several UX and compatibility improvements:
+
+- Mention autocomplete: local node is automatically excluded from suggestion results when matching (avoid self-mention).
+- Reply UX: reply preview is clickable — clicking a replied-to preview scrolls and highlights the original message.
+- Message highlighting: messages that mention the local node and reply targets are visually highlighted to match DarkMesh Android styling.
+- Clickable avatars: message avatars open the node details dialog when clicked.
+- Swipe-to-reply: quick swipe gesture on messages to start a reply.
+- Core reliability: fixed requestId correlation in `packages/core` so routing ACKs properly resolve queued packets.
+- Accessibility and lint fixes across web package (keyboard support for the reaction picker, typing improvements, and eslint compliance).
+
+Screenshot (add the actual image at `assets/screenshots/reply-highlight.png`):
+
+![Reply highlight preview](assets/screenshots/reply-highlight.png)
+
+To update the screenshot, replace `assets/screenshots/reply-highlight.png` with a 1280×720 (or similar) PNG exported from the app, then commit and push.
