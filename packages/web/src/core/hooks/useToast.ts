@@ -32,21 +32,21 @@ type ActionType = typeof actionTypes;
 
 type Action =
   | {
-    type: ActionType["ADD_TOAST"];
-    toast: ToasterToast;
-  }
+      type: ActionType["ADD_TOAST"];
+      toast: ToasterToast;
+    }
   | {
-    type: ActionType["UPDATE_TOAST"];
-    toast: Partial<ToasterToast>;
-  }
+      type: ActionType["UPDATE_TOAST"];
+      toast: Partial<ToasterToast>;
+    }
   | {
-    type: ActionType["DISMISS_TOAST"];
-    toastId?: ToasterToast["id"];
-  }
+      type: ActionType["DISMISS_TOAST"];
+      toastId?: ToasterToast["id"];
+    }
   | {
-    type: ActionType["REMOVE_TOAST"];
-    toastId?: ToasterToast["id"];
-  };
+      type: ActionType["REMOVE_TOAST"];
+      toastId?: ToasterToast["id"];
+    };
 
 interface State {
   toasts: ToasterToast[];
@@ -114,9 +114,9 @@ export const reducer = (state: State, action: Action): State => {
         toasts: state.toasts.map((t) =>
           t.id === toastId || toastId === undefined
             ? {
-              ...t,
-              open: false,
-            }
+                ...t,
+                open: false,
+              }
             : t,
         ),
       };
@@ -179,7 +179,7 @@ function toast({ delay = 0, ...props }: Toast) {
   // only schedule after the toast is added
   setTimeout(() => {
     // default to informational (variant !== 'destructive')
-    const variant = (props as any).variant;
+    const variant = (props as import("@components/UI/Toast").ToastProps).variant;
     if (variant !== "destructive") {
       const auto = setTimeout(() => {
         dispatch({ type: "DISMISS_TOAST", toastId: id });

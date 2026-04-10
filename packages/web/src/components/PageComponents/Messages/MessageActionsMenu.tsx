@@ -109,15 +109,13 @@ export const MessageActionsMenu = ({ onAddReaction, onReply }: MessageActionsMen
           aria-label={t("messages_actionsMenu_addReactionLabel")}
           className="absolute -bottom-12 right-0 z-20 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-md p-2 flex gap-1"
           onClick={(e) => e.stopPropagation()}
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            // ensure keyboard events inside the dialog don't bubble up
+            e.stopPropagation();
+          }}
         >
-          {[
-            "👍",
-            "❤️",
-            "😂",
-            "😮",
-            "😢",
-            "👏",
-          ].map((emoji) => (
+          {["👍", "❤️", "😂", "😮", "😢", "👏"].map((emoji) => (
             <button
               key={emoji}
               type="button"

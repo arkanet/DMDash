@@ -49,17 +49,21 @@ export function DarkMeshRuntime() {
     console.debug("DarkMeshRuntime: subscribing to connection events for device", selectedDeviceId);
     try {
       const eventSummary: Record<string, unknown> = {};
-      if ((connection as any)?.events) {
-        eventSummary.keys = Object.keys((connection as any).events).slice(0, 50);
+      const connTyped = connection as unknown as { events?: Record<string, unknown> } | undefined;
+      if (connTyped?.events) {
+        eventSummary.keys = Object.keys(connTyped.events).slice(0, 50);
       }
       // eslint-disable-next-line no-console
       console.debug("DarkMeshRuntime: connection events summary", eventSummary);
-    } catch (e) {
-      /* ignore */
+    } catch {
+      // ignore
     }
 
     const handleGatewayPacket = (meshPacket: Protobuf.Mesh.MeshPacket) => {
-      console.debug("DarkMeshRuntime: gateway packet received", { device: selectedDeviceId, from: meshPacket.from });
+      console.debug("DarkMeshRuntime: gateway packet received", {
+        device: selectedDeviceId,
+        from: meshPacket.from,
+      });
       const myNode = getMyNode();
       if (!myNode || meshPacket.from === myNode.num) {
         return;
@@ -111,7 +115,10 @@ export function DarkMeshRuntime() {
     const handleTracerouteGateway = (
       traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
     ) => {
-      console.debug("DarkMeshRuntime: traceroute packet received", { device: selectedDeviceId, from: traceroute.from });
+      console.debug("DarkMeshRuntime: traceroute packet received", {
+        device: selectedDeviceId,
+        from: traceroute.from,
+      });
       const firstHop = traceroute.data.route[0];
       if (!firstHop) {
         return;
@@ -134,7 +141,10 @@ export function DarkMeshRuntime() {
     };
 
     const handleHuntPacket = <T,>(packet: Types.PacketMetadata<T>) => {
-      console.debug("DarkMeshRuntime: hunt/telemetry packet", { device: selectedDeviceId, packetType: packet.type });
+      console.debug("DarkMeshRuntime: hunt/telemetry packet", {
+        device: selectedDeviceId,
+        packetType: packet.type,
+      });
       const myNode = getMyNode();
       const huntConfig =
         useDarkMeshStore.getState().huntByDevice[selectedDeviceId] ?? defaultHuntConfig;
