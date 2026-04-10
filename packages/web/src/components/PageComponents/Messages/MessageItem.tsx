@@ -1,5 +1,8 @@
 import { MessageActionsMenu } from "@components/PageComponents/Messages/MessageActionsMenu.tsx";
-import { splitMessageMentions, buildMentionId } from "@components/PageComponents/Messages/messageMentions.ts";
+import {
+  splitMessageMentions,
+  buildMentionId,
+} from "@components/PageComponents/Messages/messageMentions.ts";
 import { Avatar } from "@components/UI/Avatar.tsx";
 import {
   Tooltip,
@@ -94,9 +97,19 @@ interface MessageItemProps {
   onMention?: (message: Message) => void;
   onAddReaction?: (emoji: string, message: Message) => void;
   isReplyTarget?: boolean;
+  isHighlighted?: boolean;
+  onJumpToMessage?: (messageId: number) => void;
 }
 
-export const MessageItem = ({ message, repliedMessage, onReply, onMention, isReplyTarget }: MessageItemProps) => {
+export const MessageItem = ({
+  message,
+  repliedMessage,
+  onReply,
+  onMention,
+  isReplyTarget,
+  isHighlighted,
+  onJumpToMessage,
+}: MessageItemProps) => {
   const device = useDevice();
   const { config, setDialogOpen } = device;
   const { getNode, getNodes } = useNodeDB();
@@ -185,7 +198,10 @@ export const MessageItem = ({ message, repliedMessage, onReply, onMention, isRep
 
   const myMentionId = buildMentionId(myNode)?.toLowerCase();
   const isMentioningMe = useMemo(
-    () => messageFragments.some((f) => f.type === "mention" && f.mentionId?.toLowerCase() === myMentionId),
+    () =>
+      messageFragments.some(
+        (f) => f.type === "mention" && f.mentionId?.toLowerCase() === myMentionId,
+      ),
     [messageFragments, myMentionId],
   );
 
@@ -285,6 +301,8 @@ export const MessageItem = ({ message, repliedMessage, onReply, onMention, isRep
     isReplyTarget ? "bg-slate-100/80 dark:bg-zinc-900/70" : "",
     // mention-to-me highlight (accent)
     isMentioningMe ? "bg-sky-100 dark:bg-sky-900/30" : "",
+    // jumped-to highlight (stronger ring)
+    isHighlighted ? "ring-2 ring-sky-300/40 dark:ring-sky-700/30" : "",
     "hover:bg-slate-300/15 dark:hover:bg-slate-600/20",
     "transition-colors duration-100 ease-in-out",
   );
@@ -292,6 +310,7 @@ export const MessageItem = ({ message, repliedMessage, onReply, onMention, isRep
 
   return (
     <li
+      id={`message-${message.messageId}`}
       className={messageItemWrapperClass}
       onDoubleClick={() => {
         if (onMention) onMention(message);
@@ -305,7 +324,8 @@ export const MessageItem = ({ message, repliedMessage, onReply, onMention, isRep
             setDialogOpen("nodeDetails", true);
           }}
           aria-label={`Open node ${nodeNum} details`}
-          className="p-0 m-0">
+          className="p-0 m-0"
+        >
           <Avatar size="sm" nodeNum={nodeNum} className="pt-0.5" showFavorite={isFavorite} />
         </button>
 
@@ -356,16 +376,20 @@ export const MessageItem = ({ message, repliedMessage, onReply, onMention, isRep
 
           {message?.message && (
             <div className="space-y-1">
-
               {repliedMessage && (
-                <div className="rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 py-2 text-xs text-slate-500 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-400">
+                <button
+                  type="button"
+                  onClick={() => onJumpToMessage?.(repliedMessage.messageId)}
+                  className="rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 py-2 text-xs text-slate-500 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-400 cursor-pointer text-left w-full"
+                  aria-label={t("jumpToOriginal", { defaultValue: "Jump to original message" })}
+                >
                   <div className="font-medium text-slate-700 dark:text-zinc-200">
                     {t("replyingTo", { defaultValue: "Replying to" })}
                   </div>
                   <div className="line-clamp-2 whitespace-pre-wrap break-words">
                     {repliedMessage.message}
                   </div>
-                </div>
+                </button>
               )}
               <SwipeReplyMessage onReply={onReply ? () => onReply(message) : undefined}>
                 <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
@@ -392,7 +416,9 @@ export const MessageItem = ({ message, repliedMessage, onReply, onMention, isRep
                                 <Fragment key={`t-${index}-${pi}`}>
                                   {inner.map((ip, ipi) =>
                                     ip.type === "text" ? (
-                                      <Fragment key={`it-${index}-${pi}-${ipi}`}>{ip.value}</Fragment>
+                                      <Fragment key={`it-${index}-${pi}-${ipi}`}>
+                                        {ip.value}
+                                      </Fragment>
                                     ) : (
                                       <a
                                         key={`plus-${index}-${pi}-${ipi}`}
@@ -503,7 +529,8 @@ export const MessageItem = ({ message, repliedMessage, onReply, onMention, isRep
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 await (device.connection as any).sendPacket(
                   emojiBytes,
-                  (Protobuf.Portnums as any).PortNum.TEXT_MESSAGE_APP,
+                  (Protobuf.Portnums as unknown as { PortNum: Record<string, number> }).PortNum
+                    .TEXT_MESSAGE_APP,
                   message.to,
                   message.channel,
                   true, // wantAck

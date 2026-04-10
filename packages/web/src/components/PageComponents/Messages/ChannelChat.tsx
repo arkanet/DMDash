@@ -4,7 +4,7 @@ import { Skeleton } from "@components/UI/Skeleton.tsx";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import type { TFunction } from "i18next";
 import { InboxIcon } from "lucide-react";
-import { Fragment, Suspense, useMemo, useRef, useLayoutEffect } from "react";
+import { Fragment, Suspense, useMemo, useRef, useLayoutEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 export interface ChannelChatProps {
@@ -145,6 +145,24 @@ export const ChannelChat = ({ messages = [], onReply, onMention }: ChannelChatPr
   }, [sorted]);
 
   const listRef = useRef<HTMLUListElement | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<number | undefined>(undefined);
+
+  const jumpToMessage = useCallback((messageId: number) => {
+    setHighlightedMessageId(messageId);
+    // Scroll into view (center) and clear highlight after a short timeout
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`message-${messageId}`);
+      if (el) {
+        try {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+
+    window.setTimeout(() => setHighlightedMessageId(undefined), 3000);
+  }, []);
 
   // Auto-scroll to show newest message when messages change.
   // Because the list uses `flex-col-reverse`, scrolling to `top: 0` shows newest messages.
@@ -180,6 +198,8 @@ export const ChannelChat = ({ messages = [], onReply, onMention }: ChannelChatPr
                 message={message}
                 repliedMessage={message.replyId ? messageIndex.get(message.replyId) : undefined}
                 isReplyTarget={replyTargets.has(message.messageId)}
+                isHighlighted={highlightedMessageId === message.messageId}
+                onJumpToMessage={jumpToMessage}
                 onReply={onReply}
                 onMention={onMention}
               />
