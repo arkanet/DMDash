@@ -5,26 +5,29 @@ import { memo, type ReactElement, useEffect, useRef } from "react";
 import { Popup, useMap } from "react-map-gl/maplibre";
 
 export type PopupState =
-  | { type: "node"; num: number; offset: PxOffset }
-  | { type: "waypoint"; waypoint: WaypointWithMetadata };
+  | { type: "node"; num: number; offset: PxOffset; preventAutoPan?: boolean }
+  | { type: "waypoint"; waypoint: WaypointWithMetadata; preventAutoPan?: boolean };
 
 export const PopupWrapper = memo(function SelectedNodePopup({
   lng,
   lat,
   offset,
   onClose,
+  preventAutoPan,
   children,
 }: {
   lng: number;
   lat: number;
   offset?: PxOffset;
   onClose: () => void;
+  preventAutoPan?: boolean;
   children: ReactElement;
 }) {
   const popupRef = useRef<MaplibrePopup | null>(null);
   const { default: mapRef } = useMap();
 
   useEffect(() => {
+    if (preventAutoPan) return;
     if (!mapRef || !popupRef.current) {
       return;
     }
@@ -52,7 +55,7 @@ export const PopupWrapper = memo(function SelectedNodePopup({
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [lat, lng, mapRef]);
+  }, [lat, lng, mapRef, preventAutoPan]);
 
   return (
     <Popup

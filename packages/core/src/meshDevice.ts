@@ -125,66 +125,6 @@ export class MeshDevice {
   }
 
   /**
-   * Compatibility wrapper similar to DarkMesh Android `sendMessage`.
-   * contactKey: optional channel prefix followed by destination (e.g. "0123").
-   * If the first char is a digit it's used as the channel and the rest as destination.
-   * Reads compression prefs from `localStorage` keys when available:
-   *  - `USE_COMPRESSION_MESSAGES` (boolean string)
-   *  - `compressionPrefs:<contactKey>` (boolean string)
-   */
-  public async sendMessage(
-    str: string,
-    contactKey: string = `0${Constants.broadcastNum}`,
-    replyId?: number,
-  ): Promise<number> {
-    // contactKey: unique contact key filter (channel)+(nodeId)
-    const ch = contactKey.charAt(0);
-    const channel = /\d/.test(ch) ? (parseInt(ch, 10) as ChannelNumber) : undefined;
-    const destStr = channel !== undefined ? contactKey.substring(1) : contactKey;
-
-    let destination: Destination;
-    if (destStr === `${Constants.broadcastNum}` || destStr === "broadcast") {
-      destination = "broadcast";
-    } else if (destStr === "self") {
-      destination = "self";
-    } else {
-      const asNum = parseInt(destStr, 10);
-      destination = Number.isNaN(asNum) ? (destStr as Destination) : (asNum as Destination);
-    }
-
-    // Determine whether to send as compressed portnum based on per-contact
-    // preference stored by the UI in localStorage. This is a best-effort
-    // attempt to let the firmware recognize compressed payloads when the
-    // user explicitly requested compression. Note: the client does NOT
-    // perform Unishox compression itself here; this merely toggles the
-    // portnum to test firmware behavior.
-    let portnum = Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP;
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        const pref = window.localStorage.getItem(`compressionPrefs:${contactKey}`);
-        if (pref === "true") {
-          portnum = Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP;
-        }
-      }
-    } catch {
-      // ignore storage access errors and fall back to TEXT_MESSAGE_APP
-    }
-
-    const enc = new TextEncoder();
-
-    return await this.sendPacket(
-      enc.encode(str),
-      portnum,
-      destination,
-      channel,
-      true,
-      false,
-      true,
-      replyId,
-    );
-  }
-
-  /**
    * Sends a text over the radio
    */
   public sendWaypoint(
@@ -222,29 +162,11 @@ export class MeshDevice {
     echoResponse = false,
     replyId?: number,
     emoji?: number,
-    options?: {
-      pkiEncrypted?: boolean;
-      publicKey?: Uint8Array;
-      priority?: Protobuf.Mesh.MeshPacket_Priority;
-      from?: number;
-      includeDecodedRouting?: boolean;
-    },
   ): Promise<number> {
     this.log.trace(
       Emitter[Emitter.SendPacket],
       `📤 Sending ${Protobuf.Portnums.PortNum[portNum]} to ${destination}`,
     );
-
-    const resolvedDestination =
-      destination === "broadcast"
-        ? Constants.broadcastNum
-        : destination === "self"
-          ? this.myNodeInfo.myNodeNum
-          : destination;
-
-    const includeDecodedRouting = options?.includeDecodedRouting ?? true;
-
-    const packetId = this.generateRandId();
 
     const meshPacket = create(Protobuf.Mesh.MeshPacketSchema, {
       payloadVariant: {
@@ -255,28 +177,21 @@ export class MeshDevice {
           wantResponse,
           emoji,
           replyId,
-          ...(includeDecodedRouting
-            ? {
-                dest: resolvedDestination,
-                requestId: packetId,
-                source: this.myNodeInfo.myNodeNum,
-              }
-            : {}),
+          dest: 0, //change this!
+          requestId: 0, //change this!
+          source: 0, //change this!
         },
       },
-      from: options?.from ?? this.myNodeInfo.myNodeNum,
-      to: resolvedDestination,
-      id: packetId,
+      from: this.myNodeInfo.myNodeNum,
+      to:
+        destination === "broadcast"
+          ? Constants.broadcastNum
+          : destination === "self"
+            ? this.myNodeInfo.myNodeNum
+            : destination,
+      id: this.generateRandId(),
       wantAck: wantAck,
-      ...(options?.priority !== undefined ? { priority: options.priority } : {}),
-      ...(options?.pkiEncrypted
-        ? {
-            pkiEncrypted: true,
-            publicKey: options.publicKey,
-          }
-        : {
-            channel,
-          }),
+      channel,
     });
 
     const toRadioMessage = create(Protobuf.Mesh.ToRadioSchema, {
@@ -977,24 +892,10 @@ export class MeshDevice {
     );
 
     switch (dataPacket.portnum) {
-      case Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP:
-      case Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP: {
-        // Treat compressed text packets the same as plain text for dispatching
-        // If payload is actually compressed, device/firmware is expected to
-        // decompress it. This is a best-effort handling: if payload is UTF-8
-        // text this will work, otherwise upstream should provide decompression.
-        let text: string;
-        try {
-          text = new TextDecoder().decode(dataPacket.payload);
-        } catch {
-          // Fallback: use empty string on decode error
-          text = "";
-        }
-
+      case Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP: {
         this.events.onMessagePacket.dispatch({
           ...packetMetadata,
-          compressed: dataPacket.portnum === Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP,
-          data: text,
+          data: new TextDecoder().decode(dataPacket.payload),
         });
         break;
       }
@@ -1061,9 +962,7 @@ export class MeshDevice {
         adminMessage = fromBinary(Protobuf.Admin.AdminMessageSchema, dataPacket.payload);
         switch (adminMessage.payloadVariant.case) {
           case "getChannelResponse": {
-            if (meshPacket.from === this.myNodeInfo.myNodeNum) {
-              this.events.onChannelPacket.dispatch(adminMessage.payloadVariant.value);
-            }
+            this.events.onChannelPacket.dispatch(adminMessage.payloadVariant.value);
             break;
           }
           case "getOwnerResponse": {
@@ -1074,15 +973,11 @@ export class MeshDevice {
             break;
           }
           case "getConfigResponse": {
-            if (meshPacket.from === this.myNodeInfo.myNodeNum) {
-              this.events.onConfigPacket.dispatch(adminMessage.payloadVariant.value);
-            }
+            this.events.onConfigPacket.dispatch(adminMessage.payloadVariant.value);
             break;
           }
           case "getModuleConfigResponse": {
-            if (meshPacket.from === this.myNodeInfo.myNodeNum) {
-              this.events.onModuleConfigPacket.dispatch(adminMessage.payloadVariant.value);
-            }
+            this.events.onModuleConfigPacket.dispatch(adminMessage.payloadVariant.value);
             break;
           }
           case "getDeviceMetadataResponse": {
@@ -1219,18 +1114,9 @@ export class MeshDevice {
       }
 
       case Protobuf.Portnums.PortNum.TRACEROUTE_APP: {
-        // Decode traceroute payload and emit event. Add debug logs to inspect fields
-        const decoded = fromBinary(Protobuf.Mesh.RouteDiscoverySchema, dataPacket.payload);
-        // eslint-disable-next-line no-console
-        console.debug("meshDevice: TRACEROUTE_APP received", {
-          packetMetadata,
-          rawPayload: dataPacket.payload,
-          decoded,
-        });
-
         this.events.onTraceRoutePacket.dispatch({
           ...packetMetadata,
-          data: decoded,
+          data: fromBinary(Protobuf.Mesh.RouteDiscoverySchema, dataPacket.payload),
         });
         break;
       }

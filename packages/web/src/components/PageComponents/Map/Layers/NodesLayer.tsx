@@ -140,6 +140,7 @@ export const NodesLayer = ({
         lng={lng}
         lat={lat}
         offset={popupState?.type === "node" ? popupState.offset : [0, 0]}
+        preventAutoPan={popupState?.preventAutoPan ?? false}
         onClose={() => setPopupState(undefined)}
       >
         <NodeDetail

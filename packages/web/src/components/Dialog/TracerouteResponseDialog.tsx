@@ -33,31 +33,8 @@ export const TracerouteResponseDialog = ({
   const setSelectedTraceRoute = useDarkMeshStore((state) => state.setSelectedTraceRoute);
   const route: number[] = traceroute?.data.route ?? [];
   const routeBack: number[] = traceroute?.data.routeBack ?? [];
-  // Accept both camelCase and snake_case field names from parsed proto
-  const data = (traceroute?.data ?? {}) as unknown as {
-    snrTowards?: number[];
-    snr_towards?: number[];
-    snrBack?: number[];
-    snr_back?: number[];
-    route?: number[];
-    routeBack?: number[];
-  };
-
-  const rawSnrTowards: number[] = data.snrTowards ?? data.snr_towards ?? [];
-  const rawSnrBack: number[] = data.snrBack ?? data.snr_back ?? [];
-
-  let snrTowards = (rawSnrTowards ?? []).map((snr) => snr / 4);
-  const snrBack = (rawSnrBack ?? []).map((snr) => snr / 4);
-
-  // Fallback: if `snrTowards` is not present, estimate it by reversing `snrBack`.
-  // This is a temporary client-side estimate until firmware populates real
-  // `snr_towards` values.
-  if ((rawSnrTowards ?? []).length === 0 && (rawSnrBack ?? []).length > 0) {
-    snrTowards = [...(rawSnrBack ?? [])]
-      .slice()
-      .reverse()
-      .map((snr) => snr / 4);
-  }
+  const snrTowards = (traceroute?.data.snrTowards ?? []).map((snr) => snr / 4);
+  const snrBack = (traceroute?.data.snrBack ?? []).map((snr) => snr / 4);
   const from = getNode(traceroute?.to ?? 0); // The origin of the traceroute = the "to" node of the mesh packet
   const fromLongName =
     from?.user?.longName ?? (from ? `!${numberToHexUnpadded(from?.num)}` : t("unknown.shortName"));

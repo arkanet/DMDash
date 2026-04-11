@@ -28,9 +28,11 @@ import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { distanceKm, getNodeDisplayName } from "@app/darkmesh/utils.ts";
 import { useMapFitting } from "@core/hooks/useMapFitting.ts";
 import { useDevice, useNodeDB } from "@core/stores";
+import { useToast } from "@core/hooks/useToast.ts";
 import { cn } from "@core/utils/cn.ts";
-import { boundsFromLngLat, hasPos, toLngLat } from "@core/utils/geo.ts";
-import type { Protobuf } from "@meshtastic/core";
+import { hasPos, toLngLat } from "@core/utils/geo.ts";
+import { Protobuf } from "@meshtastic/core";
+import type { Types } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { FunnelIcon, LocateFixedIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -67,21 +69,11 @@ function pathDistanceKm(coords: [number, number][]): number {
 }
 
 const NODEDB_DEBOUNCE_MS = 250;
-const DEFAULT_MAP_SPAN_KM = 300;
-const TRACEROUTE_SPAN_KM = 500;
-
-function computeZoomForSpanKm(spanKm: number, lat: number) {
-  const mapWidth =
-    typeof window !== "undefined" ? Math.max(360, Math.min(window.innerWidth, 1600)) : 1024;
-  const safeCos = Math.max(0.2, Math.cos((lat * Math.PI) / 180));
-  const metersPerPixel = (spanKm * 1000) / mapWidth;
-  const zoom = Math.log2((156543.03392 * safeCos) / metersPerPixel);
-  return Number(zoom.toFixed(2));
-}
 
 const MapPage = () => {
   const { t } = useTranslation("map");
-  const { id: deviceId } = useDevice();
+  const { id: deviceId, connection } = useDevice();
+  const { toast } = useToast();
   const { getNode } = useNodeDB();
   const { nodes: validNodes, myNode } = useNodeDB(
     (db) => ({
@@ -106,6 +98,7 @@ const MapPage = () => {
   const setPendingTraceRouteTarget = useDarkMeshStore((state) => state.setPendingTraceRouteTarget);
 
   const hasFitBoundsOnce = useRef(false);
+  const prevTracerouteActive = useRef(false);
   const [snrHover, setSnrHover] = useState<SNRTooltipProps>();
   const [expandedCluster, setExpandedCluster] = useState<string | undefined>();
   const [popupState, setPopupState] = useState<PopupState | undefined>();
@@ -209,9 +202,97 @@ const MapPage = () => {
   );
 
   // Node markers & clusters
-  const onMapBackgroundClick = useCallback(() => {
-    setExpandedCluster(undefined);
-  }, []);
+  const onMapBackgroundClick = useCallback(
+    (event?: MapLayerMouseEvent) => {
+      setExpandedCluster(undefined);
+
+      if (!event?.features || !event.features.length) return;
+
+      // prefer traceroute node clicks
+      const nodeFeature = event.features.find((f) => f?.layer?.id === "darkmesh-traceroute-nodes");
+      if (!nodeFeature?.properties) return;
+
+      const nodeNum = Number(nodeFeature.properties.nodeNum ?? nodeFeature.properties.num ?? 0);
+      if (!nodeNum) return;
+
+      event?.originalEvent?.stopPropagation?.();
+
+      const node = getNode(nodeNum);
+
+      // if we already have GPS, open node popup/dialog
+      if (node && node.position && hasPos(node.position)) {
+        setPopupState({ type: "node", num: nodeNum, offset: [0, 0], preventAutoPan: true });
+        return;
+      }
+
+      // otherwise request GPS from device, wait for position packet then open dialog
+      if (!connection || typeof connection.requestPosition !== "function") {
+        toast({ title: t("toast.positionRequestError", "Unable to request GPS data") });
+        return;
+      }
+
+      (async () => {
+        toast({
+          title: t("toast.requestingPosition.title", "Requesting GPS data...", { ns: "ui" }),
+        });
+        try {
+          await connection.requestPosition(nodeNum);
+        } catch (err) {
+          console.warn("requestPosition failed", err);
+          toast({
+            title: t("toast.positionRequestError", "Failed to request position", { ns: "ui" }),
+          });
+          return;
+        }
+
+        // Also request node info in the same action
+        try {
+          await connection.sendPacket(
+            new Uint8Array(),
+            Protobuf.Portnums.PortNum.NODEINFO_APP,
+            nodeNum,
+          );
+        } catch {
+          // best-effort
+        }
+
+        // subscribe for position packet
+        const onPos = (posPacket: Types.PacketMetadata<Protobuf.Mesh.Position>) => {
+          try {
+            if ((posPacket.from?.valueOf?.() ?? posPacket.from) === nodeNum) {
+              connection.events.onPositionPacket.unsubscribe(onPos);
+              setPopupState({ type: "node", num: nodeNum, offset: [0, 0], preventAutoPan: true });
+              toast({
+                title: t("toast.positionRequestReceived", "GPS data received", { ns: "ui" }),
+              });
+            }
+          } catch {
+            // ignore
+          }
+        };
+
+        connection.events.onPositionPacket.subscribe(onPos);
+
+        // Also ask for node info (best-effort) so node DB gets richer data
+        try {
+          await connection.sendPacket(
+            new Uint8Array(),
+            Protobuf.Portnums.PortNum.NODEINFO_APP,
+            nodeNum,
+          );
+        } catch {
+          // ignore
+        }
+
+        // timeout
+        setTimeout(() => {
+          connection.events.onPositionPacket.unsubscribe(onPos);
+          toast({ title: t("toast.positionRequestMissing", "GPS data missing", { ns: "ui" }) });
+        }, 15000);
+      })();
+    },
+    [getNode, setExpandedCluster, setPopupState, connection, toast, t],
+  );
 
   // Precision circles
   const precisionCirclesElementId = useId();
@@ -242,12 +323,21 @@ const MapPage = () => {
 
   // Default initial view: center on local node when available, otherwise Rome.
   const initialMapView = useMemo(() => {
+    const spanKm = 300; // target visible span across map in km
+    const computeZoomForSpanKm = (spanKm: number, lat: number) => {
+      const mapWidth =
+        typeof window !== "undefined" ? Math.max(360, Math.min(window.innerWidth, 1600)) : 1024;
+      const metersPerPixel = (spanKm * 1000) / mapWidth;
+      const zoom = Math.log2((156543.03392 * Math.cos((lat * Math.PI) / 180)) / metersPerPixel);
+      return Number(zoom.toFixed(2));
+    };
+
     if (myNode && myNode.position && hasPos(myNode.position)) {
       const [lng, lat] = toLngLat(myNode.position);
       return {
         latitude: lat,
         longitude: lng,
-        zoom: computeZoomForSpanKm(DEFAULT_MAP_SPAN_KM, lat),
+        zoom: computeZoomForSpanKm(spanKm, lat),
       } as const;
     }
 
@@ -257,34 +347,18 @@ const MapPage = () => {
     return {
       latitude: romeLat,
       longitude: romeLng,
-      zoom: computeZoomForSpanKm(DEFAULT_MAP_SPAN_KM, romeLat),
+      zoom: computeZoomForSpanKm(spanKm, romeLat),
     } as const;
   }, [myNode]);
-
-  // Animate/center map when a popup node is selected
-  useEffect(() => {
-    if (!popupState || popupState.type !== "node" || !mapRef) return;
-    const sel = getNode(popupState.num);
-    if (!sel || !sel.position || !hasPos(sel.position)) return;
-    const [lng, lat] = toLngLat(sel.position);
-    try {
-      // center with animation
-      mapRef.easeTo({ center: [lng, lat], duration: 600 });
-    } catch {
-      // fallback: set center directly
-      try {
-        const map = mapRef.getMap();
-        map.setCenter([lng, lat]);
-      } catch {
-        // ignore
-      }
-    }
-  }, [popupState, mapRef, getNode]);
 
   const tracerouteOverlay = useMemo(() => {
     if (!selectedTraceRoute) {
       return undefined;
     }
+
+    // reference `validNodes` to ensure this memo recomputes when node positions update
+    // (used intentionally to satisfy the hooks exhaustive-deps rule)
+    void validNodes;
 
     const sourceNode = getNode(selectedTraceRoute.to);
     const destinationNode = getNode(selectedTraceRoute.from);
@@ -293,52 +367,31 @@ const MapPage = () => {
       return undefined;
     }
 
-    // Keep full node number paths (including intermediates) even if some nodes
-    // are not yet present in the local `nodeDB`. Coordinates will be computed
-    // only for nodes that have a known position.
-    // Prefer explicit forward route when provided. If empty, reconstruct a
-    // forward route from routeBack by taking unique intermediate hops in order.
-    const rawForward = selectedTraceRoute.data.route ?? [];
-    const rawBack = selectedTraceRoute.data.routeBack ?? [];
-
-    let forwardNodeNums: number[];
-    if (rawForward.length > 0) {
-      forwardNodeNums = [selectedTraceRoute.to, ...rawForward, selectedTraceRoute.from];
-    } else if (rawBack.length > 0) {
-      const uniq: number[] = [];
-      for (const n of rawBack) {
-        if (!uniq.includes(n)) uniq.push(n);
-      }
-      forwardNodeNums = [selectedTraceRoute.to, ...uniq, selectedTraceRoute.from];
-    } else {
-      forwardNodeNums = [selectedTraceRoute.to, selectedTraceRoute.from];
-    }
-    const backwardNodeNums = [...forwardNodeNums].slice().reverse();
-
-    const forwardCoordinates = buildTraceCoordinates(
-      forwardNodeNums
-        .map((n) => getNode(n))
-        .filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node)),
-    );
-    const backwardCoordinates = buildTraceCoordinates(
-      backwardNodeNums
-        .map((n) => getNode(n))
-        .filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node)),
-    );
+    const forwardNodes = [
+      sourceNode,
+      ...selectedTraceRoute.data.route.map((nodeNum) => getNode(nodeNum)),
+      destinationNode,
+    ].filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node));
+    const backwardNodes = [
+      destinationNode,
+      ...selectedTraceRoute.data.routeBack.map((nodeNum) => getNode(nodeNum)),
+      sourceNode,
+    ].filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node));
+    const forwardCoordinates = buildTraceCoordinates(forwardNodes);
+    const backwardCoordinates = buildTraceCoordinates(backwardNodes);
 
     if (forwardCoordinates.length < 2 && backwardCoordinates.length < 2) {
       return undefined;
     }
 
-    const involvedNodeNums = Array.from(new Set([...forwardNodeNums, ...backwardNodeNums]));
-    const involvedNodes = involvedNodeNums
-      .map((n) => getNode(n))
-      .filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node));
+    const involvedNodes = [...forwardNodes, ...backwardNodes].filter(
+      (node, index, all) => all.findIndex((candidate) => candidate.num === node.num) === index,
+    );
 
     return {
       trace: selectedTraceRoute,
       involvedNodes,
-      involvedNodeNums: new Set(involvedNodeNums),
+      involvedNodeNums: new Set(involvedNodes.map((node) => node.num)),
       sourceLabel: getNodeDisplayName(sourceNode, sourceNode.num),
       destinationLabel: getNodeDisplayName(destinationNode, destinationNode.num),
       totalDistance: pathDistanceKm(forwardCoordinates) + pathDistanceKm(backwardCoordinates),
@@ -373,67 +426,87 @@ const MapPage = () => {
                 },
               ]
             : []),
+          ...involvedNodes
+            .filter((n) => Boolean(n.position && hasPos(n.position)))
+            .map((n) => ({
+              type: "Feature" as const,
+              properties: {
+                role: "node",
+                nodeNum: n.num,
+                name: n.user?.longName ?? null,
+                shortName: n.user?.shortName ?? null,
+              },
+              geometry: {
+                type: "Point" as const,
+                coordinates: toLngLat(n.position),
+              },
+            })),
         ],
       },
     };
-  }, [getNode, selectedTraceRoute]);
+  }, [getNode, selectedTraceRoute, validNodes]);
 
   const clearVisualTraceroute = useCallback(() => {
     clearSelectedTraceRoute(undefined);
     setPendingTraceRouteTarget(deviceId, undefined);
   }, [clearSelectedTraceRoute, deviceId, setPendingTraceRouteTarget]);
 
-  const focusTracerouteNodes = useCallback(
-    (nodes: Protobuf.Mesh.NodeInfo[]) => {
-      if (!mapRef) {
+  const selectNodeFromCard = useCallback(
+    (nodeNum: number) => {
+      const node = getNode(nodeNum);
+
+      if (node && node.position && hasPos(node.position)) {
+        focusLngLat(toLngLat(node.position));
+        setPopupState({ type: "node", num: nodeNum, offset: [0, 0], preventAutoPan: true });
         return;
       }
 
-      const positionedNodes = nodes.filter((node): node is Protobuf.Mesh.NodeInfo =>
-        Boolean(node.position && hasPos(node.position)),
-      );
-
-      if (positionedNodes.length === 0) {
+      if (!connection || typeof connection.requestPosition !== "function") {
+        toast({ title: t("toast.positionRequestError", "Unable to request GPS data") });
         return;
       }
 
-      const coords = positionedNodes.map((node) => toLngLat(node.position));
-      if (coords.length === 1) {
-        const firstCoord = coords[0];
-        if (!firstCoord) {
+      (async () => {
+        toast({
+          title: t("toast.requestingPosition.title", "Requesting GPS data...", { ns: "ui" }),
+        });
+        try {
+          await connection.requestPosition(nodeNum);
+        } catch (err) {
+          console.warn("requestPosition failed", err);
+          toast({
+            title: t("toast.positionRequestError", "Failed to request position", { ns: "ui" }),
+          });
           return;
         }
 
-        const [lng, lat] = firstCoord;
-        mapRef.easeTo({
-          center: [lng, lat],
-          zoom: computeZoomForSpanKm(TRACEROUTE_SPAN_KM, lat),
-        });
-        return;
-      }
+        const onPos = (posPacket: Types.PacketMetadata<Protobuf.Mesh.Position>) => {
+          try {
+            if ((posPacket.from?.valueOf?.() ?? posPacket.from) === nodeNum) {
+              connection.events.onPositionPacket.unsubscribe(onPos);
+              const n = getNode(nodeNum);
+              if (n && n.position && hasPos(n.position)) {
+                focusLngLat(toLngLat(n.position));
+                setPopupState({ type: "node", num: nodeNum, offset: [0, 0], preventAutoPan: true });
+              }
+              toast({
+                title: t("toast.positionRequestReceived", "GPS data received", { ns: "ui" }),
+              });
+            }
+          } catch {
+            // ignore
+          }
+        };
 
-      const bounds = boundsFromLngLat(coords);
-      if (!bounds) {
-        return;
-      }
+        connection.events.onPositionPacket.subscribe(onPos);
 
-      const centerLng = (bounds[0][0] + bounds[1][0]) / 2;
-      const centerLat = (bounds[0][1] + bounds[1][1]) / 2;
-      const fittedCamera = mapRef.cameraForBounds(bounds, {
-        padding: { top: 40, bottom: 40, left: 40, right: 40 },
-      });
-      const tracerouteZoom = computeZoomForSpanKm(TRACEROUTE_SPAN_KM, centerLat);
-      const zoom =
-        typeof fittedCamera?.zoom === "number"
-          ? Math.min(fittedCamera.zoom, tracerouteZoom)
-          : tracerouteZoom;
-
-      mapRef.easeTo({
-        center: [centerLng, centerLat],
-        zoom,
-      });
+        setTimeout(() => {
+          connection.events.onPositionPacket.unsubscribe(onPos);
+          toast({ title: t("toast.positionRequestMissing", "GPS data missing", { ns: "ui" }) });
+        }, 15000);
+      })();
     },
-    [mapRef],
+    [getNode, connection, focusLngLat, setPopupState, toast, t],
   );
 
   const handleZoomIn = useCallback(() => {
@@ -483,23 +556,54 @@ const MapPage = () => {
       return;
     }
 
+    // Only fit to traceroute nodes when a traceroute overlay appears
+    // (avoid re-applying focus/zoom when the traceroute ends/clears)
+    const wasActive = prevTracerouteActive.current;
+
     const frameId = window.requestAnimationFrame(() => {
       mapRef.resize();
 
-      if (tracerouteOverlay) {
-        focusTracerouteNodes(tracerouteOverlay.involvedNodes);
-        return;
-      }
-
-      if (pendingTraceRouteNode?.position && hasPos(pendingTraceRouteNode.position)) {
-        focusTracerouteNodes([pendingTraceRouteNode]);
+      if (tracerouteOverlay && !wasActive) {
+        fitToNodes(tracerouteOverlay.involvedNodes);
       }
     });
+
+    // If a traceroute just ended, change only the zoom to show ~300km span
+    if (!tracerouteOverlay && wasActive) {
+      try {
+        const center = mapRef.getCenter();
+        const spanKm = 300;
+        const computeZoomForSpanKm = (spanKmLocal: number, lat: number) => {
+          const mapWidth =
+            typeof window !== "undefined" ? Math.max(360, Math.min(window.innerWidth, 1600)) : 1024;
+          const metersPerPixel = (spanKmLocal * 1000) / mapWidth;
+          const zoom = Math.log2((156543.03392 * Math.cos((lat * Math.PI) / 180)) / metersPerPixel);
+          return Number(zoom.toFixed(2));
+        };
+
+        const centerTyped = center as unknown as {
+          lat?: number;
+          lng?: number;
+          latitude?: number;
+          longitude?: number;
+        };
+
+        const lat = centerTyped.lat ?? centerTyped.latitude ?? 0;
+        const lng = centerTyped.lng ?? centerTyped.longitude ?? 0;
+        const zoom = computeZoomForSpanKm(spanKm, lat);
+        mapRef.easeTo({ center: [lng, lat], zoom });
+      } catch {
+        // ignore
+      }
+    }
+
+    // update ref to current state for next run
+    prevTracerouteActive.current = Boolean(tracerouteOverlay);
 
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [focusTracerouteNodes, mapRef, pendingTraceRouteNode, showTraceroutePanel, tracerouteOverlay]);
+  }, [fitToNodes, mapRef, tracerouteOverlay]);
 
   return (
     <PageLayout
@@ -517,6 +621,7 @@ const MapPage = () => {
                 traceroute={tracerouteOverlay.trace}
                 totalDistance={tracerouteOverlay.totalDistance}
                 onClear={clearVisualTraceroute}
+                onSelectNode={selectNodeFromCard}
                 className="h-full shadow-none"
               />
             ) : (
@@ -548,7 +653,11 @@ const MapPage = () => {
             onLoad={getMapBounds}
             onMouseMove={onMouseMove}
             onClick={onMapBackgroundClick}
-            interactiveLayerIds={[snrLayerElementId, `${heatmapLayerElementId}-interaction`]}
+            interactiveLayerIds={[
+              snrLayerElementId,
+              `${heatmapLayerElementId}-interaction`,
+              "darkmesh-traceroute-nodes",
+            ]}
           >
             {heatmapLayerElement}
             {markerElements}
@@ -561,6 +670,18 @@ const MapPage = () => {
                 type="geojson"
                 data={tracerouteOverlay.featureCollection}
               >
+                <Layer
+                  id="darkmesh-traceroute-nodes"
+                  type="circle"
+                  filter={["==", ["get", "role"], "node"]}
+                  paint={{
+                    "circle-color": "#f59e0b",
+                    "circle-radius": 6,
+                    "circle-stroke-color": "#111827",
+                    "circle-stroke-width": 2,
+                  }}
+                />
+
                 <Layer
                   id="darkmesh-traceroute-forward"
                   type="line"
@@ -578,7 +699,6 @@ const MapPage = () => {
                   paint={{
                     "line-color": "#38bdf8",
                     "line-width": 4,
-                    "line-dasharray": [1, 1.5],
                     "line-opacity": 0.9,
                   }}
                 />
@@ -653,7 +773,7 @@ const MapPage = () => {
                   side: "bottom",
                   align: "end",
                   sideOffset: 7,
-                  style: { right: "35px", top: "-150px", position: "fixed" },
+                  style: { position: "relative", top: "-150px", right: "35px" },
                 },
                 popoverTriggerClassName: cn(
                   "w-[29px] px-1 py-1 rounded shadow-l outline-[2px] outline-stone-600/20 ",

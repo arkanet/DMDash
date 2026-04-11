@@ -2,7 +2,7 @@ import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import PacketToMessageDTO from "@core/dto/PacketToMessageDTO.ts";
 import { useNewNodeNum } from "@core/hooks/useNewNodeNum";
 import { type Device, type MessageStore, MessageType, type NodeDB } from "@core/stores";
-import { Constants, type MeshDevice, Protobuf, Types } from "@meshtastic/core";
+import { type MeshDevice, Protobuf } from "@meshtastic/core";
 export const subscribeAll = (
   device: Device,
   connection: MeshDevice,
@@ -79,85 +79,10 @@ export const subscribeAll = (
   });
 
   connection.events.onMessagePacket.subscribe((messagePacket) => {
-    // Handle reactions (TEXT_MESSAGE_APP with emoji flag) separately so they
-    // are not stored as normal messages.
-    if (messagePacket.emoji === 1 && messagePacket.replyId !== undefined) {
-      const emoji = messagePacket.data as string;
-      const messageId = messagePacket.replyId as number;
-
-      if (messagePacket.type === "direct") {
-        // For direct messages, reaction targets the conversation between us and the sender
-        if (myNodeNum !== undefined) {
-          messageStore.addReaction({
-            type: MessageType.Direct,
-            nodeA: myNodeNum,
-            nodeB: messagePacket.from,
-            messageId,
-            emoji,
-          });
-        }
-      } else {
-        // Broadcast message reaction
-        messageStore.addReaction({
-          type: MessageType.Broadcast,
-          channelId: messagePacket.channel,
-          messageId,
-          emoji,
-        });
-      }
-
-      return; // don't treat reaction packets as normal messages
-    }
-
     // incoming and outgoing messages are handled by this event listener
     const dto = new PacketToMessageDTO(messagePacket, myNodeNum);
     const message = dto.toMessage();
-
-    // Avoid saving duplicate messages (same messageId) if already present
-    let alreadyExists = false;
-    try {
-      if (message.type === MessageType.Direct) {
-        if (myNodeNum !== undefined) {
-          const existing = messageStore.getMessages({
-            type: MessageType.Direct,
-            nodeA: myNodeNum,
-            nodeB: message.from,
-          });
-          alreadyExists = existing.some((m) => m.messageId === message.messageId);
-        }
-      } else {
-        const existing = messageStore.getMessages({
-          type: MessageType.Broadcast,
-          channelId: message.channel,
-        });
-        alreadyExists = existing.some((m) => m.messageId === message.messageId);
-      }
-    } catch {
-      // If store read fails for any reason, fall back to saving the message
-      alreadyExists = false;
-    }
-
-    if (!alreadyExists) {
-      messageStore.saveMessage(message);
-    }
-
-    if (
-      typeof window !== "undefined" &&
-      message.compressed &&
-      message.from !== myNodeNum &&
-      window.localStorage
-    ) {
-      const contactKey =
-        message.type === MessageType.Direct
-          ? `${Types.ChannelNumber.Primary}${message.from}`
-          : `${message.channel}${Constants.broadcastNum}`;
-
-      try {
-        window.localStorage.setItem(`compressionPrefs:${contactKey}`, "true");
-      } catch {
-        // ignore localStorage write failures
-      }
-    }
+    messageStore.saveMessage(message);
 
     if (message.type === MessageType.Direct) {
       if (message.to === myNodeNum) {
