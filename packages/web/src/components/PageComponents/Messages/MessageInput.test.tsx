@@ -74,7 +74,7 @@ describe("MessageInput", () => {
     renderComponent();
     expect(screen.getByTestId("message-input-field")).toBeInTheDocument();
     expect(screen.getByTestId("byte-counter")).toBeInTheDocument();
-    expect(screen.getByRole("button")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open emoji picker/i })).toBeInTheDocument();
     expect(screen.getByTestId("send-icon")).toBeInTheDocument();
   });
 
@@ -228,5 +228,20 @@ describe("MessageInput", () => {
 
     expect(mockOnSend).toHaveBeenCalledWith(newMessage);
     expect(mockClearDraft).toHaveBeenCalledWith(broadcastDest);
+  });
+
+  it("should pass compress=true when the compression checkbox is enabled", async () => {
+    renderComponent();
+    const inputElement = screen.getByTestId("message-input-field");
+    const formElement = screen.getByRole("form");
+    const compressCheckbox = screen.getByRole("checkbox");
+
+    fireEvent.click(compressCheckbox);
+    fireEvent.change(inputElement, { target: { value: "Compressed hello" } });
+    fireEvent.submit(formElement);
+
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith("Compressed hello", { compress: true });
+    });
   });
 });

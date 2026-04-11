@@ -103,6 +103,7 @@ export class MeshDevice {
     channel?: ChannelNumber,
     replyId?: number,
     emoji?: number,
+    compressed = false,
   ): Promise<number> {
     this.log.debug(
       Emitter[Emitter.SendText],
@@ -110,10 +111,13 @@ export class MeshDevice {
     );
 
     const enc = new TextEncoder();
+    const portNum = compressed
+      ? Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP
+      : Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP;
 
     return await this.sendPacket(
       enc.encode(text),
-      Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP,
+      portNum,
       destination ?? "broadcast",
       channel,
       wantAck,
@@ -884,6 +888,7 @@ export class MeshDevice {
       rxRssi: meshPacket.rxRssi,
       hopStart: meshPacket.hopStart,
       hopLimit: meshPacket.hopLimit,
+      compressed: dataPacket.portnum === Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP,
     };
 
     this.log.trace(
@@ -892,7 +897,8 @@ export class MeshDevice {
     );
 
     switch (dataPacket.portnum) {
-      case Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP: {
+      case Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP:
+      case Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP: {
         this.events.onMessagePacket.dispatch({
           ...packetMetadata,
           data: new TextDecoder().decode(dataPacket.payload),

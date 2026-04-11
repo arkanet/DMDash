@@ -208,6 +208,8 @@ export const MessagesPage = () => {
             true,
             channelValue,
             replyTo?.messageId,
+            undefined,
+            true,
           );
         } else {
           // If user explicitly disabled compression for this contact, remove stored preference
@@ -224,6 +226,8 @@ export const MessagesPage = () => {
             true,
             channelValue,
             replyTo?.messageId,
+            undefined,
+            false,
           );
         }
         if (messageId !== undefined) {
