@@ -238,7 +238,6 @@ const RemoteAdminPage = () => {
   );
 
   const targetNode = nodeDB.getNode(nodeNum);
-  const localNode = nodeDB.getNode(localDevice.hardware.myNodeNum);
   const adminChannel = resolveAdminChannelIndex(localDevice.channels);
   const maxChannels = 8;
   const activeSectionKey = useMemo<RemoteAdminSection>(
@@ -246,12 +245,7 @@ const RemoteAdminPage = () => {
     [nodeNum, routerState.location.pathname],
   );
   const activeTab = activeTabs[activeSectionKey];
-  const localPublicKey =
-    localNode?.user?.publicKey && localNode.user.publicKey.length > 0
-      ? localNode.user.publicKey
-      : localDevice.config.security?.publicKey;
-  const targetPublicKey = targetNode?.user?.publicKey;
-  const usePkcAdmin = Boolean(localPublicKey?.length && targetPublicKey?.length);
+  // Public key checks removed for now — PKC admin path unused in this build
 
   const setConfig = useCallback((newConfig: Protobuf.Config.Config) => {
     setConfigState((current) => applyConfigMessage(current, newConfig));
@@ -554,20 +548,9 @@ const RemoteAdminPage = () => {
         false,
         undefined,
         undefined,
-        {
-          priority: Protobuf.Mesh.MeshPacket_Priority.RELIABLE,
-          from: 0,
-          includeDecodedRouting: false,
-          ...(usePkcAdmin
-            ? {
-                pkiEncrypted: true,
-                publicKey: targetPublicKey,
-              }
-            : {}),
-        },
       );
     },
-    [adminChannel, localDevice.connection, nodeNum, targetPublicKey, usePkcAdmin],
+    [adminChannel, localDevice.connection, nodeNum],
   );
 
   const ensureRemoteSession = useCallback(async () => {

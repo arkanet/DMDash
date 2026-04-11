@@ -200,7 +200,15 @@ export const MessagesPage = () => {
           } catch {
             // ignore storage errors
           }
-          messageId = await connection?.sendMessage(message, contactKey, replyTo?.messageId);
+          // `sendMessage` was removed from MeshDevice; use `sendText` instead.
+          // For compressed messages we still send text to the same destination/channel.
+          messageId = await connection?.sendText(
+            message,
+            toValue,
+            true,
+            channelValue,
+            replyTo?.messageId,
+          );
         } else {
           // If user explicitly disabled compression for this contact, remove stored preference
           try {
@@ -275,12 +283,16 @@ export const MessagesPage = () => {
   const renderChatContent = () => {
     switch (chatType) {
       case MessageType.Broadcast:
-        return <ChannelChat messages={currentMessages} onReply={setReplyTo} onMention={handleMention} />;
+        return (
+          <ChannelChat messages={currentMessages} onReply={setReplyTo} onMention={handleMention} />
+        );
       case MessageType.Direct:
         if (myNodeNum === undefined) {
           return <SelectMessageChat />;
         }
-        return <ChannelChat messages={currentMessages} onReply={setReplyTo} onMention={handleMention} />;
+        return (
+          <ChannelChat messages={currentMessages} onReply={setReplyTo} onMention={handleMention} />
+        );
       default:
         return <SelectMessageChat />;
     }
@@ -299,9 +311,9 @@ export const MessagesPage = () => {
                 (channel.index === 0
                   ? t("page.broadcastLabel", { ns: "channels" })
                   : t("page.channelLabel", {
-                    index: channel.index,
-                    ns: "channels",
-                  }))
+                      index: channel.index,
+                      ns: "channels",
+                    }))
               }
               active={numericChatId === channel.index && chatType === MessageType.Broadcast}
               onClick={() => {
@@ -391,21 +403,21 @@ export const MessagesPage = () => {
       actions={
         isDirect && otherNode
           ? [
-            {
-              key: "encryption",
-              icon: otherNode.user?.publicKey?.length ? LockIcon : LockOpenIcon,
-              iconClasses: otherNode.user?.publicKey?.length
-                ? "text-green-600"
-                : "text-yellow-300",
-              onClick() {
-                toast({
-                  title: otherNode.user?.publicKey?.length
-                    ? t("toast.messages.pkiEncryption.title")
-                    : t("toast.messages.pskEncryption.title"),
-                });
+              {
+                key: "encryption",
+                icon: otherNode.user?.publicKey?.length ? LockIcon : LockOpenIcon,
+                iconClasses: otherNode.user?.publicKey?.length
+                  ? "text-green-600"
+                  : "text-yellow-300",
+                onClick() {
+                  toast({
+                    title: otherNode.user?.publicKey?.length
+                      ? t("toast.messages.pkiEncryption.title")
+                      : t("toast.messages.pskEncryption.title"),
+                  });
+                },
               },
-            },
-          ]
+            ]
           : []
       }
     >

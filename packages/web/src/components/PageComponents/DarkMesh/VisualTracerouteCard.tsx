@@ -1,7 +1,10 @@
 import { Button } from "@components/UI/Button.tsx";
-import { useNodeDB } from "@core/stores";
+import { useAppStore, useDevice, useNodeDB } from "@core/stores";
+import { hasPos } from "@core/utils/geo.ts";
+import { useToast } from "@core/hooks/useToast.ts";
 import { cn } from "@core/utils/cn.ts";
-import type { Protobuf, Types } from "@meshtastic/core";
+import { Protobuf } from "@meshtastic/core";
+import type { Types } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useMemo } from "react";
 
@@ -12,6 +15,7 @@ interface VisualTracerouteCardProps {
   traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>;
   totalDistance: number;
   onClear: () => void;
+  onSelectNode?: (nodeNum: number) => void;
   className?: string;
 }
 
@@ -58,7 +62,85 @@ function formatSnr(snr?: number) {
   return `${snr.toFixed(1).replace(/\.0$/, "")} dB`;
 }
 
-function RouteSection({ title, steps }: { title: string; steps: RouteStep[] }) {
+function RouteSection({
+  title,
+  steps,
+  onSelectNode,
+}: {
+  title: string;
+  steps: RouteStep[];
+  onSelectNode?: (num: number) => void;
+}) {
+  const { setNodeNumDetails } = useAppStore();
+  const { connection, setDialogOpen } = useDevice();
+  const { toast } = useToast();
+  const { getNode } = useNodeDB();
+  // prefer map popup behavior when parent passed an onSelectNode handler
+  const openNode = (nodeNum: number, onSelectNode?: (num: number) => void) => {
+    const node = getNode(nodeNum);
+    if (node && node.position && hasPos(node.position)) {
+      if (onSelectNode) {
+        onSelectNode(nodeNum);
+        return;
+      }
+
+      setNodeNumDetails(nodeNum);
+      setDialogOpen("nodeDetails", true);
+      return;
+    }
+
+    if (!connection || typeof connection.requestPosition !== "function") {
+      toast({ title: "Unable to request GPS data" });
+      return;
+    }
+
+    (async () => {
+      toast({ title: "Requesting GPS data..." });
+      try {
+        await connection.requestPosition(nodeNum);
+      } catch (err) {
+        console.warn("requestPosition failed", err);
+        toast({ title: "Failed to request position" });
+        return;
+      }
+      // Also request node info together with position
+      try {
+        await connection.sendPacket(
+          new Uint8Array(),
+          Protobuf.Portnums.PortNum.NODEINFO_APP,
+          nodeNum,
+        );
+      } catch {
+        // ignore
+      }
+      const onPos = (posPacket: Types.PacketMetadata<Protobuf.Mesh.Position>) => {
+        try {
+          if ((posPacket.from?.valueOf?.() ?? posPacket.from) === nodeNum) {
+            connection.events.onPositionPacket.unsubscribe(onPos);
+            if (onSelectNode) {
+              onSelectNode(nodeNum);
+              toast({ title: "GPS data received" });
+              return;
+            }
+
+            setNodeNumDetails(nodeNum);
+            setDialogOpen("nodeDetails", true);
+            toast({ title: "GPS data received" });
+          }
+        } catch {
+          // ignore
+        }
+      };
+
+      connection.events.onPositionPacket.subscribe(onPos);
+
+      setTimeout(() => {
+        connection.events.onPositionPacket.unsubscribe(onPos);
+        toast({ title: "GPS data missing" });
+      }, 15000);
+    })();
+  };
+
   return (
     <div>
       <div className="text-[0.75rem] font-semibold text-zinc-100">{title}</div>
@@ -75,12 +157,16 @@ function RouteSection({ title, steps }: { title: string; steps: RouteStep[] }) {
                 </span>
               </div>
             )}
-            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[0.75rem] text-zinc-100">
+            <button
+              type="button"
+              onClick={() => openNode(Number(step.nodeHex.replace(/^!/, "0x")), onSelectNode)}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[0.75rem] text-zinc-100 cursor-pointer text-left"
+            >
               <div className="flex items-center justify-around gap-3">
                 <span className="font-semibold">{step.shortName}</span>
                 <span className="text-zinc-400">{step.nodeHex}</span>
               </div>
-            </div>
+            </button>
           </div>
         ))}
       </div>
@@ -92,6 +178,7 @@ export function VisualTracerouteCard({
   traceroute,
   totalDistance,
   onClear,
+  onSelectNode,
   className,
 }: VisualTracerouteCardProps) {
   const { getNode } = useNodeDB();
@@ -156,9 +243,17 @@ export function VisualTracerouteCard({
       </div>
 
       <div className="mt-4 flex-1 space-y-4 overflow-y-auto pr-1">
-        <RouteSection title="Route traced toward destination" steps={sections.forward} />
+        <RouteSection
+          title="Route traced toward destination"
+          steps={sections.forward}
+          onSelectNode={onSelectNode}
+        />
         {sections.backward.length > 0 && (
-          <RouteSection title="Route traced back to us" steps={sections.backward} />
+          <RouteSection
+            title="Route traced back to us"
+            steps={sections.backward}
+            onSelectNode={onSelectNode}
+          />
         )}
       </div>
 
