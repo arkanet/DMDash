@@ -13,9 +13,16 @@ import { useState, useRef, useEffect } from "react";
 interface MessageActionsMenuProps {
   onAddReaction?: (emoji?: string) => void;
   onReply?: () => void;
+  showReaction?: boolean;
+  reactionPickerPlacement?: "above" | "below";
 }
 
-export const MessageActionsMenu = ({ onAddReaction, onReply }: MessageActionsMenuProps) => {
+export const MessageActionsMenu = ({
+  onAddReaction,
+  onReply,
+  showReaction = true,
+  reactionPickerPlacement = "below",
+}: MessageActionsMenuProps) => {
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
 
@@ -55,59 +62,68 @@ export const MessageActionsMenu = ({ onAddReaction, onReply }: MessageActionsMen
 
   const iconSizeClass = "size-4";
 
+  if (!showReaction && !onReply) {
+    return null;
+  }
+
   return (
     <div className={cn(hoverIconBarClass)}>
       <TooltipProvider delayDuration={300}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label={t("messages_actionsMenu_addReactionLabel")}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowPicker((s) => !s);
-              }}
-              className={hoverIconButtonClass}
-            >
-              <SmilePlus className={iconSizeClass} aria-hidden="true" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent className="bg-gray-800 text-white px-2 py-1 rounded text-xs">
-            {t("messages_actionsMenu_addReactionLabel")}
-            <TooltipArrow className="fill-gray-800" />
-          </TooltipContent>
-        </Tooltip>
+        {showReaction && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={t("messages_actionsMenu_addReactionLabel")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPicker((s) => !s);
+                }}
+                className={hoverIconButtonClass}
+              >
+                <SmilePlus className={iconSizeClass} aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-gray-800 text-white px-2 py-1 rounded text-xs">
+              {t("messages_actionsMenu_addReactionLabel")}
+              <TooltipArrow className="fill-gray-800" />
+            </TooltipContent>
+          </Tooltip>
+        )}
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label={t("messages_actionsMenu_replyLabel")}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onReply) {
+        {onReply && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={t("messages_actionsMenu_replyLabel")}
+                onClick={(e) => {
+                  e.stopPropagation();
                   onReply();
-                }
-              }}
-              className={hoverIconButtonClass}
-            >
-              <Reply className={iconSizeClass} aria-hidden="true" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent className="bg-gray-800 text-white px-2 py-1 rounded text-xs">
-            {t("messages_actionsMenu_replyLabel")}
-            <TooltipArrow className="fill-gray-800" />
-          </TooltipContent>
-        </Tooltip>
+                }}
+                className={hoverIconButtonClass}
+              >
+                <Reply className={iconSizeClass} aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="bg-gray-800 text-white px-2 py-1 rounded text-xs">
+              {t("messages_actionsMenu_replyLabel")}
+              <TooltipArrow className="fill-gray-800" />
+            </TooltipContent>
+          </Tooltip>
+        )}
         {/* mention button removed — mentions activated by typing '@' in the input */}
       </TooltipProvider>
 
-      {showPicker && (
+      {showReaction && showPicker && (
         <div
           ref={pickerRef}
           role="dialog"
           aria-label={t("messages_actionsMenu_addReactionLabel")}
-          className="absolute -bottom-12 right-0 z-20 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-md p-2 flex gap-1"
+          className={cn(
+            "absolute right-0 z-20 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-md p-2 flex gap-1",
+            reactionPickerPlacement === "above" ? "bottom-full mb-2" : "top-full mt-2",
+          )}
           onClick={(e) => e.stopPropagation()}
           tabIndex={-1}
           onKeyDown={(e) => {

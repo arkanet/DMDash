@@ -7,9 +7,11 @@ import type {
   Message,
   MessageId,
   MessageLogMap,
+  MessageReaction,
   NodeNum,
   SetMessageStateParams,
 } from "@core/stores/messageStore/types.ts";
+import { normalizeMessageReactions, normalizeReaction } from "@core/stores/messageStore/types.ts";
 import { evictOldestEntries } from "@core/stores/utils/evictOldestEntries.ts";
 import { createStorage } from "@core/stores/utils/indexDB.ts";
 import type { Types } from "@meshtastic/core";
@@ -31,6 +33,15 @@ export enum MessageState {
 export enum MessageType {
   Direct = "direct",
   Broadcast = "broadcast",
+}
+
+function normalizeStoredMessage(message: Message): Message {
+  return {
+    ...message,
+    reactions: normalizeMessageReactions(
+      message.reactions as Record<string, MessageReaction | number> | undefined,
+    ),
+  };
 }
 
 export function getConversationId(node1: NodeNum, node2: NodeNum): ConversationId {
@@ -70,6 +81,7 @@ export interface MessageStore extends MessageStoreData {
     channelId?: ChannelId;
     messageId: MessageId;
     emoji: string;
+    sender: NodeNum;
   }) => void;
   //clearAllDrafts: (key: Types.Destination) => void;
 
@@ -159,23 +171,24 @@ function messageStoreFactory(
             throw new Error(`No MessageStore found for id: ${id}`);
           }
 
+          const normalizedMessage = normalizeStoredMessage(message);
           let log: MessageLogMap | undefined;
           if (message.type === MessageType.Direct) {
-            const conversationId = getConversationId(message.from, message.to);
+            const conversationId = getConversationId(normalizedMessage.from, normalizedMessage.to);
             if (!state.messages.direct.has(conversationId)) {
               state.messages.direct.set(conversationId, new Map<MessageId, Message>());
             }
 
             log = state.messages.direct.get(conversationId);
-            log?.set(message.messageId, message);
+            log?.set(normalizedMessage.messageId, normalizedMessage);
           } else if (message.type === MessageType.Broadcast) {
-            const channelId = message.channel as ChannelId;
+            const channelId = normalizedMessage.channel as ChannelId;
             if (!state.messages.broadcast.has(channelId)) {
               state.messages.broadcast.set(channelId, new Map<MessageId, Message>());
             }
 
             log = state.messages.broadcast.get(channelId);
-            log?.set(message.messageId, message);
+            log?.set(normalizedMessage.messageId, normalizedMessage);
           }
 
           if (log) {
@@ -193,6 +206,7 @@ function messageStoreFactory(
       channelId?: ChannelId;
       messageId: MessageId;
       emoji: string;
+      sender: NodeNum;
     }) => {
       set(
         produce<PrivateMessageStoreState>((draft) => {
@@ -221,8 +235,24 @@ function messageStoreFactory(
             return;
           }
 
-          if (!targetMessage.reactions) targetMessage.reactions = {};
-          targetMessage.reactions[params.emoji] = (targetMessage.reactions[params.emoji] ?? 0) + 1;
+          const normalizedReactions =
+            normalizeMessageReactions(
+              targetMessage.reactions as Record<string, MessageReaction | number> | undefined,
+            ) ?? {};
+          const currentReaction = normalizeReaction(normalizedReactions[params.emoji]) ?? {
+            count: 0,
+            senders: [],
+          };
+
+          if (currentReaction.senders.includes(params.sender)) {
+            return;
+          }
+
+          normalizedReactions[params.emoji] = {
+            count: currentReaction.count + 1,
+            senders: currentReaction.senders.concat(params.sender),
+          };
+          targetMessage.reactions = normalizedReactions;
         }),
       );
     },
@@ -451,6 +481,17 @@ const persistOptions: PersistOptions<PrivateMessageStoreState, MessageStorePersi
         for (const [id, data] of (
           draft.messageStores as unknown as Map<number, MessageStoreData>
         ).entries()) {
+          for (const log of data.messages.direct.values()) {
+            for (const [messageId, message] of log.entries()) {
+              log.set(messageId, normalizeStoredMessage(message));
+            }
+          }
+          for (const log of data.messages.broadcast.values()) {
+            for (const [messageId, message] of log.entries()) {
+              log.set(messageId, normalizeStoredMessage(message));
+            }
+          }
+
           if (data.myNodeNum !== undefined) {
             // Only rebuild if there is a nodenum set otherwise orphan dbs will acumulate
             rebuilt.set(
@@ -471,6 +512,6 @@ console.debug(`MessageStore: Persisting messages is ${persistMessages ? "enabled
 
 export const useMessageStore = persistMessages
   ? createStore<PrivateMessageStoreState, [["zustand/persist", MessageStorePersisted]]>(
-    persist(messageStoreInitializer, persistOptions),
-  )
+      persist(messageStoreInitializer, persistOptions),
+    )
   : createStore<PrivateMessageStoreState>()(messageStoreInitializer);

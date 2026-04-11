@@ -12,6 +12,7 @@ class PacketToMessageDTO {
   message: string;
   type: MessageType;
   replyId?: number;
+  hopsAway?: number;
   compressed?: boolean;
 
   constructor(data: Types.PacketMetadata<string>, nodeNum: number) {
@@ -23,6 +24,10 @@ class PacketToMessageDTO {
     this.message = data.data;
     this.type = data.type === "direct" ? MessageType.Direct : MessageType.Broadcast;
     this.replyId = data.replyId;
+    this.hopsAway =
+      typeof data.hopStart === "number" && typeof data.hopLimit === "number"
+        ? Math.max(0, data.hopStart - data.hopLimit)
+        : undefined;
     this.compressed = data.compressed;
 
     let dateTimestamp = Date.now();
@@ -51,6 +56,7 @@ class PacketToMessageDTO {
       message: this.message,
       type: this.type,
       replyId: this.replyId,
+      hopsAway: this.hopsAway,
       compressed: this.compressed,
     };
   }

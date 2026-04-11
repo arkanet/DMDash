@@ -1,6 +1,7 @@
 import { MessageItem } from "@components/PageComponents/Messages/MessageItem.tsx";
 import { Separator } from "@components/UI/Separator";
 import { Skeleton } from "@components/UI/Skeleton.tsx";
+import { useNodeDB } from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import type { TFunction } from "i18next";
 import { InboxIcon } from "lucide-react";
@@ -105,6 +106,8 @@ const EmptyState = () => {
 
 export const ChannelChat = ({ messages = [], onReply, onMention }: ChannelChatProps) => {
   const { i18n, t } = useTranslation();
+  const { getMyNode } = useNodeDB();
+  const myNodeNum = getMyNode()?.num;
 
   const locale = useMemo(
     () => i18n.language || (typeof navigator !== "undefined" ? navigator.language : "en-US"),
@@ -143,6 +146,10 @@ export const ChannelChat = ({ messages = [], onReply, onMention }: ChannelChatPr
     }
     return s;
   }, [sorted]);
+  const latestReceivedMessageId = useMemo(
+    () => sorted.find((message) => message.from !== myNodeNum)?.messageId,
+    [myNodeNum, sorted],
+  );
 
   const listRef = useRef<HTMLUListElement | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | undefined>(undefined);
@@ -199,6 +206,7 @@ export const ChannelChat = ({ messages = [], onReply, onMention }: ChannelChatPr
                 repliedMessage={message.replyId ? messageIndex.get(message.replyId) : undefined}
                 isReplyTarget={replyTargets.has(message.messageId)}
                 isHighlighted={highlightedMessageId === message.messageId}
+                isLatestReceived={message.messageId === latestReceivedMessageId}
                 onJumpToMessage={jumpToMessage}
                 onReply={onReply}
                 onMention={onMention}

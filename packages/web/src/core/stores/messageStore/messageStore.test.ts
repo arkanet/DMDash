@@ -363,6 +363,119 @@ describe("MessageStore persistence & rehydrate", () => {
     });
   });
 
+  describe("addReaction", async () => {
+    const { useMessageStore } = await freshStore();
+    const state = useMessageStore.getState();
+    state.addMessageStore(123);
+
+    beforeEach(() => {
+      state.getMessageStore(123)?.setNodeNum(myNodeNum);
+      state.getMessageStore(123)?.saveMessage(directMessageFromOther1);
+      state.getMessageStore(123)?.saveMessage(broadcastMessage1);
+    });
+
+    it("should aggregate direct reactions on the target message and keep sender details", () => {
+      const store = state.getMessageStore(123)!;
+
+      store.addReaction({
+        type: MessageType.Direct,
+        nodeA: directMessageFromOther1.from,
+        nodeB: directMessageFromOther1.to,
+        messageId: directMessageFromOther1.messageId,
+        emoji: "👍",
+        sender: myNodeNum,
+      });
+      store.addReaction({
+        type: MessageType.Direct,
+        nodeA: directMessageFromOther1.from,
+        nodeB: directMessageFromOther1.to,
+        messageId: directMessageFromOther1.messageId,
+        emoji: "👍",
+        sender: otherNodeNum2,
+      });
+      store.addReaction({
+        type: MessageType.Direct,
+        nodeA: directMessageFromOther1.from,
+        nodeB: directMessageFromOther1.to,
+        messageId: directMessageFromOther1.messageId,
+        emoji: "👍",
+        sender: myNodeNum,
+      });
+
+      const conversationId = getConversationId(
+        directMessageFromOther1.from,
+        directMessageFromOther1.to,
+      );
+      const message = useMessageStore
+        .getState()
+        .getMessageStore(123)!
+        .messages.direct.get(conversationId)
+        ?.get(directMessageFromOther1.messageId);
+
+      expect(message?.reactions).toEqual({
+        "👍": {
+          count: 2,
+          senders: [myNodeNum, otherNodeNum2],
+        },
+      });
+    });
+
+    it("should aggregate broadcast reactions on the target message", () => {
+      const store = state.getMessageStore(123)!;
+
+      store.addReaction({
+        type: MessageType.Broadcast,
+        channelId: broadcastChannel,
+        messageId: broadcastMessage1.messageId,
+        emoji: "😂",
+        sender: myNodeNum,
+      });
+
+      const message = useMessageStore
+        .getState()
+        .getMessageStore(123)!
+        .messages.broadcast.get(broadcastChannel)
+        ?.get(broadcastMessage1.messageId);
+
+      expect(message?.reactions).toEqual({
+        "😂": {
+          count: 1,
+          senders: [myNodeNum],
+        },
+      });
+    });
+
+    it("should normalize legacy reaction counters when saving messages", () => {
+      const store = state.getMessageStore(123)!;
+      const legacyMessageId = 404;
+
+      store.saveMessage({
+        ...directMessageFromOther1,
+        messageId: legacyMessageId,
+        reactions: {
+          "👏": 3,
+        } as unknown as Message["reactions"],
+      });
+
+      const conversationId = getConversationId(
+        directMessageFromOther1.from,
+        directMessageFromOther1.to,
+      );
+      const message = useMessageStore
+        .getState()
+        .getMessageStore(123)!
+        .messages.direct.get(conversationId)
+        ?.get(legacyMessageId);
+
+      expect(message?.reactions).toEqual({
+        "👏": {
+          count: 3,
+          senders: [],
+        },
+      });
+    });
+  });
+
   describe("clearMessageByMessageId", async () => {
     const { useMessageStore } = await freshStore();
     const state = useMessageStore.getState();

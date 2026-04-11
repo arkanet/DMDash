@@ -80,6 +80,32 @@ export const subscribeAll = (
 
   connection.events.onMessagePacket.subscribe((messagePacket) => {
     // incoming and outgoing messages are handled by this event listener
+    if (
+      messagePacket.emoji &&
+      typeof messagePacket.replyId === "number" &&
+      messagePacket.data.trim().length > 0
+    ) {
+      if (messagePacket.type === "direct") {
+        messageStore.addReaction({
+          type: MessageType.Direct,
+          nodeA: messagePacket.from,
+          nodeB: messagePacket.to,
+          messageId: messagePacket.replyId,
+          emoji: messagePacket.data,
+          sender: messagePacket.from,
+        });
+      } else {
+        messageStore.addReaction({
+          type: MessageType.Broadcast,
+          channelId: messagePacket.channel,
+          messageId: messagePacket.replyId,
+          emoji: messagePacket.data,
+          sender: messagePacket.from,
+        });
+      }
+      return;
+    }
+
     const dto = new PacketToMessageDTO(messagePacket, myNodeNum);
     const message = dto.toMessage();
     messageStore.saveMessage(message);

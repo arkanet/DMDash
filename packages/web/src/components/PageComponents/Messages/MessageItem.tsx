@@ -11,13 +11,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@components/UI/Tooltip.tsx";
-import { MessageState, useAppStore, useDevice, useNodeDB } from "@core/stores";
+import {
+  MessageState,
+  MessageType,
+  useAppStore,
+  useDevice,
+  useMessages,
+  useNodeDB,
+} from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import { cn } from "@core/utils/cn.ts";
 import { Protobuf, Types } from "@meshtastic/core";
 import type { LucideIcon } from "lucide-react";
 import { AlertCircle, CheckCircle2, CircleEllipsis, FileArchive } from "lucide-react";
-import { Fragment, type ReactNode, useCallback, useMemo, useState } from "react";
+import { Fragment, type ReactNode, useCallback, useMemo } from "react";
 import SwipeReplyMessage from "./SwipeReplyMessage";
 import { useTranslation } from "react-i18next";
 
@@ -98,6 +105,7 @@ interface MessageItemProps {
   onAddReaction?: (emoji: string, message: Message) => void;
   isReplyTarget?: boolean;
   isHighlighted?: boolean;
+  isLatestReceived?: boolean;
   onJumpToMessage?: (messageId: number) => void;
 }
 
@@ -106,11 +114,14 @@ export const MessageItem = ({
   repliedMessage,
   onReply,
   onMention,
+  onAddReaction,
   isReplyTarget,
   isHighlighted,
+  isLatestReceived,
   onJumpToMessage,
 }: MessageItemProps) => {
   const device = useDevice();
+  const messages = useMessages();
   const { config, setDialogOpen } = device;
   const { getNode, getNodes } = useNodeDB();
   const setNodeNumDetails = useAppStore((state) => state.setNodeNumDetails);
@@ -205,13 +216,30 @@ export const MessageItem = ({
     [messageFragments, myMentionId],
   );
 
-  // Local reactions state (temporary UI-only until backend/store integration exists)
-  const [localReactions, setLocalReactions] = useState<string[]>([]);
-  const reducedLocalReactions = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const e of localReactions) map.set(e, (map.get(e) ?? 0) + 1);
-    return map;
-  }, [localReactions]);
+  const reactionEntries = useMemo(
+    () => Object.entries(message.reactions ?? {}).slice(0, 6),
+    [message.reactions],
+  );
+
+  const getReactionSenderLabel = useCallback(
+    (senderNodeNum: number) => {
+      if (senderNodeNum === myNodeNum) {
+        return t("message.you", { defaultValue: "You" });
+      }
+
+      const senderNode = getNode(senderNodeNum);
+      if (senderNode?.user?.longName) {
+        return senderNode.user.longName;
+      }
+      if (senderNode?.user?.shortName) {
+        return senderNode.user.shortName;
+      }
+
+      const senderHex = senderNodeNum.toString(16).toUpperCase().padStart(8, "0");
+      return t("fallbackName", { last4: senderHex.slice(-4) });
+    },
+    [getNode, myNodeNum, t],
+  );
 
   // Split plain text fragments further into URL parts so links become clickable.
   // Plus Codes (Open Location Codes) are handled separately.
@@ -286,6 +314,20 @@ export const MessageItem = ({
   const isSender = myNodeNum !== undefined && message.from === myNodeNum;
   const isOnPrimaryChannel = message.channel === Types.ChannelNumber.Primary; // Use the enum
   const shouldShowStatusIcon = isSender && isOnPrimaryChannel;
+  const hopLabel = useMemo(() => {
+    if (isSender || typeof message.hopsAway !== "number") {
+      return undefined;
+    }
+
+    if (message.hopsAway === 0) {
+      return t("message.direct", { defaultValue: "Direct" });
+    }
+
+    return t("message.hops", {
+      defaultValue: "Hops: {{count}}",
+      count: message.hopsAway,
+    });
+  }, [isSender, message.hopsAway, t]);
   const openMentionedNode = useCallback(
     (nodeNum: number) => {
       setNodeNumDetails(nodeNum);
@@ -307,6 +349,61 @@ export const MessageItem = ({
     "transition-colors duration-100 ease-in-out",
   );
   const dateTextStyle = "text-xs text-slate-500 dark:text-slate-400";
+  const handleAddReaction = useCallback(
+    async (emoji?: string) => {
+      if (!emoji) {
+        return;
+      }
+
+      try {
+        if (device.connection && typeof device.connection.sendPacket === "function") {
+          const encoder = new TextEncoder();
+          const emojiBytes = encoder.encode(emoji);
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (device.connection as any).sendPacket(
+            emojiBytes,
+            (Protobuf.Portnums as unknown as { PortNum: Record<string, number> }).PortNum
+              .TEXT_MESSAGE_APP,
+            message.to,
+            message.channel,
+            true,
+            false,
+            false,
+            message.messageId,
+            1,
+          );
+
+          if (message.type === MessageType.Direct) {
+            messages.addReaction({
+              type: MessageType.Direct,
+              nodeA: message.from,
+              nodeB: message.to,
+              messageId: message.messageId,
+              emoji,
+              sender: myNodeNum,
+            });
+          } else {
+            messages.addReaction({
+              type: MessageType.Broadcast,
+              channelId: message.channel,
+              messageId: message.messageId,
+              emoji,
+              sender: myNodeNum,
+            });
+          }
+
+          onAddReaction?.(emoji, message);
+        } else {
+          console.warn("No connection available to send reaction");
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to send reaction", e);
+      }
+    },
+    [device.connection, message, messages, myNodeNum, onAddReaction],
+  );
 
   return (
     <li
@@ -488,65 +585,64 @@ export const MessageItem = ({
                   })}
                 </div>
               </SwipeReplyMessage>
+              {(hopLabel || reactionEntries.length > 0) && (
+                <div className="space-y-2 pt-1">
+                  {hopLabel && (
+                    <div className="flex justify-end text-xs text-slate-500 dark:text-slate-400">
+                      {hopLabel}
+                    </div>
+                  )}
+                  {reactionEntries.length > 0 && (
+                    <TooltipProvider delayDuration={200}>
+                      <div className="flex flex-wrap gap-1">
+                        {reactionEntries.map(([emoji, reaction]) => (
+                          <Tooltip key={emoji}>
+                            <TooltipTrigger asChild>
+                              <div className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-sm dark:bg-zinc-900">
+                                <span className="text-lg leading-none">{emoji}</span>
+                                {reaction.count > 1 && (
+                                  <span className="text-xs text-slate-500 dark:text-zinc-400">
+                                    {reaction.count}
+                                  </span>
+                                )}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-slate-800 dark:bg-slate-600 text-white px-3 py-2 rounded text-xs">
+                              <div className="flex flex-col gap-0.5">
+                                {reaction.senders.length > 0 ? (
+                                  reaction.senders.map((senderNodeNum) => (
+                                    <span key={`${emoji}-${senderNodeNum}`}>
+                                      {getReactionSenderLabel(senderNodeNum)}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span>
+                                    {t("message.reactionUnknown", {
+                                      defaultValue: "Unknown sender",
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                              <TooltipArrow className="fill-slate-800" />
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </TooltipProvider>
+                  )}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      </div>
-      {/* Reactions displayed bottom-left of the message bubble */}
-      <div className="absolute left-1 bottom-1">
-        <div className="flex items-center gap-1">
-          {Array.from(reducedLocalReactions.entries())
-            .slice(0, 6)
-            .map(([emoji, count]) => (
-              <div
-                key={emoji}
-                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-sm dark:bg-zinc-900"
-                aria-hidden="true"
-              >
-                <span className="text-lg">{emoji}</span>
-                {count > 1 && <span className="text-xs text-slate-500">{count}</span>}
-              </div>
-            ))}
         </div>
       </div>
 
       <div className="absolute top-1 right-1">
         <MessageActionsMenu
           onReply={onReply ? () => onReply(message) : undefined}
-          onAddReaction={async (emoji) => {
-            if (!emoji) return;
-            // update local UI first
-            setLocalReactions((prev) => prev.concat(emoji));
-
-            // Send reaction using TEXT_MESSAGE_APP with replyId and emoji flag
-            try {
-              if (device.connection && typeof device.connection.sendPacket === "function") {
-                const encoder = new TextEncoder();
-                const emojiBytes = encoder.encode(emoji);
-
-                // Send as TEXT_MESSAGE_APP so Android and other clients recognize it as a reaction.
-                // Pass replyId=message.messageId and emoji=1 to follow Android convention.
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                await (device.connection as any).sendPacket(
-                  emojiBytes,
-                  (Protobuf.Portnums as unknown as { PortNum: Record<string, number> }).PortNum
-                    .TEXT_MESSAGE_APP,
-                  message.to,
-                  message.channel,
-                  true, // wantAck
-                  false, // wantResponse
-                  false, // echoResponse
-                  message.messageId, // replyId
-                  1, // emoji flag
-                );
-              } else {
-                console.warn("No connection available to send reaction");
-              }
-            } catch (e) {
-              // eslint-disable-next-line no-console
-              console.error("Failed to send reaction", e);
-            }
-          }}
+          showReaction={!isSender}
+          reactionPickerPlacement={isLatestReceived ? "above" : "below"}
+          onAddReaction={handleAddReaction}
         />
       </div>
     </li>
