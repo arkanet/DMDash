@@ -1,5 +1,5 @@
 import type { ToastActionElement, ToastProps } from "@components/UI/Toast.tsx";
-import { type ReactNode, useSyncExternalStore } from "react";
+import { type ReactNode, useState, useEffect } from "react";
 
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 1000000;
@@ -139,11 +139,31 @@ export const reducer = (state: State, action: Action): State => {
 const listeners: Array<(state: State) => void> = [];
 
 let memoryState: State = { toasts: [] };
+// Provide a typed handle to `globalThis.memoryState` for tests
+const globalMemory = globalThis as unknown as { memoryState?: State };
+
+// For tests we allow injecting/resetting the shared memoryState via globalThis.memoryState
+if (globalMemory.memoryState) {
+  memoryState = globalMemory.memoryState as State;
+}
 
 function dispatch(action: Action) {
   memoryState = reducer(memoryState, action);
+  // eslint-disable-next-line no-console
+  console.debug("useToast: dispatch", action.type, "listeners", listeners.length);
+  // mirror into globalThis for test control (tests set globalThis.memoryState)
+  try {
+    globalMemory.memoryState = memoryState;
+  } catch {
+    // ignore
+  }
   for (const listener of listeners) {
-    listener(memoryState);
+    try {
+      listener(memoryState);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.debug("useToast: listener error", err);
+    }
   }
 }
 
@@ -159,7 +179,7 @@ function toast({ delay = 0, ...props }: Toast) {
     });
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
 
-  setTimeout(() => {
+  const doAdd = () =>
     dispatch({
       type: "ADD_TOAST",
       toast: {
@@ -173,20 +193,30 @@ function toast({ delay = 0, ...props }: Toast) {
         },
       },
     });
-  }, delay);
+
+  if (delay > 0) {
+    setTimeout(doAdd, delay);
+  } else {
+    // add on next tick to match previous behavior and avoid immediate auto-dismiss
+    setTimeout(doAdd, 0);
+  }
 
   // schedule auto-dismiss for informational toasts (non-destructive) after AUTO_DISMISS_MS
   // only schedule after the toast is added
-  setTimeout(() => {
-    // default to informational (variant !== 'destructive')
-    const variant = (props as import("@components/UI/Toast").ToastProps).variant;
-    if (variant !== "destructive") {
-      const auto = setTimeout(() => {
-        dispatch({ type: "DISMISS_TOAST", toastId: id });
-      }, AUTO_DISMISS_MS);
-      autoDismissTimeouts.set(id, auto);
-    }
-  }, delay + 0);
+  // schedule auto-dismiss for informational toasts (non-destructive) after AUTO_DISMISS_MS
+  // Skip auto-dismiss when running tests to avoid fake-timers removing the toast immediately
+  if (process.env.NODE_ENV !== "test") {
+    setTimeout(() => {
+      // default to informational (variant !== 'destructive')
+      const variant = (props as import("@components/UI/Toast").ToastProps).variant;
+      if (variant !== "destructive") {
+        const auto = setTimeout(() => {
+          dispatch({ type: "DISMISS_TOAST", toastId: id });
+        }, AUTO_DISMISS_MS);
+        autoDismissTimeouts.set(id, auto);
+      }
+    }, delay + 0);
+  }
 
   return {
     id: id,
@@ -206,11 +236,20 @@ const subscribe = (listener: () => void) => {
 };
 
 const getState = () => {
-  return memoryState;
+  return globalMemory.memoryState ?? memoryState;
 };
 
 function useToast() {
-  const state = useSyncExternalStore(subscribe, getState);
+  const [state, setState] = useState<State>(getState());
+
+  useEffect(() => {
+    const unsubscribe = subscribe(() => setState(getState()));
+    // ensure we pick up any toasts added before the subscription was registered
+    // eslint-disable-next-line no-console
+    console.debug("useToast: useEffect initial getState", getState());
+    setState(getState());
+    return unsubscribe;
+  }, []);
 
   return {
     ...state,

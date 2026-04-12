@@ -29,7 +29,7 @@ import {
   requestNeighborInfo,
   startVisualTraceroute,
 } from "@core/services/darkmesh/nodeActions.ts";
-import { useDevice, useNodeDB } from "@core/stores";
+import { useDevice, useNodeDB, useAppStore } from "@core/stores";
 import { formatQuantity } from "@core/utils/string.ts";
 import type { Protobuf as ProtobufType } from "@meshtastic/core";
 import { Protobuf } from "@meshtastic/core";
@@ -66,7 +66,8 @@ export interface NodeDetailProps {
 export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
   const navigate = useNavigate();
   const { t } = useTranslation("nodes");
-  const { connection, hardware, id: deviceId, getNeighborInfo } = useDevice();
+  const { connection, hardware, id: deviceId, getNeighborInfo, setDialogOpen } = useDevice();
+  const { setNodeNumDetails } = useAppStore();
   const { getEnvironmentMetrics } = useNodeDB();
   const { getNode } = useNodeDB();
   const { updateFavorite } = useFavoriteNode();
@@ -576,7 +577,14 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                     if (got) {
                       onSelectNode?.(num);
                     } else {
-                      toast({ title: t("nodeDetail.gps.missing", "GPS data missing") });
+                      // Apri il pannello nodeinfo sopra la mappa se GPS mancante
+                      try {
+                        setNodeNumDetails(num);
+                        setDialogOpen("nodeDetails", true);
+                      } catch (err) {
+                        console.warn("failed to open node details panel", err);
+                        toast({ title: t("nodeDetail.gps.missing", "GPS data missing") });
+                      }
                     }
                   })();
                 }}
