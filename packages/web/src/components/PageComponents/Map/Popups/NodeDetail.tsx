@@ -15,6 +15,7 @@ import {
   EnvironmentMetricsPanel,
   NeighborInfoPanel,
 } from "@components/PageComponents/DarkMesh/NodeInfoPanels.tsx";
+import NodeMetricsChart from "@components/NodeMetricsChart.tsx";
 import BatteryStatus from "@components/BatteryStatus.tsx";
 import { Mono } from "@components/generic/Mono.tsx";
 import { TimeAgo } from "@components/generic/TimeAgo.tsx";
@@ -628,22 +629,12 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
             )}
           </div>
 
-          <div className="mt-2 flex">
-            {!!node.deviceMetrics?.channelUtilization && (
-              <div className="grow">
-                <div>{t("channelUtilization.short")}</div>
-                <Mono>{node.deviceMetrics.channelUtilization.toPrecision(3)}%</Mono>
-              </div>
-            )}
-
-            {!!node.deviceMetrics?.airUtilTx && (
-              <div className="grow">
-                <div>{t("airtimeUtilization.short")}</div>
-                <Mono className="text-gray-500">
-                  {node.deviceMetrics.airUtilTx.toPrecision(3)}%
-                </Mono>
-              </div>
-            )}
+          <div className="mt-2 w-full">
+            <NodeMetricsChart
+              airUtilTx={node.deviceMetrics?.airUtilTx}
+              channelUtilization={node.deviceMetrics?.channelUtilization}
+              noBackground={true}
+            />
           </div>
 
           {node.snr !== 0 && (

@@ -9,7 +9,7 @@ import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useToast } from "@core/hooks/useToast.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import { Protobuf } from "@meshtastic/core";
-import { Activity, Download, MapIcon, Radar, RefreshCcw, Upload } from "lucide-react";
+import { Activity, Download, MapIcon, Radar, RefreshCcw, Upload, BarChart2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -301,6 +301,13 @@ const DarkMeshDashboardPage = () => {
                 onClick={() => navigate({ to: "/messages/broadcast/0" })}
               >
                 Open messages
+              </Button>
+              <Button
+                variant="ghost"
+                icon={<BarChart2 className="h-4 w-4" />}
+                onClick={() => navigate({ to: "/report" })}
+              >
+                Report
               </Button>
             </div>
 

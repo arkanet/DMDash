@@ -60,6 +60,7 @@ import { Share2 } from "lucide-react";
 import { Input } from "@components/UI/Input.tsx";
 import { QRCode } from "react-qrcode-logo";
 import { buildSharedContactUrl } from "../../../darkmesh/utils.ts";
+import NodeMetricsChart from "@components/NodeMetricsChart.tsx";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
@@ -260,18 +261,6 @@ export const NodeDetailsDialog = ({
   }
 
   const deviceMetricsMap = [
-    {
-      key: "airUtilTx",
-      label: t("nodeDetails.airTxUtilization"),
-      value: currentNode.deviceMetrics?.airUtilTx,
-      format: (val: number) => `${val.toFixed(2)}%`,
-    },
-    {
-      key: "channelUtilization",
-      label: t("nodeDetails.channelUtilization"),
-      value: currentNode.deviceMetrics?.channelUtilization,
-      format: (val: number) => `${val.toFixed(2)}%`,
-    },
     {
       key: "batteryLevel",
       label: t("nodeDetails.batteryLevel"),
@@ -791,6 +780,12 @@ export const NodeDetailsDialog = ({
                     {t("nodeDetails.requestPosition")}
                   </Button>
                 </div>
+
+                {/* Utilization chart inserted between Position and Device Metrics */}
+                <NodeMetricsChart
+                  airUtilTx={currentNode.deviceMetrics?.airUtilTx}
+                  channelUtilization={currentNode.deviceMetrics?.channelUtilization}
+                />
 
                 {currentNode.deviceMetrics && (
                   <div className={`${sectionClassName} mt-3`}>

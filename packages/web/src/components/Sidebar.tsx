@@ -218,8 +218,7 @@ export const Sidebar = ({ children }: SidebarProps) => {
                 typeof myNode.deviceMetrics?.voltage === "number"
                   ? Math.abs(myNode.deviceMetrics?.voltage)
                   : undefined,
-              channelUtilization: myNode.deviceMetrics?.channelUtilization,
-              airUtilTx: myNode.deviceMetrics?.airUtilTx,
+              // air/channel utilization removed from sidebar panel (displayed in NodeDetails chart)
             }}
             connectionStatus={activeConnection?.status}
             connectionName={activeConnection?.name}
