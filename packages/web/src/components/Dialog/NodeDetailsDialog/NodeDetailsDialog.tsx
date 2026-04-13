@@ -50,6 +50,7 @@ import {
   MapPinnedIcon,
   MessageSquareIcon,
   RadioTowerIcon,
+  Info,
   StarIcon,
   TrashIcon,
   UsersIcon,
@@ -204,6 +205,34 @@ export const NodeDetailsDialog = ({
         title: t("toast.metricsRequestError", {
           ns: "ui",
           defaultValue: "Failed to request environmental metrics",
+        }),
+      });
+    }
+  }
+
+  async function handleRequestNodeInfo() {
+    try {
+      toast({ title: t("Request Node Info", { ns: "ui" }) });
+
+      if (connection && typeof connection.sendPacket === "function") {
+        await connection.sendPacket(
+          new Uint8Array(),
+          Protobuf.Portnums.PortNum.NODEINFO_APP,
+          currentNode.num,
+        );
+      } else if (connection && typeof connection.getMetadata === "function") {
+        await connection.getMetadata(currentNode.num);
+      } else {
+        throw new Error("NodeInfo request is not available on the current connection");
+      }
+
+      toast({ title: t("Request Node Info ...", { ns: "ui" }) });
+    } catch (error) {
+      console.warn("dialog nodeinfo request failed", error);
+      toast({
+        title: t("Request Node Info Error", {
+          ns: "ui",
+          defaultValue: "Failed to request node info",
         }),
       });
     }
@@ -604,6 +633,15 @@ export const NodeDetailsDialog = ({
                             {typeof currentNode.hopsAway === "number"
                               ? currentNode.hopsAway
                               : t("hopsUnknown.label", { ns: "ui" })}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>{t(" ")}</td>
+                          <td>
+                            <Button onClick={handleRequestNodeInfo} className="mt-0">
+                              <Info className="mr-2" />
+                              {t("Node Info")}
+                            </Button>
                           </td>
                         </tr>
                       </tbody>
