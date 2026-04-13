@@ -34,6 +34,8 @@ import { useDevice, useNodeDB, useAppStore } from "@core/stores";
 import { formatQuantity } from "@core/utils/string.ts";
 import type { Protobuf as ProtobufType } from "@meshtastic/core";
 import { Protobuf } from "@meshtastic/core";
+import NodeSignalChart from "@components/NodeSignalChart.tsx";
+import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import {
   Tooltip,
   TooltipContent,
@@ -45,7 +47,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { fromByteArray } from "base64-js";
 import {
   BarChart2,
-  Dot,
   LockIcon,
   LockOpenIcon,
   MapIcon,
@@ -72,6 +73,8 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
   const { getEnvironmentMetrics } = useNodeDB();
   const { getNode } = useNodeDB();
   const { updateFavorite } = useFavoriteNode();
+
+  const gateway = useDarkMeshStore((s) => s.gatewaysByDevice[deviceId]);
 
   const [showNeighbor, setShowNeighbor] = useState(false);
   const [showEnvironment, setShowEnvironment] = useState(false);
@@ -629,28 +632,14 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
             )}
           </div>
 
-          <div className="mt-2 w-full">
+          <div className="mt-1 w-full max-w-[320px] space-y-1">
+            <NodeSignalChart snr={node.snr} rssi={gateway?.rxRssi} noBackground={true} />
             <NodeMetricsChart
               airUtilTx={node.deviceMetrics?.airUtilTx}
               channelUtilization={node.deviceMetrics?.channelUtilization}
               noBackground={true}
             />
           </div>
-
-          {node.snr !== 0 && (
-            <div className="mt-2">
-              <div>{t("unit.snr")}</div>
-              <Mono className="flex items-center text-xs text-gray-500">
-                {node.snr}
-                {t("unit.dbm")}
-                <Dot />
-                {Math.min(Math.max((node.snr + 10) * 5, 0), 100)}%
-                <Dot />
-                {(node.snr + 10) * 5}
-                {t("unit.raw")}
-              </Mono>
-            </div>
-          )}
         </div>
       </div>
     </div>

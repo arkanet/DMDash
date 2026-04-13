@@ -56,16 +56,24 @@ export default function NodeMetricsChart({
 
   return (
     <div
-      className={`mt-3 rounded-lg ${!noBackground ? "bg-slate-100 p-3 text-slate-900 dark:bg-slate-800 dark:text-slate-100" : ""}`}
+      className={`rounded-lg ${noBackground ? "mt-3" : "mt-0 bg-slate-100 px-3 text-slate-900 dark:bg-slate-800 dark:text-slate-100"}`}
     >
-      <p className="text-lg font-semibold">{t("nodeDetails.utilizationChart", "Utilization")}</p>
-      <div className="mt-2 grid grid-cols-1 gap-3">
+      {!noBackground && (
+        <p className="text-lg font-semibold">{t("nodeDetails.utilizationChart", "")}</p>
+      )}
+      <div className="mt-2 grid grid-cols-1 gap-1">
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm">{t("nodeDetails.airTxUtilization", "Airtime Util")}</span>
-            <span className="text-sm font-medium">{airVal.toFixed(2)}%</span>
+            <span className={noBackground ? "text-sx" : "text-sm"}>
+              {t("nodeDetails.airTxUtilization", "Airtime Util")}
+            </span>
+            <span className={noBackground ? "text-sx font-medium" : "text-sm font-medium"}>
+              {airVal.toFixed(2)}%
+            </span>
           </div>
-          <div className="w-full h-4 bg-slate-200 rounded overflow-hidden relative">
+          <div
+            className={`w-full ${noBackground ? "h-2" : "h-4"} bg-slate-200 rounded overflow-hidden relative`}
+          >
             {airVal > airLimit ? (
               // Over limit: black bar with red bold text
               <div className="absolute inset-0 flex items-center justify-center bg-black">
@@ -75,7 +83,7 @@ export default function NodeMetricsChart({
               </div>
             ) : (
               <div
-                className="h-4 rounded relative"
+                className={`${noBackground ? "h-2" : "h-4"} rounded relative`}
                 style={{ width: `${airBarWidth}%`, background: airColor }}
               />
             )}
@@ -84,12 +92,18 @@ export default function NodeMetricsChart({
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm">{t("nodeDetails.channelUtilization", "Channel Util")}</span>
-            <span className="text-sm font-medium">{chVal.toFixed(2)}%</span>
+            <span className={noBackground ? "text-sx" : "text-sm"}>
+              {t("nodeDetails.channelUtilization", "Channel Util")}
+            </span>
+            <span className={noBackground ? "text-sx font-medium" : "text-sm font-medium"}>
+              {chVal.toFixed(2)}%
+            </span>
           </div>
-          <div className="w-full h-4 bg-slate-200 rounded overflow-hidden">
+          <div
+            className={`w-full ${noBackground ? "h-2" : "h-4"} bg-slate-200 rounded overflow-hidden`}
+          >
             <div
-              className="h-4 rounded"
+              className={`${noBackground ? "h-2" : "h-4"} rounded`}
               style={{ width: `${chBarWidth}%`, background: channelColor }}
             />
           </div>

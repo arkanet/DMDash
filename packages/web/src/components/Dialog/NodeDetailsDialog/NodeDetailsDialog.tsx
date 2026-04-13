@@ -61,8 +61,10 @@ import { Input } from "@components/UI/Input.tsx";
 import { QRCode } from "react-qrcode-logo";
 import { buildSharedContactUrl } from "../../../darkmesh/utils.ts";
 import NodeMetricsChart from "@components/NodeMetricsChart.tsx";
+import NodeSignalChart from "@components/NodeSignalChart.tsx";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
 
 export interface NodeDetailsDialogProps {
@@ -81,6 +83,7 @@ export const NodeDetailsDialog = ({
 }: NodeDetailsDialogProps) => {
   const { t } = useTranslation("dialog");
   const { setDialogOpen, connection, getNeighborInfo, id: deviceId } = useDevice();
+  const gateway = useDarkMeshStore((s) => s.gatewaysByDevice[deviceId]);
   const nodeDB = useNodeDB();
   const navigate = useNavigate();
   const { setNodeNumToBeRemoved, nodeNumDetails } = useAppStore();
@@ -782,6 +785,8 @@ export const NodeDetailsDialog = ({
                 </div>
 
                 {/* Utilization chart inserted between Position and Device Metrics */}
+                <NodeSignalChart snr={currentNode.snr} rssi={gateway?.rxRssi} />
+
                 <NodeMetricsChart
                   airUtilTx={currentNode.deviceMetrics?.airUtilTx}
                   channelUtilization={currentNode.deviceMetrics?.channelUtilization}
