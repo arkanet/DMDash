@@ -8,10 +8,10 @@ interface GatewayHeaderProps {
   className?: string;
 }
 
-const SNR_GOOD_THRESHOLD = -7;
-const SNR_FAIR_THRESHOLD = -15;
-const RSSI_GOOD_THRESHOLD = -115;
-const RSSI_FAIR_THRESHOLD = -126;
+export const SNR_GOOD_THRESHOLD = -7;
+export const SNR_FAIR_THRESHOLD = -15;
+export const RSSI_GOOD_THRESHOLD = -115;
+export const RSSI_FAIR_THRESHOLD = -126;
 const CONFIDENCE_GOOD_MIN = 80;
 const CONFIDENCE_FAIR_MIN = 60;
 const CONFIDENCE_BAD_MIN = 30;
@@ -22,7 +22,7 @@ type SignalTone = {
   value: string;
 };
 
-function getSnrTone(value?: number): SignalTone {
+export function getSnrTone(value?: number): SignalTone {
   if (value === undefined) {
     return {
       background: "rgba(255,255,255,0.08)",
@@ -54,7 +54,7 @@ function getSnrTone(value?: number): SignalTone {
   };
 }
 
-function getRssiTone(value?: number): SignalTone {
+export function getRssiTone(value?: number): SignalTone {
   if (value === undefined) {
     return {
       background: "rgba(255,255,255,0.08)",
@@ -241,9 +241,9 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
           backgroundColor: `var(--gateway-bg, ${isDarkTheme ? "#222" : "#f1f1f1"})`,
           ...(highlight
             ? {
-              boxShadow:
-                "0 0 0 1px rgba(52,211,153,0.58), 0 0 18px rgba(52,211,153,0.75), 0 0 34px rgba(16,185,129,0.34)",
-            }
+                boxShadow:
+                  "0 0 0 1px rgba(52,211,153,0.58), 0 0 18px rgba(52,211,153,0.75), 0 0 34px rgba(16,185,129,0.34)",
+              }
             : {}),
         }}
       >

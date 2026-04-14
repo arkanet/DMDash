@@ -64,7 +64,7 @@ import NodeMetricsChart from "@components/NodeMetricsChart.tsx";
 import NodeSignalChart from "@components/NodeSignalChart.tsx";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useDarkMeshStore } from "@app/darkmesh/store.ts";
+// useDarkMeshStore not needed here after switching to node's rxRssi
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
 
 export interface NodeDetailsDialogProps {
@@ -83,7 +83,7 @@ export const NodeDetailsDialog = ({
 }: NodeDetailsDialogProps) => {
   const { t } = useTranslation("dialog");
   const { setDialogOpen, connection, getNeighborInfo, id: deviceId } = useDevice();
-  const gateway = useDarkMeshStore((s) => s.gatewaysByDevice[deviceId]);
+  // prefer node-provided rxRssi where available
   const nodeDB = useNodeDB();
   const navigate = useNavigate();
   const { setNodeNumToBeRemoved, nodeNumDetails } = useAppStore();
@@ -785,7 +785,14 @@ export const NodeDetailsDialog = ({
                 </div>
 
                 {/* Utilization chart inserted between Position and Device Metrics */}
-                <NodeSignalChart snr={currentNode.snr} rssi={gateway?.rxRssi} invertOrder={true} />
+                <NodeSignalChart
+                  snr={currentNode.snr}
+                  rssi={
+                    (currentNode as unknown as Protobuf.Mesh.NodeInfo & { rxRssi?: number })
+                      .rxRssi ?? undefined
+                  }
+                  invertOrder={true}
+                />
 
                 <NodeMetricsChart
                   airUtilTx={currentNode.deviceMetrics?.airUtilTx}

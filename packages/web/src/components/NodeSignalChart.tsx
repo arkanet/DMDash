@@ -1,24 +1,18 @@
 import { useTranslation } from "react-i18next";
+import {
+  getSnrTone,
+  getRssiTone,
+  SNR_GOOD_THRESHOLD,
+  SNR_FAIR_THRESHOLD,
+  RSSI_GOOD_THRESHOLD,
+  RSSI_FAIR_THRESHOLD,
+} from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 
 interface NodeSignalChartProps {
   snr?: number | null;
   rssi?: number | null;
   noBackground?: boolean;
   invertOrder?: boolean;
-}
-
-// local hueFromSegments copy to avoid circular import (small duplication)
-function hueFromSegments(val: number, max: number) {
-  const t = Math.min(Math.max(val / max, 0), 1);
-  if (t <= 1 / 3) {
-    const local = t / (1 / 3);
-    return 120 - (120 - 60) * local;
-  } else if (t <= 2 / 3) {
-    const local = (t - 1 / 3) / (1 / 3);
-    return 60 - (60 - 30) * local;
-  }
-  const local = (t - 2 / 3) / (1 / 3);
-  return 30 - 30 * local;
 }
 
 export default function NodeSignalChart({
@@ -32,23 +26,23 @@ export default function NodeSignalChart({
   const snrVal = typeof snr === "number" ? snr : 0;
   const rssiVal = typeof rssi === "number" ? rssi : -140;
 
-  // Map ranges
-  const snrMin = -20;
-  const snrMax = 20;
-  const rssiMin = -140;
-  const rssiMax = -80;
+  // Derive a sensible min/max span around Gateway thresholds for consistent scaling
+  const snrSpan = Math.abs(SNR_GOOD_THRESHOLD - SNR_FAIR_THRESHOLD) || 8;
+  const snrMin = SNR_FAIR_THRESHOLD - snrSpan;
+  const snrMax = SNR_GOOD_THRESHOLD + snrSpan;
+  const snrWidth = Math.round(
+    Math.min(Math.max((snrVal - snrMin) / (snrMax - snrMin), 0), 1) * 100,
+  );
 
-  const snrNorm = Math.min(Math.max((snrVal - snrMin) / (snrMax - snrMin), 0), 1);
-  const rssiNorm = Math.min(Math.max((rssiVal - rssiMin) / (rssiMax - rssiMin), 0), 1);
+  const rssiSpan = Math.abs(RSSI_GOOD_THRESHOLD - RSSI_FAIR_THRESHOLD) || 11;
+  const rssiMin = RSSI_FAIR_THRESHOLD - rssiSpan;
+  const rssiMax = RSSI_GOOD_THRESHOLD + rssiSpan;
+  const rssiWidth = Math.round(
+    Math.min(Math.max((rssiVal - rssiMin) / (rssiMax - rssiMin), 0), 1) * 100,
+  );
 
-  const snrHue = hueFromSegments(snrNorm * (snrMax - snrMin), snrMax - snrMin);
-  const rssiHue = hueFromSegments(rssiNorm * (rssiMax - rssiMin), rssiMax - rssiMin);
-
-  const snrColor = `hsl(${snrHue} 85% 45%)`;
-  const rssiColor = `hsl(${rssiHue} 85% 45%)`;
-
-  const snrWidth = Math.round(snrNorm * 100);
-  const rssiWidth = Math.round(rssiNorm * 100);
+  const snrTone = getSnrTone(typeof snr === "number" ? snr : undefined);
+  const rssiTone = getRssiTone(typeof rssi === "number" ? rssi : undefined);
 
   const firstBlock = (
     <div>
@@ -65,7 +59,7 @@ export default function NodeSignalChart({
       >
         <div
           className={`${noBackground ? "h-2" : "h-4"} rounded`}
-          style={{ width: `${rssiWidth}%`, background: rssiColor }}
+          style={{ width: `${rssiWidth}%`, background: rssiTone.background }}
         />
       </div>
     </div>
@@ -84,7 +78,7 @@ export default function NodeSignalChart({
       >
         <div
           className={`${noBackground ? "h-2" : "h-4"} rounded`}
-          style={{ width: `${snrWidth}%`, background: snrColor }}
+          style={{ width: `${snrWidth}%`, background: snrTone.background }}
         />
       </div>
     </div>

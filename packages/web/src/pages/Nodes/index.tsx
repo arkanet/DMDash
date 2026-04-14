@@ -18,6 +18,14 @@ import { LockIcon, LockOpenIcon } from "lucide-react";
 import { type JSX, useCallback, useDeferredValue, useEffect, useState } from "react";
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { useTranslation } from "react-i18next";
+import {
+  getSnrTone,
+  getRssiTone,
+  SNR_GOOD_THRESHOLD,
+  SNR_FAIR_THRESHOLD,
+  RSSI_GOOD_THRESHOLD,
+  RSSI_FAIR_THRESHOLD,
+} from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { base16 } from "rfc4648";
 
 const NODEDB_DEBOUNCE_MS = 250;
@@ -133,18 +141,28 @@ const NodesPage = (): JSX.Element => {
         last4: shortName,
       });
 
-    // precompute small-spark values for SNR/RSSI mini-graphs
-    const snrNorm = Math.min(Math.max((node.snr + 20) / 40, 0), 1);
-    const snrWidth = Math.round(snrNorm * 100);
-    const snrHue = Math.round(snrNorm * 120);
+    // precompute small-spark values for SNR/RSSI mini-graphs using Gateway thresholds
+    const snrSpan = Math.abs(SNR_GOOD_THRESHOLD - SNR_FAIR_THRESHOLD) || 8;
+    const snrMin = SNR_FAIR_THRESHOLD - snrSpan;
+    const snrMax = SNR_GOOD_THRESHOLD + snrSpan;
+    const snrWidth = Math.round(
+      Math.min(Math.max((node.snr - snrMin) / (snrMax - snrMin), 0), 1) * 100,
+    );
+    const snrTone = getSnrTone(node.snr);
     const gateway = gateways?.[node.num];
     type NodeInfoWithRx = Protobuf.Mesh.NodeInfo & { rxRssi?: number };
     const nodeExt = node as NodeInfoWithRx;
-    const rxRssiVal = gateway?.rxRssi ?? nodeExt.rxRssi;
-    const rssiNorm =
-      typeof rxRssiVal === "number" ? Math.min(Math.max((rxRssiVal + 140) / 60, 0), 1) : 0;
-    const rssiWidth = Math.round(rssiNorm * 100);
-    const rssiHue = Math.round(rssiNorm * 120);
+    // prefer the node's observed rxRssi when available; fall back to gateway-observed
+    const rxRssiVal = nodeExt.rxRssi ?? gateway?.rxRssi;
+    const rssiSpan = Math.abs(RSSI_GOOD_THRESHOLD - RSSI_FAIR_THRESHOLD) || 11;
+    const rssiMin = RSSI_FAIR_THRESHOLD - rssiSpan;
+    const rssiMax = RSSI_GOOD_THRESHOLD + rssiSpan;
+    const rssiWidth = Math.round(
+      (typeof rxRssiVal === "number"
+        ? Math.min(Math.max((rxRssiVal - rssiMin) / (rssiMax - rssiMin), 0), 1)
+        : 0) * 100,
+    );
+    const rssiTone = getRssiTone(rxRssiVal as number | undefined);
 
     // compute compact Last Heard label here (avoid nested declarations in JSX)
     let lastHeardContent: JSX.Element | string;
@@ -308,7 +326,7 @@ const NodesPage = (): JSX.Element => {
                         className="h-2 rounded"
                         style={{
                           width: `${snrWidth}%`,
-                          background: `hsl(${snrHue} 85% 45%)`,
+                          background: snrTone.background,
                         }}
                       />
                     </div>
@@ -326,7 +344,7 @@ const NodesPage = (): JSX.Element => {
                         className="h-2 rounded"
                         style={{
                           width: `${rssiWidth}%`,
-                          background: `hsl(${rssiHue} 85% 45%)`,
+                          background: rssiTone.background,
                         }}
                       />
                     </div>

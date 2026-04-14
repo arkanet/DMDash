@@ -35,7 +35,6 @@ import { formatQuantity } from "@core/utils/string.ts";
 import type { Protobuf as ProtobufType } from "@meshtastic/core";
 import { Protobuf } from "@meshtastic/core";
 import NodeSignalChart from "@components/NodeSignalChart.tsx";
-import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import {
   Tooltip,
   TooltipContent,
@@ -75,7 +74,7 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
   const { getNode } = useNodeDB();
   const { updateFavorite } = useFavoriteNode();
 
-  const gateway = useDarkMeshStore((s) => s.gatewaysByDevice[deviceId]);
+  // not using gateway rxRssi here; use node's rxRssi where available
 
   const [showNeighbor, setShowNeighbor] = useState(false);
   const [showEnvironment, setShowEnvironment] = useState(false);
@@ -684,7 +683,10 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
           <div className="mt-1 w-full max-w-[320px] space-y-1">
             <NodeSignalChart
               snr={node.snr}
-              rssi={gateway?.rxRssi}
+              rssi={
+                (node as unknown as ProtobufType.Mesh.NodeInfo & { rxRssi?: number }).rxRssi ??
+                undefined
+              }
               noBackground={true}
               invertOrder={true}
             />
