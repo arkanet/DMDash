@@ -85,6 +85,7 @@ export function DarkMeshRuntime() {
           observedAt: Date.now(),
           rxSnr: meshPacket.rxSnr,
           rxRssi: meshPacket.rxRssi,
+          deviceMetrics: directNode.deviceMetrics,
         });
         return;
       }
@@ -108,6 +109,7 @@ export function DarkMeshRuntime() {
           observedAt: Date.now(),
           rxSnr: meshPacket.rxSnr,
           rxRssi: meshPacket.rxRssi,
+          deviceMetrics: relayCandidate.node.deviceMetrics,
         });
       }
     };
@@ -137,6 +139,7 @@ export function DarkMeshRuntime() {
         observedAt: Date.now(),
         rxSnr: traceroute.rxSnr,
         rxRssi: traceroute.rxRssi,
+        deviceMetrics: hopNode.deviceMetrics,
       });
     };
 

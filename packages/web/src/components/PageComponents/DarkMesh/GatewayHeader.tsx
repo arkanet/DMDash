@@ -144,6 +144,68 @@ function formatRssi(value?: number): string {
   return `${value} dBm`;
 }
 
+function formatPercent(value?: number, digits = 2): string {
+  if (value === undefined) return "n/a";
+  return `${value.toFixed(digits)}%`;
+}
+
+function getAirTone(value?: number): SignalTone {
+  if (value === undefined) {
+    return {
+      background: "rgba(255,255,255,0.08)",
+      label: "rgba(228,228,231,0.7)",
+      value: "rgba(244,244,245,0.92)",
+    };
+  }
+
+  // Map percent 0..10 (air limit) to hue using same logic as NodeMetricsChart
+  const airLimit = 10;
+  const pct = Math.min(Math.max(value, 0), airLimit) / airLimit;
+  // reuse a simple hue-from-segments like NodeMetricsChart
+  const hue = (() => {
+    const t = Math.min(Math.max(pct, 0), 1);
+    if (t <= 1 / 3) {
+      const local = t / (1 / 3);
+      return 120 - (120 - 60) * local;
+    } else if (t <= 2 / 3) {
+      const local = (t - 1 / 3) / (1 / 3);
+      return 60 - (60 - 30) * local;
+    }
+    const local = (t - 2 / 3) / (1 / 3);
+    return 30 - 30 * local;
+  })();
+
+  const bg = `hsl(${Math.round(hue)} 85% 45%)`;
+  return { background: bg, label: "rgba(10, 10, 10, 0.7)", value: "rgba(10, 10, 10, 0.94)" };
+}
+
+function getChannelTone(value?: number): SignalTone {
+  if (value === undefined) {
+    return {
+      background: "rgba(255,255,255,0.08)",
+      label: "rgba(228,228,231,0.7)",
+      value: "rgba(244,244,245,0.92)",
+    };
+  }
+
+  // channel utilization 0..100 -> hue
+  const t = Math.min(Math.max(value / 100, 0), 1);
+  let hue: number;
+  if (t <= 1 / 3) {
+    const local = t / (1 / 3);
+    hue = 120 - (120 - 60) * local;
+  } else if (t <= 2 / 3) {
+    const local = (t - 1 / 3) / (1 / 3);
+    hue = 60 - (60 - 30) * local;
+  } else {
+    const local = (t - 2 / 3) / (1 / 3);
+    hue = 30 - 30 * local;
+  }
+
+  const bg = `hsl(${Math.round(hue)} 85% 45%)`;
+  return { background: bg, label: "rgba(10, 10, 10, 0.7)", value: "rgba(10, 10, 10, 0.94)" };
+}
+
 function formatConfidence(value?: number): string {
   if (value === undefined) {
     return "n/a";
@@ -288,21 +350,36 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
         </div>
 
         <div
-          className="flex w-fit shrink-0 flex-col p-0.5"
+          className="flex w-fit shrink-0 gap-1 items-center p-0.5"
           style={{
             backgroundColor: `var(--gateway-bg, ${isDarkTheme ? "#222" : "#f1f1f1"})`,
           }}
         >
           <SignalMetric
-            label="RSSI"
-            value={formatRssi(gateway?.rxRssi)}
-            tone={rssiTone}
-            className="mr-1 mb-1 mt-1"
-          />
-          <SignalMetric
             label="SNR"
             value={formatSnr(gateway?.rxSnr)}
             tone={snrTone}
+            className="mr-1 mb-1 w-30"
+          />
+
+          <SignalMetric
+            label="RSSI"
+            value={formatRssi(gateway?.rxRssi)}
+            tone={rssiTone}
+            className="mr-1 mb-1 w-30"
+          />
+
+          <SignalMetric
+            label="AirUtl"
+            value={formatPercent(gateway?.deviceMetrics?.airUtilTx)}
+            tone={getAirTone(gateway?.deviceMetrics?.airUtilTx ?? undefined)}
+            className="mr-1 mb-1"
+          />
+
+          <SignalMetric
+            label="ChUtl"
+            value={formatPercent(gateway?.deviceMetrics?.channelUtilization)}
+            tone={getChannelTone(gateway?.deviceMetrics?.channelUtilization ?? undefined)}
             className="mr-1 mb-1"
           />
         </div>

@@ -51,6 +51,7 @@ export interface GatewaySnapshot {
   observedAt: number;
   rxSnr?: number;
   rxRssi?: number;
+  deviceMetrics?: Protobuf.Telemetry.DeviceMetrics;
 }
 
 export type TraceRouteSelection = Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>;
