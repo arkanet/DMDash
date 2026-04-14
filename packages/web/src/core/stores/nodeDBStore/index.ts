@@ -3,6 +3,7 @@ import { featureFlags } from "@core/services/featureFlags";
 import { validateIncomingNode } from "@core/stores/nodeDBStore/nodeValidation";
 import { createStorage } from "@core/stores/utils/indexDB.ts";
 import { Protobuf, type Types } from "@meshtastic/core";
+type NodeInfoWithRx = Protobuf.Mesh.NodeInfo & { rxRssi?: number };
 import { produce } from "immer";
 import { create as createStore, type StateCreator } from "zustand";
 import { type PersistOptions, persist, subscribeWithSelector } from "zustand/middleware";
@@ -276,24 +277,33 @@ function nodeDBFactory(
           if (!nodeDB) {
             throw new Error(`No nodeDB found (id: ${id})`);
           }
-          const node = nodeDB.nodeMap.get(data.from);
+          const existingNode = nodeDB.nodeMap.get(data.from);
           const nowSec = Math.floor(Date.now() / 1000); // lastHeard is in seconds(!)
-
-          if (node) {
-            const updated = {
-              ...node,
+          if (existingNode) {
+            const updated: NodeInfoWithRx = {
+              ...existingNode,
               lastHeard: data.time > 0 ? data.time : nowSec,
               snr: data.snr,
+              // rxRssi is optional — prefer new value when present
+              rxRssi: data.rxRssi != null ? data.rxRssi : (existingNode as NodeInfoWithRx).rxRssi,
             };
+
             nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(data.from, updated);
           } else {
+            // create a minimal NodeInfo message via the protobuf helper so it has the required $typeName
+            const createdMsg = create(Protobuf.Mesh.NodeInfoSchema, {
+              num: data.from,
+              lastHeard: data.time > 0 ? data.time : nowSec,
+              snr: data.snr,
+            });
+            if (data.rxRssi != null) {
+              // narrow to extended type to set rxRssi (no `any` cast)
+              (createdMsg as unknown as NodeInfoWithRx).rxRssi = data.rxRssi;
+            }
+
             nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(
               data.from,
-              create(Protobuf.Mesh.NodeInfoSchema, {
-                num: data.from,
-                lastHeard: data.time > 0 ? data.time : nowSec, // fallback to now if time is 0 or negative,
-                snr: data.snr,
-              }),
+              createdMsg as Protobuf.Mesh.NodeInfo,
             );
           }
         }),

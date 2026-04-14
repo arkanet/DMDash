@@ -785,7 +785,7 @@ export const NodeDetailsDialog = ({
                 </div>
 
                 {/* Utilization chart inserted between Position and Device Metrics */}
-                <NodeSignalChart snr={currentNode.snr} rssi={gateway?.rxRssi} />
+                <NodeSignalChart snr={currentNode.snr} rssi={gateway?.rxRssi} invertOrder={true} />
 
                 <NodeMetricsChart
                   airUtilTx={currentNode.deviceMetrics?.airUtilTx}

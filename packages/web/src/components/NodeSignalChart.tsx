@@ -4,6 +4,7 @@ interface NodeSignalChartProps {
   snr?: number | null;
   rssi?: number | null;
   noBackground?: boolean;
+  invertOrder?: boolean;
 }
 
 // local hueFromSegments copy to avoid circular import (small duplication)
@@ -20,7 +21,12 @@ function hueFromSegments(val: number, max: number) {
   return 30 - 30 * local;
 }
 
-export default function NodeSignalChart({ snr, rssi, noBackground = false }: NodeSignalChartProps) {
+export default function NodeSignalChart({
+  snr,
+  rssi,
+  noBackground = false,
+  invertOrder = false,
+}: NodeSignalChartProps) {
   const { t } = useTranslation();
 
   const snrVal = typeof snr === "number" ? snr : 0;
@@ -44,49 +50,54 @@ export default function NodeSignalChart({ snr, rssi, noBackground = false }: Nod
   const snrWidth = Math.round(snrNorm * 100);
   const rssiWidth = Math.round(rssiNorm * 100);
 
+  const firstBlock = (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className={noBackground ? "text-sx" : "text-sm"}>
+          {t("nodeDetails.rssi", "RSSI")}
+        </span>
+        <span className={noBackground ? "text-sx font-medium" : "text-sm font-medium"}>
+          {rssiVal} dBm
+        </span>
+      </div>
+      <div
+        className={`w-full ${noBackground ? "h-2" : "h-4"} bg-slate-200 rounded overflow-hidden`}
+      >
+        <div
+          className={`${noBackground ? "h-2" : "h-4"} rounded`}
+          style={{ width: `${rssiWidth}%`, background: rssiColor }}
+        />
+      </div>
+    </div>
+  );
+
+  const secondBlock = (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className={noBackground ? "text-sx" : "text-sm"}>{t("nodeDetails.snr", "SNR")}</span>
+        <span className={noBackground ? "text-sx font-medium" : "text-sm font-medium"}>
+          {snrVal} dB
+        </span>
+      </div>
+      <div
+        className={`w-full ${noBackground ? "h-2" : "h-4"} bg-slate-200 rounded overflow-hidden`}
+      >
+        <div
+          className={`${noBackground ? "h-2" : "h-4"} rounded`}
+          style={{ width: `${snrWidth}%`, background: snrColor }}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div
       className={`rounded-lg ${noBackground ? "mt-3" : "mt-0 bg-slate-100 px-3 text-slate-900 dark:bg-slate-800 dark:text-slate-100"}`}
     >
       {!noBackground && <p className="text-lg font-semibold">{t("nodeDetails.signalChart", "")}</p>}
       <div className="mt-2 grid grid-cols-1 gap-1">
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className={noBackground ? "text-sx" : "text-sm"}>
-              {t("nodeDetails.rssi", "RSSI")}
-            </span>
-            <span className={noBackground ? "text-sx font-medium" : "text-sm font-medium"}>
-              {rssiVal} dBm
-            </span>
-          </div>
-          <div
-            className={`w-full ${noBackground ? "h-2" : "h-4"} bg-slate-200 rounded overflow-hidden`}
-          >
-            <div
-              className={`${noBackground ? "h-2" : "h-4"} rounded`}
-              style={{ width: `${rssiWidth}%`, background: rssiColor }}
-            />
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className={noBackground ? "text-sx" : "text-sm"}>
-              {t("nodeDetails.snr", "SNR")}
-            </span>
-            <span className={noBackground ? "text-sx font-medium" : "text-sm font-medium"}>
-              {snrVal} dB
-            </span>
-          </div>
-          <div
-            className={`w-full ${noBackground ? "h-2" : "h-4"} bg-slate-200 rounded overflow-hidden`}
-          >
-            <div
-              className={`${noBackground ? "h-2" : "h-4"} rounded`}
-              style={{ width: `${snrWidth}%`, background: snrColor }}
-            />
-          </div>
-        </div>
+        {invertOrder ? secondBlock : firstBlock}
+        {invertOrder ? firstBlock : secondBlock}
       </div>
     </div>
   );

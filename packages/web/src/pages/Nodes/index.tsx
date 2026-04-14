@@ -5,7 +5,7 @@ import { FilterControl } from "@components/generic/Filter/FilterControl.tsx";
 import { type FilterState, useFilterNode } from "@components/generic/Filter/useFilterNode.ts";
 import { Mono } from "@components/generic/Mono.tsx";
 import { type DataRow, type Heading, Table } from "@components/generic/Table/index.tsx";
-import { TimeAgo } from "@components/generic/TimeAgo.tsx";
+// TimeAgo not used here (we use compact labels)
 import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
 import { Avatar } from "@components/UI/Avatar.tsx";
@@ -16,6 +16,7 @@ import { Protobuf, type Types } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { LockIcon, LockOpenIcon } from "lucide-react";
 import { type JSX, useCallback, useDeferredValue, useEffect, useState } from "react";
+import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { useTranslation } from "react-i18next";
 import { base16 } from "rfc4648";
 
@@ -28,7 +29,7 @@ export interface DeleteNoteDialogProps {
 
 const NodesPage = (): JSX.Element => {
   const { t } = useTranslation(["nodes", "ui"]);
-  const { current } = useLang();
+  useLang();
   const { hardware, connection, setDialogOpen } = useDevice();
 
   const { setNodeNumDetails } = useAppStore();
@@ -59,6 +60,7 @@ const NodesPage = (): JSX.Element => {
     }),
     { debounce: NODEDB_DEBOUNCE_MS },
   );
+  const gateways = useDarkMeshStore((s) => s.gatewaysByDevice);
   const handleTraceroute = useCallback(
     (traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>) => {
       setSelectedTraceroute(traceroute);
@@ -110,7 +112,9 @@ const NodesPage = (): JSX.Element => {
     { title: t("nodesTable.headings.connection"), sortable: true },
     { title: t("nodesTable.headings.lastHeard"), sortable: true },
     { title: t("nodesTable.headings.encryption"), sortable: false },
-    { title: t("unit.snr"), sortable: true },
+    { title: t("nodesTable.headings.role", "Role"), sortable: true },
+    { title: t("nodesTable.headings.utilization", "Air/Ch Util"), sortable: true },
+    { title: t("nodesTable.headings.snrRssi", "SNR RSSI"), sortable: true },
     { title: t("nodesTable.headings.model"), sortable: true },
     { title: t("nodesTable.headings.macAddress"), sortable: true },
   ];
@@ -128,6 +132,34 @@ const NodesPage = (): JSX.Element => {
       t("fallbackName", {
         last4: shortName,
       });
+
+    // precompute small-spark values for SNR/RSSI mini-graphs
+    const snrNorm = Math.min(Math.max((node.snr + 20) / 40, 0), 1);
+    const snrWidth = Math.round(snrNorm * 100);
+    const snrHue = Math.round(snrNorm * 120);
+    const gateway = gateways?.[node.num];
+    type NodeInfoWithRx = Protobuf.Mesh.NodeInfo & { rxRssi?: number };
+    const nodeExt = node as NodeInfoWithRx;
+    const rxRssiVal = gateway?.rxRssi ?? nodeExt.rxRssi;
+    const rssiNorm =
+      typeof rxRssiVal === "number" ? Math.min(Math.max((rxRssiVal + 140) / 60, 0), 1) : 0;
+    const rssiWidth = Math.round(rssiNorm * 100);
+    const rssiHue = Math.round(rssiNorm * 120);
+
+    // compute compact Last Heard label here (avoid nested declarations in JSX)
+    let lastHeardContent: JSX.Element | string;
+    if (node.lastHeard === 0) {
+      lastHeardContent = t("unknown.longName");
+    } else {
+      const diffInSeconds = (Date.now() - node.lastHeard * 1000) / 1000;
+      const abs = Math.abs(Math.round(diffInSeconds));
+      if (abs >= 60) {
+        const mins = Math.round(abs / 60);
+        lastHeardContent = `${mins} min`;
+      } else {
+        lastHeardContent = `${abs} sec`;
+      }
+    }
 
     return {
       id: node.num,
@@ -161,28 +193,36 @@ const NodesPage = (): JSX.Element => {
         },
         {
           content: (
-            <Mono className="w-16">
-              {node.hopsAway !== undefined
-                ? node?.viaMqtt === false && node.hopsAway === 0
-                  ? t("nodesTable.connectionStatus.direct")
-                  : `${node.hopsAway?.toString()} ${
-                      (node.hopsAway ?? 0 > 1) ? t("unit.hop.plural") : t("unit.hops_one")
-                    } ${t("nodesTable.connectionStatus.away")}`
-                : t("unknown.longName")}
-              {node?.viaMqtt === true ? t("nodesTable.connectionStatus.viaMqtt") : ""}
-            </Mono>
+            <div
+              style={{ width: "fit-content", maxWidth: "fit-content" }}
+              className="text-[0.75rem]"
+            >
+              {node.hopsAway !== undefined ? (
+                node?.viaMqtt === false && node.hopsAway === 0 ? (
+                  t("nodesTable.connectionStatus.direct")
+                ) : (
+                  <span>
+                    {node.hopsAway?.toString()} {"Hop"}{" "}
+                    {node?.viaMqtt === true ? t("nodesTable.connectionStatus.viaMqtt") : ""}
+                  </span>
+                )
+              ) : (
+                t("unknown.longName")
+              )}
+            </div>
           ),
           sortValue: node.hopsAway ?? Number.MAX_SAFE_INTEGER,
         },
         {
           content: (
-            <Mono>
-              {node.lastHeard === 0 ? (
-                t("unknown.longName")
-              ) : (
-                <TimeAgo timestamp={node.lastHeard * 1000} locale={current?.code} />
-              )}
-            </Mono>
+            <div
+              style={{ width: "fit-content", maxWidth: "fit-content" }}
+              className="text-[0.75rem]"
+            >
+              <span className="font-mono text-[0.75rem] text-text-secondary">
+                {lastHeardContent}
+              </span>
+            </div>
           ),
           sortValue: node.lastHeard,
         },
@@ -200,22 +240,125 @@ const NodesPage = (): JSX.Element => {
         },
         {
           content: (
-            <Mono>
-              {node.snr}
-              {t("unit.dbm")}/{Math.min(Math.max((node.snr + 10) * 5, 0), 100)}
-              %/{/* Percentage */}
-              {(node.snr + 10) * 5}
-              {t("unit.raw")}
-            </Mono>
+            <div
+              style={{ width: "fit-content", maxWidth: "fit-content" }}
+              className="text-[0.75rem]"
+            >
+              <span className="font-mono text-[0.75rem] text-text-secondary">
+                {
+                  Protobuf.Config.Config_DeviceConfig_Role[
+                    node.user?.role ?? Protobuf.Config.Config_DeviceConfig_Role.CLIENT
+                  ]
+                }
+              </span>
+            </div>
+          ),
+          sortValue: node.user?.role ?? Protobuf.Config.Config_DeviceConfig_Role.CLIENT,
+        },
+        {
+          content: (
+            <div className="text-[0.65rem]">
+              <div className="flex flex-col" style={{ width: "7rem", maxWidth: "7rem" }}>
+                <div className="flex items-center">
+                  <div className="pr-1" style={{ width: "3rem" }}>
+                    <div className="w-full h-2 bg-slate-200 rounded overflow-hidden">
+                      <div
+                        className="h-2 rounded"
+                        style={{
+                          width: `${Math.round(Math.min((Math.max(Math.log10((node.deviceMetrics?.airUtilTx ?? 0) + 1) - Math.log10(1), 0) / (Math.log10(10 + 1) - Math.log10(1) || 1)) * 100, 0))}%`,
+                          background: `hsl(${Math.round(Math.min(Math.max(((node.deviceMetrics?.airUtilTx ?? 0) / 10) * 10, 0), 1) * 120)} 85% 45%)`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="ml-2 text-xs text-right">
+                    {(node.deviceMetrics?.airUtilTx ?? 0).toFixed(2)}%
+                  </div>
+                </div>
+
+                <div className="flex items-center">
+                  <div className="pr-1" style={{ width: "3rem" }}>
+                    <div className="w-full h-2 bg-slate-200 rounded overflow-hidden">
+                      <div
+                        className="h-2 rounded"
+                        style={{
+                          width: `${Math.round(Math.min(Math.max(node.deviceMetrics?.channelUtilization ?? 0, 0), 100))}%`,
+                          background: `hsl(${Math.round(Math.min(Math.max((node.deviceMetrics?.channelUtilization ?? 0) / 100, 0), 1) * 120)} 85% 45%)`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="ml-2 text-xs text-right">
+                    {(node.deviceMetrics?.channelUtilization ?? 0).toFixed(2)}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          ),
+          sortValue: node.deviceMetrics?.airUtilTx ?? 0,
+        },
+        {
+          content: (
+            <div className="text-[0.65rem]">
+              <div className="flex flex-col" style={{ width: "7rem", maxWidth: "7rem" }}>
+                <div className="flex items-center">
+                  <div className="pr-1" style={{ width: "3rem" }}>
+                    <div className="w-full h-2 bg-slate-200 rounded overflow-hidden">
+                      <div
+                        className="h-2 rounded"
+                        style={{
+                          width: `${snrWidth}%`,
+                          background: `hsl(${snrHue} 85% 45%)`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="ml-2 text-xs text-right">
+                    {node.snr}
+                    {t("unit.dbm")}
+                  </div>
+                </div>
+
+                <div className="flex items-center">
+                  <div className="pr-1" style={{ width: "3rem" }}>
+                    <div className="w-full h-2 bg-slate-200 rounded overflow-hidden">
+                      <div
+                        className="h-2 rounded"
+                        style={{
+                          width: `${rssiWidth}%`,
+                          background: `hsl(${rssiHue} 85% 45%)`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="ml-2 text-xs text-right">
+                    {typeof rxRssiVal === "number" ? `${rxRssiVal} dBm` : "n/a"}
+                  </div>
+                </div>
+              </div>
+            </div>
           ),
           sortValue: node.snr,
         },
         {
-          content: <Mono>{Protobuf.Mesh.HardwareModel[node.user?.hwModel ?? 0]}</Mono>,
+          content: (
+            <div style={{ width: "fit-content", maxWidth: "fit-content" }}>
+              <Mono className="text-[0.65rem]">
+                {Protobuf.Mesh.HardwareModel[node.user?.hwModel ?? 0]}
+              </Mono>
+            </div>
+          ),
           sortValue: Protobuf.Mesh.HardwareModel[node.user?.hwModel ?? 0] ?? "UNSET",
         },
         {
-          content: <Mono>{macAddress}</Mono>,
+          content: (
+            <div
+              style={{ width: "fit-content", maxWidth: "fit-content" }}
+              className="text-[0.75rem]"
+            >
+              <span className="font-mono text-[0.75rem] text-text-secondary">{macAddress}</span>
+            </div>
+          ),
           sortValue: macAddress,
         },
       ],
@@ -263,7 +406,9 @@ const NodesPage = (): JSX.Element => {
       </div>
       <div className="overflow-y-auto">
         <div className="max-w-full">
-          <Table headings={tableHeadings} rows={tableRows} />
+          <div className="text-xs">
+            <Table headings={tableHeadings} rows={tableRows} />
+          </div>
         </div>
         <TracerouteResponseDialog
           traceroute={selectedTraceroute}

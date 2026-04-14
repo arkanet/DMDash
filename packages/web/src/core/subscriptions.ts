@@ -145,6 +145,7 @@ export const subscribeAll = (
       from: meshPacket.from,
       snr: meshPacket.rxSnr,
       time: meshPacket.rxTime,
+      rxRssi: meshPacket.rxRssi,
     });
   });
 

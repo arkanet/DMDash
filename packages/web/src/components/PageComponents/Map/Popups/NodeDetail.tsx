@@ -55,6 +55,7 @@ import {
   RadioTowerIcon,
   Star,
   UsersIcon,
+  Info,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -404,6 +405,54 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                 </Tooltip>
               )}
 
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t("nodeDetail.requestNodeInfo", "Request Node Info")}
+                    onClick={async () => {
+                      try {
+                        toast({ title: t("Request Node Info", { ns: "ui" }) });
+
+                        if (connection && typeof connection.sendPacket === "function") {
+                          await connection.sendPacket(
+                            new Uint8Array(),
+                            Protobuf.Portnums.PortNum.NODEINFO_APP,
+                            node.num,
+                          );
+                        } else if (connection && typeof connection.getMetadata === "function") {
+                          await connection.getMetadata(node.num);
+                        } else {
+                          throw new Error(
+                            "NodeInfo request is not available on the current connection",
+                          );
+                        }
+
+                        toast({ title: t("Request Node Info ...", { ns: "ui" }) });
+                      } catch (err) {
+                        console.warn("popup nodeinfo request failed", err);
+                        toast({
+                          title: t("Request Node Info Error", {
+                            ns: "ui",
+                            defaultValue: "Failed to request node info",
+                          }),
+                        });
+                      }
+                    }}
+                  >
+                    <Info size={15} className="cursor-pointer hover:text-blue-500" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipPortal>
+                  <TooltipContent
+                    side="top"
+                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                  >
+                    {t("nodeDetail.requestNodeInfo", "Request Node Info")}
+                  </TooltipContent>
+                </TooltipPortal>
+              </Tooltip>
+
               <Dialog open={shareOpen} onOpenChange={setShareOpen}>
                 <DialogContent>
                   <DialogHeader>
@@ -633,7 +682,12 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
           </div>
 
           <div className="mt-1 w-full max-w-[320px] space-y-1">
-            <NodeSignalChart snr={node.snr} rssi={gateway?.rxRssi} noBackground={true} />
+            <NodeSignalChart
+              snr={node.snr}
+              rssi={gateway?.rxRssi}
+              noBackground={true}
+              invertOrder={true}
+            />
             <NodeMetricsChart
               airUtilTx={node.deviceMetrics?.airUtilTx}
               channelUtilization={node.deviceMetrics?.channelUtilization}
