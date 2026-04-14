@@ -52,13 +52,17 @@ const CollapseToggleButton = () => {
       aria-label={buttonLabel}
       onClick={toggleSidebar}
       className={cn(
-        "fixed z-[9999] p-0.5 rounded-full",
+        "z-[9999] p-0.5 rounded-full",
         "transition-colors duration-300 ease-in-out",
         "border border-slate-300 dark:border-slate-200",
         "text-slate-500 dark:text-slate-200 hover:text-slate-400 dark:hover:text-slate-400",
         "focus:outline-none focus:ring-2 focus:ring-accent transition-transform bg-background-primary",
       )}
-      style={{ top: "1.5rem", left: isCollapsed ? "4.5rem" : "13.5rem" }}
+      style={{
+        position: "absolute",
+        top: "1.3rem",
+        left: isCollapsed ? "4rem" : "13.5rem",
+      }}
     >
       <CircleChevronLeft
         size={24}
