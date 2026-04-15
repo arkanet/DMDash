@@ -21,7 +21,7 @@ import {
 } from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import { cn } from "@core/utils/cn.ts";
-import { Protobuf, Types } from "@meshtastic/core";
+import { Protobuf } from "@meshtastic/core";
 import type { LucideIcon } from "lucide-react";
 import { AlertCircle, CheckCircle2, CircleEllipsis, FileArchive } from "lucide-react";
 import { Fragment, type ReactNode, useCallback, useMemo } from "react";
@@ -312,8 +312,8 @@ export const MessageItem = ({
   );
 
   const isSender = myNodeNum !== undefined && message.from === myNodeNum;
-  const isOnPrimaryChannel = message.channel === Types.ChannelNumber.Primary; // Use the enum
-  const shouldShowStatusIcon = isSender && isOnPrimaryChannel;
+  // Show status icon for any message we sent (direct or broadcast)
+  const shouldShowStatusIcon = isSender;
   const hopLabel = useMemo(() => {
     if (isSender || typeof message.hopsAway !== "number") {
       return undefined;

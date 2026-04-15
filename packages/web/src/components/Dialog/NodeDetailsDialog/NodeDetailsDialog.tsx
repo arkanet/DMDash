@@ -201,7 +201,7 @@ export const NodeDetailsDialog = ({
     if (!next) return;
 
     try {
-      toast({ title: "Environmental Metrics" });
+      toast({ title: "Environmental Info" });
       await requestEnvironmentMetrics(connection, currentNode.num);
     } catch (error) {
       console.warn("dialog environment request failed", error);

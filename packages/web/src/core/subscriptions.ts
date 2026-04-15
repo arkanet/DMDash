@@ -1,7 +1,13 @@
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import PacketToMessageDTO from "@core/dto/PacketToMessageDTO.ts";
 import { useNewNodeNum } from "@core/hooks/useNewNodeNum";
-import { type Device, type MessageStore, MessageType, type NodeDB } from "@core/stores";
+import {
+  type Device,
+  type MessageStore,
+  MessageType,
+  MessageState,
+  type NodeDB,
+} from "@core/stores";
 import { type MeshDevice, Protobuf } from "@meshtastic/core";
 export const subscribeAll = (
   device: Device,
@@ -16,12 +22,50 @@ export const subscribeAll = (
   });
 
   connection.events.onRoutingPacket.subscribe((routingPacket) => {
+    // Handle routing variant cases and map ACK/NAK to message state updates
     switch (routingPacket.data.variant.case) {
       case "errorReason": {
-        if (routingPacket.data.variant.value === Protobuf.Mesh.Routing_Error.NONE) {
-          return;
+        // If there's a requestId, map ack/nak to a stored message (if present)
+        const maybeRouting = routingPacket as unknown as { requestId?: number | undefined };
+        const requestId =
+          typeof maybeRouting.requestId === "number" ? maybeRouting.requestId : undefined;
+        const isAck = routingPacket.data.variant.value === Protobuf.Mesh.Routing_Error.NONE;
+
+        if (typeof requestId === "number" && requestId !== 0) {
+          // search direct conversations
+          for (const [convId, map] of messageStore.messages.direct) {
+            if (map.has(requestId)) {
+              const [aStr, bStr] = convId.split(":");
+              const nodeA = Number(aStr);
+              const nodeB = Number(bStr);
+              messageStore.setMessageState({
+                type: MessageType.Direct,
+                nodeA,
+                nodeB,
+                messageId: requestId,
+                newState: isAck ? MessageState.Ack : MessageState.Failed,
+              });
+              return;
+            }
+          }
+
+          // search broadcast channels
+          for (const [channelId, map] of messageStore.messages.broadcast) {
+            if (map.has(requestId)) {
+              messageStore.setMessageState({
+                type: MessageType.Broadcast,
+                channelId: Number(channelId),
+                messageId: requestId,
+                newState: isAck ? MessageState.Ack : MessageState.Failed,
+              });
+              return;
+            }
+          }
         }
-        console.info(`Routing Error: ${routingPacket.data.variant.value}`);
+
+        if (!isAck) {
+          console.info(`Routing Error: ${routingPacket.data.variant.value}`);
+        }
         break;
       }
       case "routeReply": {
@@ -122,17 +166,27 @@ export const subscribeAll = (
   });
 
   connection.events.onTraceRoutePacket.subscribe((traceRoutePacket) => {
-    device.addTraceRoute({
-      ...traceRoutePacket,
-    });
-
+    device.addTraceRoute({ ...traceRoutePacket });
     const darkMeshState = useDarkMeshStore.getState();
+    const pendingRequestId = darkMeshState.pendingTraceRouteRequestByDevice[device.id];
     const pendingTarget = darkMeshState.pendingTraceRouteTargetByDevice[device.id];
+
+    // Prefer matching by requestId when available (robust for 0-hop responses)
+    const maybeTrace = traceRoutePacket as unknown as { requestId?: number | undefined };
+    if (pendingRequestId !== undefined && typeof maybeTrace.requestId === "number") {
+      if (maybeTrace.requestId === pendingRequestId) {
+        darkMeshState.setSelectedTraceRoute({ ...traceRoutePacket });
+        darkMeshState.setPendingTraceRouteTarget(device.id, undefined);
+        darkMeshState.setPendingTraceRouteRequest(device.id, undefined);
+        return;
+      }
+    }
+
+    // Fallback: match by node number (legacy behavior)
     if (pendingTarget !== undefined && traceRoutePacket.from === pendingTarget) {
-      darkMeshState.setSelectedTraceRoute({
-        ...traceRoutePacket,
-      });
+      darkMeshState.setSelectedTraceRoute({ ...traceRoutePacket });
       darkMeshState.setPendingTraceRouteTarget(device.id, undefined);
+      darkMeshState.setPendingTraceRouteRequest(device.id, undefined);
     }
   });
 

@@ -65,6 +65,8 @@ interface DarkMeshPersistedState {
 interface DarkMeshState extends DarkMeshPersistedState {
   selectedTraceRoute?: TraceRouteSelection;
   pendingTraceRouteTargetByDevice: Record<number, number | undefined>;
+  /** Map deviceId -> packet requestId for pending traceroute requests */
+  pendingTraceRouteRequestByDevice: Record<number, number | undefined>;
   gatewaysByDevice: Record<number, GatewaySnapshot | undefined>;
   addSchedule: (
     schedule: Omit<ScheduledDarkMeshMessage, "id" | "createdAt"> & {
@@ -84,6 +86,7 @@ interface DarkMeshState extends DarkMeshPersistedState {
   setGateway: (deviceId: number, gateway?: GatewaySnapshot) => void;
   setSelectedTraceRoute: (trace?: TraceRouteSelection) => void;
   setPendingTraceRouteTarget: (deviceId: number, target?: number) => void;
+  setPendingTraceRouteRequest: (deviceId: number, requestId?: number) => void;
 }
 
 export const defaultBeaconConfig: BeaconConfig = {
@@ -115,6 +118,7 @@ export const useDarkMeshStore = create<DarkMeshState>()(
       huntByDevice: {},
       selectedTraceRoute: undefined,
       pendingTraceRouteTargetByDevice: {},
+      pendingTraceRouteRequestByDevice: {},
       gatewaysByDevice: {},
 
       addSchedule: (schedule) =>
@@ -256,6 +260,13 @@ export const useDarkMeshStore = create<DarkMeshState>()(
           pendingTraceRouteTargetByDevice: {
             ...state.pendingTraceRouteTargetByDevice,
             [deviceId]: target,
+          },
+        })),
+      setPendingTraceRouteRequest: (deviceId, requestId) =>
+        set((state) => ({
+          pendingTraceRouteRequestByDevice: {
+            ...state.pendingTraceRouteRequestByDevice,
+            [deviceId]: requestId,
           },
         })),
     }),

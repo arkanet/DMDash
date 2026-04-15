@@ -26,11 +26,19 @@ export async function startVisualTraceroute(
       throw new Error("Traceroute is not available on the current connection");
     }
 
-    await connection.traceRoute(nodeNum);
+    // `connection.traceRoute` returns the packet id for the sent traceroute
+    // (see MeshDevice.sendPacket implementation). Capture it so we can match
+    // incoming traceroute responses by request id.
+    const requestId = (await connection.traceRoute(nodeNum)) as number | undefined;
+    if (typeof requestId === "number") {
+      darkMeshState.setPendingTraceRouteRequest(deviceId, requestId);
+    }
   } catch (error) {
     darkMeshState.setPendingTraceRouteTarget(deviceId, undefined);
+    darkMeshState.setPendingTraceRouteRequest(deviceId, undefined);
     throw error;
   }
+  // keep target and requestId set until response or timeout
 }
 
 export async function requestNeighborInfo(connection: ConnectionLike | undefined, nodeNum: number) {

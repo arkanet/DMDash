@@ -161,6 +161,7 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
     }
 
     try {
+      toast({ title: t("nodeDetail.neighbor.requestSent", "Request Neighbor Info Sent...") });
       await requestNeighborInfo(connection, node.num);
       setShowEnvironment(false);
       setShowNeighbor(true);
@@ -179,6 +180,7 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
     }
 
     try {
+      toast({ title: t("nodeDetail.metrics.requestSent", "Request Environmental Info Sent...") });
       await requestEnvironmentMetrics(connection, node.num);
       setShowNeighbor(false);
       setShowEnvironment(true);
