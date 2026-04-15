@@ -26,7 +26,7 @@ import { randId } from "@core/utils/randId.ts";
 import { Protobuf, Types, Constants } from "@meshtastic/core";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { HashIcon, LockIcon, LockOpenIcon } from "lucide-react";
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getChannelName } from "../components/PageComponents/Channels/Channels.tsx";
 import type { Message } from "../core/stores/messageStore/types.ts";
@@ -56,6 +56,7 @@ export const MessagesPage = () => {
 
   const { setMessageState } = useMessages();
   const { deviceId } = useDeviceContext();
+  const messageInputRef = useRef<{ focus: () => void } | null>(null);
 
   const { type, chatId } = useParams({ from: messagesWithParamsRoute.id });
 
@@ -94,6 +95,15 @@ export const MessagesPage = () => {
   useEffect(() => {
     setReplyTo(undefined);
   }, [chatType, numericChatId]);
+
+  const handleReply = useCallback(
+    (message: Message) => {
+      setReplyTo(message);
+      // focus input so user can start typing immediately
+      requestAnimationFrame(() => messageInputRef.current?.focus());
+    },
+    [setReplyTo],
+  );
 
   const currentChannel = channels.get(numericChatId);
   const otherNode = getNode(numericChatId);
@@ -288,14 +298,14 @@ export const MessagesPage = () => {
     switch (chatType) {
       case MessageType.Broadcast:
         return (
-          <ChannelChat messages={currentMessages} onReply={setReplyTo} onMention={handleMention} />
+          <ChannelChat messages={currentMessages} onReply={handleReply} onMention={handleMention} />
         );
       case MessageType.Direct:
         if (myNodeNum === undefined) {
           return <SelectMessageChat />;
         }
         return (
-          <ChannelChat messages={currentMessages} onReply={setReplyTo} onMention={handleMention} />
+          <ChannelChat messages={currentMessages} onReply={handleReply} onMention={handleMention} />
         );
       default:
         return <SelectMessageChat />;
@@ -436,6 +446,8 @@ export const MessagesPage = () => {
               maxBytes={200}
               replyTo={replyTo}
               onClearReply={() => setReplyTo(undefined)}
+              // forward ref so parent can focus the input when replying
+              ref={messageInputRef}
               mentionOpen={mentionOpen}
               onMentionHandled={() => setMentionOpen(false)}
               compressionPreferenceKey={compressionPreferenceKey}
