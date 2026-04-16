@@ -58,6 +58,8 @@ import {
 import { Share2 } from "lucide-react";
 // removed duplicate DialogFooter import
 import { Input } from "@components/UI/Input.tsx";
+import { Checkbox } from "@components/UI/Checkbox/index.tsx";
+import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { QRCode } from "react-qrcode-logo";
 import { buildSharedContactUrl } from "../../../darkmesh/utils.ts";
 import NodeMetricsChart from "@components/NodeMetricsChart.tsx";
@@ -107,6 +109,10 @@ export const NodeDetailsDialog = ({
   const [showNeighborPanel, setShowNeighborPanel] = useState(false);
   const [showEnvPanel, setShowEnvPanel] = useState(false);
   const [nestedStack, setNestedStack] = useState<number[]>([]);
+
+  // Notifications store (pulled at top-level to avoid conditional hooks)
+  const notificationsConfig = useNotificationsStore((s) => s.config);
+  const setNotificationsConfig = useNotificationsStore((s) => s.setConfig);
 
   useEffect(() => {
     if (!nodeForRender) {
@@ -814,6 +820,100 @@ export const NodeDetailsDialog = ({
                               <td>{metric.format(metric.value ?? 0)}</td>
                             </tr>
                           ))}
+                        {/* Per-node battery monitoring control */}
+                        <tr>
+                          <td>{t("nodeDetails.monitorBattery", "Monitor battery")}</td>
+                          <td>
+                            {(() => {
+                              const cfg = notificationsConfig;
+                              const setConfig = setNotificationsConfig;
+                              const selected = cfg.batteryMonitoring.selectedNodeNums ?? [];
+                              const isSelected = selected.includes(currentNode.num);
+
+                              function toggleSelected(next: boolean) {
+                                const nextArr = next
+                                  ? Array.from(new Set([...selected, currentNode.num]))
+                                  : selected.filter((n) => n !== currentNode.num);
+
+                                setConfig({
+                                  batteryMonitoring: {
+                                    ...cfg.batteryMonitoring,
+                                    selectedNodeNums: nextArr,
+                                  },
+                                });
+                              }
+
+                              return (
+                                <Checkbox checked={isSelected} onChange={(v) => toggleSelected(v)}>
+                                  {isSelected
+                                    ? t("nodeDetails.monitoringEnabled", "Enabled")
+                                    : t("nodeDetails.monitoringDisabled", "Disabled")}
+                                </Checkbox>
+                              );
+                            })()}
+                          </td>
+                        </tr>
+                        {/* Per-node threshold overrides */}
+                        <tr>
+                          <td>{t("nodeDetails.thresholds", "Threshold overrides")}</td>
+                          <td>
+                            {(() => {
+                              const cfg = notificationsConfig;
+                              const setConfig = setNotificationsConfig;
+                              const overrides = cfg.batteryMonitoring.nodeOverrides ?? {};
+                              const myOverride = overrides[currentNode.num] ?? {};
+
+                              function updateOverride(patch: Partial<typeof myOverride>) {
+                                const next = {
+                                  ...(overrides || {}),
+                                  [currentNode.num]: { ...(myOverride || {}), ...patch },
+                                } as typeof overrides;
+
+                                setConfig({
+                                  batteryMonitoring: {
+                                    ...cfg.batteryMonitoring,
+                                    nodeOverrides: next,
+                                  },
+                                });
+                              }
+
+                              return (
+                                <div className="flex gap-2 items-center">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={
+                                      myOverride.batteryPercentThreshold ??
+                                      cfg.batteryMonitoring.batteryPercentThreshold
+                                    }
+                                    onChange={(e) =>
+                                      updateOverride({
+                                        batteryPercentThreshold: Number(e.target.value),
+                                      })
+                                    }
+                                    className="w-28"
+                                  />
+                                  <span className="text-xs text-text-secondary">% /</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step={0.01}
+                                    value={
+                                      myOverride.voltageThreshold ??
+                                      cfg.batteryMonitoring.voltageThreshold
+                                    }
+                                    onChange={(e) =>
+                                      updateOverride({ voltageThreshold: Number(e.target.value) })
+                                    }
+                                    className="w-28"
+                                  />
+                                  <span className="text-xs text-text-secondary">V</span>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                        </tr>
                         {currentNode.deviceMetrics.uptimeSeconds && (
                           <tr>
                             <td>{t("nodeDetails.uptime")}</td>
