@@ -202,6 +202,9 @@ Gli ultimi aggiornamenti includono miglioramenti di UX e compatibilità:
 - Affidabilità core: sistemata la correlazione `requestId` in `packages/core` per risolvere correttamente gli ACK di routing.
 - Accessibilità e fix lint: miglioramenti dell'accessibilità (picker reazioni con supporto tastiera), correzioni di typing e conformità a ESLint.
 
+- Notifiche batteria: aggiunto il pannello `PowerNotification` e i controlli di Notifiche nella dashboard con soglie configurabili (percentuale batteria, tensione), override per singolo nodo e meccanismo di cooldown per evitare spam; il runtime emette ora notifiche `low_battery` quando le condizioni sono soddisfatte.
+- Rinominato componente: `SchedulerPanel` è stato refactorizzato/rinominato in `PowerNotificationPanel` e spostato in `packages/web/src/components/PageComponents/PowerNotification` (import aggiornati).
+
 Screenshot (aggiungi l'immagine reale in `assets/screenshots/reply-highlight.png`):
 
 ![Anteprima reply highlight](assets/screenshots/reply-highlight.png)

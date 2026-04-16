@@ -1,5 +1,7 @@
 import { useToast } from "@core/hooks/useToast.ts";
+import { useNotifications } from "@core/hooks/useNotifications.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
+import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { type Protobuf, type Types } from "@meshtastic/core";
 import { useEffect } from "react";
 import { defaultBeaconConfig, defaultHuntConfig, useDarkMeshStore } from "./store.ts";
@@ -40,6 +42,7 @@ export function DarkMeshRuntime() {
   const { getMyNode, getNode, getNodes } = useNodeDB();
   const selectedDeviceId = useAppStore((state) => state.selectedDeviceId);
   const { toast } = useToast();
+  const { notify } = useNotifications();
 
   useEffect(() => {
     if (!connection || selectedDeviceId === undefined) {
@@ -143,6 +146,8 @@ export function DarkMeshRuntime() {
       });
     };
 
+    const lastLowBatteryNotif = new Map<number, number>();
+
     const handleHuntPacket = <T,>(packet: Types.PacketMetadata<T>) => {
       console.debug("DarkMeshRuntime: hunt/telemetry packet", {
         device: selectedDeviceId,
@@ -156,6 +161,76 @@ export function DarkMeshRuntime() {
         return;
       }
 
+      // Low-battery detection: if this is a telemetry packet carrying deviceMetrics
+      try {
+        const variantCase = (packet as unknown as { data?: { variant?: { case?: string } } }).data
+          ?.variant?.case;
+        if (variantCase === "deviceMetrics") {
+          const deviceMetrics = (packet as unknown as { data?: { variant?: { value?: unknown } } })
+            .data?.variant?.value as { batteryLevel?: number; voltage?: number } | undefined;
+          const batt =
+            typeof deviceMetrics?.batteryLevel === "number"
+              ? deviceMetrics.batteryLevel
+              : undefined;
+          const volt =
+            typeof deviceMetrics?.voltage === "number" ? deviceMetrics.voltage : undefined;
+
+          // read current battery monitoring config from store
+          const bm = useNotificationsStore.getState().config.batteryMonitoring;
+          if (bm?.enabled && batt !== undefined && batt >= 0) {
+            let shouldNotify = false;
+            // scope check
+            if (bm.scope === "all") {
+              shouldNotify = true;
+            } else if (bm.scope === "selected") {
+              shouldNotify = bm.selectedNodeNums.includes(packet.from);
+            } else if (bm.scope === "connected_bt") {
+              // best-effort: connected_bt behavior not modeled here; assume connected node is myNode
+              const myNode = getMyNode();
+              shouldNotify = myNode ? packet.from === myNode.num : false;
+            }
+
+            // consider per-node override
+            const overrides = bm.nodeOverrides ?? {};
+            const nodeOverride = overrides[packet.from] ?? undefined;
+            if (nodeOverride && nodeOverride.enabled === false) {
+              shouldNotify = false;
+            }
+
+            const pctThreshold =
+              nodeOverride?.batteryPercentThreshold ?? bm.batteryPercentThreshold;
+            const voltThreshold = nodeOverride?.voltageThreshold ?? bm.voltageThreshold;
+            const cooldown = nodeOverride?.cooldownMs ?? bm.cooldownMs ?? 3600000;
+
+            // threshold checks
+            if (shouldNotify && pctThreshold > 0) {
+              shouldNotify = batt < pctThreshold;
+            }
+            if (shouldNotify && voltThreshold > 0 && volt !== undefined) {
+              shouldNotify = volt < voltThreshold;
+            }
+
+            if (shouldNotify) {
+              const last = lastLowBatteryNotif.get(packet.from) ?? 0;
+              const now = Date.now();
+              if (now - last >= cooldown) {
+                try {
+                  notify(
+                    "low_battery",
+                    { nodeNum: packet.from, batteryLevel: batt, voltage: volt },
+                    { priority: 5, nodeNum: packet.from },
+                  );
+                  lastLowBatteryNotif.set(packet.from, now);
+                } catch {
+                  // ignore notification errors
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // defensive: ignore telemetry parse errors
+      }
       void forwardHuntPacket(selectedDeviceId, myNode.user.id, huntConfig, packet).catch(
         (error) => {
           useDarkMeshStore
@@ -220,6 +295,17 @@ export function DarkMeshRuntime() {
             toast({
               title: `Scheduled message sent to ${schedule.label}`,
             });
+            try {
+              const nodeNum =
+                typeof sendTarget.destination === "number" ? sendTarget.destination : undefined;
+              notify(
+                "scheduled_send",
+                { scheduleId: schedule.id, scheduleLabel: schedule.label, text: schedule.text },
+                { priority: 2, nodeNum },
+              );
+            } catch {
+              // ignore
+            }
           } catch (error) {
             useDarkMeshStore
               .getState()
@@ -227,6 +313,18 @@ export function DarkMeshRuntime() {
                 schedule.id,
                 error instanceof Error ? error.message : "Unknown scheduling error",
               );
+            try {
+              notify(
+                "scheduled_failed",
+                {
+                  scheduleId: schedule.id,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+                { priority: 3 },
+              );
+            } catch {
+              // ignore
+            }
           }
         }
 
@@ -250,6 +348,17 @@ export function DarkMeshRuntime() {
             const sendTarget = resolveDestination(beaconConfig.kind, beaconConfig.destination);
             await connection.sendText(message, sendTarget.destination, true, sendTarget.channel);
             useDarkMeshStore.getState().markBeaconSent(selectedDeviceId);
+            try {
+              const nodeNum =
+                typeof sendTarget.destination === "number" ? sendTarget.destination : undefined;
+              notify(
+                "beacon_send",
+                { deviceId: selectedDeviceId, text: message },
+                { priority: 2, nodeNum },
+              );
+            } catch {
+              // ignore
+            }
           } catch (error) {
             useDarkMeshStore
               .getState()
@@ -257,6 +366,18 @@ export function DarkMeshRuntime() {
                 selectedDeviceId,
                 error instanceof Error ? error.message : "Unknown beacon error",
               );
+            try {
+              notify(
+                "beacon_failed",
+                {
+                  deviceId: selectedDeviceId,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+                { priority: 3 },
+              );
+            } catch {
+              // ignore
+            }
           }
         }
       } finally {

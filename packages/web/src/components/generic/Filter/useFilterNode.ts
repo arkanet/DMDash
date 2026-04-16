@@ -4,6 +4,8 @@ import { useCallback, useMemo } from "react";
 
 export type FilterState = {
   nodeName: string;
+  /** When provided, only nodes whose `num` is in this array will pass the filter. Empty/undefined means ignore. */
+  selectedNodeNums?: number[];
   hopsAway: [number, number];
   lastHeard: [number, number];
   isFavorite: boolean | undefined;
@@ -62,6 +64,14 @@ export function useFilterNode() {
         ...defaultFilterValues,
         ...filterOverrides,
       };
+
+      // If user provided explicit selected node numbers, always include those nodes
+      // regardless of other filter criteria (selected nodes augment the default filter).
+      if (filterState.selectedNodeNums && filterState.selectedNodeNums.length > 0) {
+        if (filterState.selectedNodeNums.includes(node.num)) {
+          return true;
+        }
+      }
 
       const nodeName = filterState.nodeName.toLowerCase();
       if (nodeName) {

@@ -232,6 +232,9 @@ Recent work added several UX and compatibility improvements:
 - Core reliability: fixed requestId correlation in `packages/core` so routing ACKs properly resolve queued packets.
 - Accessibility and lint fixes across web package (keyboard support for the reaction picker, typing improvements, and eslint compliance).
 
+- Battery notifications: added a PowerNotification panel and dashboard Notifications controls with configurable global thresholds (battery percent, voltage), per-node overrides and a cooldown to avoid notification spam; the runtime now emits `low_battery` notifications when thresholds are met.
+- Component rename: `SchedulerPanel` was refactored/renamed to `PowerNotificationPanel` and moved to `packages/web/src/components/PageComponents/PowerNotification` (imports updated accordingly).
+
 Screenshot (add the actual image at `assets/screenshots/reply-highlight.png`):
 
 ![Reply highlight preview](assets/screenshots/reply-highlight.png)

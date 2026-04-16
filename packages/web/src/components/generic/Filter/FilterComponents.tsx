@@ -23,8 +23,9 @@ type RangeKeys<T> = {
 }[keyof T];
 interface FilterSliderProps<K extends RangeKeys<FilterState>> {
   filterKey: K;
-  filterState: FilterState;
-  defaultFilterValues: FilterState;
+  // narrow as unknown to avoid indexed generic access complexity
+  filterState: unknown;
+  defaultFilterValues: unknown;
   onChange: (key: K) => (value: number[]) => void;
   labelContent?: React.ReactNode;
   label?: string;
@@ -37,8 +38,8 @@ type EnumArrayKeys<T> = {
 interface FilterMultiProps<K extends EnumArrayKeys<FilterState>> {
   filterKey: K;
   options: number[];
-  filterState: FilterState;
-  setFilterState: React.Dispatch<React.SetStateAction<FilterState>>;
+  filterState: unknown;
+  setFilterState: React.Dispatch<React.SetStateAction<unknown>>;
   getLabel?: (value: number) => string;
 }
 
@@ -46,7 +47,7 @@ interface FilterToggleProps<K extends keyof FilterState> {
   label: string;
   alternativeLabels: [string, string];
   filterKey: K;
-  filterState: FilterState;
+  filterState: unknown;
   onChange: (key: K, value: string) => void;
 }
 
@@ -79,8 +80,11 @@ export const FilterSlider = <K extends RangeKeys<FilterState>>({
   step,
 }: FilterSliderProps<K>) => {
   const sliderId = useId();
-  const value: [number, number] = filterState[filterKey];
-  const defaultValue: [number, number] = defaultFilterValues[filterKey];
+  const value: [number, number] = filterState[filterKey] as unknown as [number, number];
+  const defaultValue: [number, number] = defaultFilterValues[filterKey] as unknown as [
+    number,
+    number,
+  ];
 
   const showRange = value[0] !== value[1];
   const defaultLabel = (
@@ -112,11 +116,14 @@ export const FilterSlider = <K extends RangeKeys<FilterState>>({
   );
 };
 
-function getNumberArray<T extends FilterState, K extends EnumArrayKeys<T>>(
-  state: T,
-  key: K,
-): number[] {
-  return state[key] as number[];
+function getNumberArray(state: unknown, key: string | number | symbol): number[] {
+  try {
+    const rec = state as Record<string, unknown>;
+    const val = rec[String(key)];
+    return (val as number[]) ?? [];
+  } catch {
+    return [];
+  }
 }
 export const FilterMulti = <K extends EnumArrayKeys<FilterState>>({
   filterKey,
@@ -125,24 +132,29 @@ export const FilterMulti = <K extends EnumArrayKeys<FilterState>>({
   setFilterState,
   getLabel = (v) => String(v),
 }: FilterMultiProps<K>) => {
-  const selected = getNumberArray(filterState, filterKey);
+  const selected = getNumberArray(filterState, filterKey as unknown as string);
 
   const allSelected = options.length > 0 && options.every((opt) => selected.includes(opt));
 
   const toggleAll = () => {
-    setFilterState((prev) => ({
-      ...prev,
-      [filterKey]: allSelected ? [] : [...options],
-    }));
+    setFilterState(
+      (prev: unknown) =>
+        ({
+          ...(prev as unknown as Record<string, unknown>),
+          [filterKey as unknown as string]: (allSelected ? [] : [...options]) as unknown,
+        }) as unknown as FilterState,
+    );
   };
 
   const toggleValue = (val: number, checked: boolean) => {
-    setFilterState((prev) => {
-      const current = getNumberArray(prev, filterKey);
+    setFilterState((prev: unknown) => {
+      const current = getNumberArray(prev, filterKey as unknown as string);
       return {
-        ...prev,
-        [filterKey]: checked ? [...current, val] : current.filter((v) => v !== val),
-      };
+        ...(prev as unknown as Record<string, unknown>),
+        [filterKey as unknown as string]: (checked
+          ? [...current, val]
+          : current.filter((v) => v !== val)) as unknown,
+      } as unknown as FilterState;
     });
   };
 

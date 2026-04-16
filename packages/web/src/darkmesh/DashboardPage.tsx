@@ -12,6 +12,7 @@ import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import { Protobuf } from "@meshtastic/core";
 import { Activity, Download, MapIcon, Radar, RefreshCcw, Upload, BarChart2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { filterNodesByQuery } from "@core/utils/filterNodes.ts";
 import { useNavigate } from "@tanstack/react-router";
 import {
   defaultBeaconConfig,
@@ -194,8 +195,8 @@ const DarkMeshDashboardPage = () => {
       num: Number(o.value.split(":")[1]),
       user: { shortName: o.label, longName: o.label },
     }));
-    const matchedNodes = filterNodesByQuery(nodes, q);
-    const matchedSet = new Set(matchedNodes.map((n) => n.num));
+    const matchedNodes = filterNodesByQuery(nodes, q) as { num: number }[];
+    const matchedSet = new Set(matchedNodes.map((n: { num: number }) => n.num));
 
     const out: { label: string; value: string }[] = [];
     for (const b of matchedBroadcasts) out.push(b);
@@ -265,7 +266,7 @@ const DarkMeshDashboardPage = () => {
     return (
       <Button
         size="sm"
-        variant={traceEnabled ? "solid" : "outline"}
+        variant={traceEnabled ? "default" : "outline"}
         onClick={() => setTracePriority(deviceId, !traceEnabled)}
       >
         {traceEnabled ? "Trace Priority: ON" : "Trace Priority: OFF"}
@@ -720,7 +721,12 @@ const DarkMeshDashboardPage = () => {
                   onClick={() => {
                     try {
                       const days = pruneHours / 24;
-                      const pruned = nodeDB.pruneStaleNodesWithDays(days);
+                      let pruned = 0;
+                      if (typeof nodeDB.pruneStaleNodesWithDays === "function") {
+                        pruned = nodeDB.pruneStaleNodesWithDays(days);
+                      } else {
+                        pruned = nodeDB.pruneStaleNodes();
+                      }
                       toast({
                         title: pruned > 0 ? `Pruned ${pruned} node(s)` : "No nodes to prune",
                       });

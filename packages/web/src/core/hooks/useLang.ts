@@ -53,8 +53,8 @@ function useLang() {
           setLanguageInStorage({ language: lng });
         }
         await i18n.changeLanguage(lng);
-      } catch (e) {
-        console.warn("Failed to change language:", e);
+      } catch (_e) {
+        console.warn("Failed to change language:", _e);
       }
     },
     [i18n, setLanguageInStorage],

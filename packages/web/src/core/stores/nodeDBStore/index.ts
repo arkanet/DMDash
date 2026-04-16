@@ -30,6 +30,8 @@ export interface NodeDB extends NodeDBData {
   removeNode: (nodeNum: number) => void;
   removeAllNodes: (keepMyNode?: boolean) => void;
   pruneStaleNodes: (skipFavorites?: boolean) => number;
+  /** Prune nodes older than the specified days. Returns number pruned. */
+  pruneStaleNodesWithDays?: (days: number, skipFavorites?: boolean) => number;
   /** Configure whether pruning should skip favorite nodes */
   skipFavoritesDuringPrune?: boolean;
   /** Setter to persist preference for skipping favorites during prune */
@@ -162,7 +164,7 @@ function nodeDBFactory(
         if (persisted) {
           nodeinfoPersistence
             .putNode(id, persisted)
-            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+            .catch((_e) => console.warn("nodeinfoPersistence.putNode failed", _e));
         }
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after addNode", e);
@@ -184,7 +186,7 @@ function nodeDBFactory(
 
       nodeinfoPersistence
         .deleteNode(id, nodeNum)
-        .catch((e) => console.warn("nodeinfoPersistence.deleteNode failed", e));
+        .catch((_e) => console.warn("nodeinfoPersistence.deleteNode failed", _e));
     },
 
     removeAllNodes: (keepMyNode) => {
@@ -225,7 +227,7 @@ function nodeDBFactory(
       if (!keepMyNode) {
         nodeinfoPersistence
           .clearDb(id)
-          .catch((e) => console.warn("nodeinfoPersistence.clearDb failed", e));
+          .catch((_e) => console.warn("nodeinfoPersistence.clearDb failed", _e));
       } else {
         // keep only myNode persisted
         try {
@@ -239,7 +241,7 @@ function nodeDBFactory(
                 return nodeinfoPersistence.putNode(id, myNode);
               }
             })
-            .catch((e) => console.warn("nodeinfoPersistence.clearDb+put failed", e));
+            .catch((_e) => console.warn("nodeinfoPersistence.clearDb+put failed", _e));
         } catch (e) {
           console.warn("nodeinfoPersistence: error during removeAllNodes persistence", e);
         }
@@ -438,7 +440,7 @@ function nodeDBFactory(
         if (persisted) {
           nodeinfoPersistence
             .putNode(id, persisted)
-            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+            .catch((_e) => console.warn("nodeinfoPersistence.putNode failed", _e));
         }
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after processPacket", e);
@@ -491,7 +493,7 @@ function nodeDBFactory(
         if (persisted) {
           nodeinfoPersistence
             .putNode(id, persisted)
-            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+            .catch((_e) => console.warn("nodeinfoPersistence.putNode failed", _e));
         }
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after addTelemetry", e);
@@ -527,7 +529,7 @@ function nodeDBFactory(
         if (persisted) {
           nodeinfoPersistence
             .putNode(id, persisted)
-            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+            .catch((_e) => console.warn("nodeinfoPersistence.putNode failed", _e));
         }
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after addUser", e);
@@ -561,7 +563,7 @@ function nodeDBFactory(
         if (persisted) {
           nodeinfoPersistence
             .putNode(id, persisted)
-            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+            .catch((_e) => console.warn("nodeinfoPersistence.putNode failed", _e));
         }
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after addPosition", e);
@@ -653,7 +655,7 @@ function nodeDBFactory(
         if (persisted) {
           nodeinfoPersistence
             .putNode(id, persisted)
-            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+            .catch((_e) => console.warn("nodeinfoPersistence.putNode failed", _e));
         }
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after updateFavorite", e);

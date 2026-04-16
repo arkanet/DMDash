@@ -7,6 +7,7 @@ const MapPage = React.lazy(() => import("@pages/Map/index.tsx"));
 import MessagesPage from "@pages/Messages.tsx";
 import NodesPage from "@pages/Nodes/index.tsx";
 import RemoteAdminPage from "@pages/RemoteAdmin/index.tsx";
+import ScheduledMessagesPage from "@pages/ScheduledMessagesPage/ScheduledMessagesPage.tsx";
 import ConfigPage from "@pages/Settings/index.tsx";
 import {
   createRootRouteWithContext,
@@ -170,6 +171,12 @@ const nodesRoute = createRoute({
   component: NodesPage,
 });
 
+const scheduledMessagesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/scheduled-messages",
+  component: ScheduledMessagesPage,
+});
+
 const dialogWithParamsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dialog/$dialogId",
@@ -196,6 +203,7 @@ export const routeTree = rootRoute.addChildren([
     remoteAdminModuleRoute,
   ]),
   nodesRoute,
+  scheduledMessagesRoute,
   dialogWithParamsRoute,
   connectionsRoute,
 ]);

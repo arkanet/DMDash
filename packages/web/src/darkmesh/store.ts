@@ -60,6 +60,7 @@ interface DarkMeshPersistedState {
   schedules: ScheduledDarkMeshMessage[];
   beaconsByDevice: Record<number, BeaconConfig>;
   huntByDevice: Record<number, HuntConfig>;
+  tracePriorityByDevice?: Record<number, boolean>;
 }
 
 interface DarkMeshState extends DarkMeshPersistedState {
@@ -68,6 +69,8 @@ interface DarkMeshState extends DarkMeshPersistedState {
   /** Map deviceId -> packet requestId for pending traceroute requests */
   pendingTraceRouteRequestByDevice: Record<number, number | undefined>;
   gatewaysByDevice: Record<number, GatewaySnapshot | undefined>;
+  tracePriorityByDevice?: Record<number, boolean>;
+  setTracePriority: (deviceId: number, enabled: boolean) => void;
   addSchedule: (
     schedule: Omit<ScheduledDarkMeshMessage, "id" | "createdAt"> & {
       id?: string;
@@ -269,6 +272,12 @@ export const useDarkMeshStore = create<DarkMeshState>()(
             [deviceId]: requestId,
           },
         })),
+      // per-device trace priority flag (persisted)
+      tracePriorityByDevice: {},
+      setTracePriority: (deviceId, enabled) =>
+        set((state) => ({
+          tracePriorityByDevice: { ...(state.tracePriorityByDevice ?? {}), [deviceId]: enabled },
+        })),
     }),
     {
       name: "darkmesh-dashboard-store",
@@ -277,6 +286,7 @@ export const useDarkMeshStore = create<DarkMeshState>()(
         schedules: state.schedules,
         beaconsByDevice: state.beaconsByDevice,
         huntByDevice: state.huntByDevice,
+        tracePriorityByDevice: state.tracePriorityByDevice,
       }),
     },
   ),
