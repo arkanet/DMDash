@@ -3,6 +3,7 @@ import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader
 import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
 import { Button } from "@components/UI/Button.tsx";
+import { Checkbox } from "@components/UI/Checkbox/index.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@components/UI/Card.tsx";
 import { Input } from "@components/UI/Input.tsx";
 import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
@@ -19,12 +20,15 @@ import {
   type BeaconConfig,
   type HuntConfig,
 } from "./store.ts";
+import PowerNotificationPanel from "@components/PageComponents/PowerNotification/PowerNotificationPanel.tsx";
+import NotificationsPanel from "@components/PageComponents/Notifications/NotificationsPanel.tsx";
 import {
   buildDmdbContents,
   createNodeInfoFromSharedContact,
   getNodeDisplayName,
   parseDmdbContents,
 } from "./utils.ts";
+import { hasPos } from "@core/utils/geo.ts";
 
 function DashboardCard({
   title,
@@ -79,6 +83,12 @@ function formatSince(timestamp?: number): string {
     timeStyle: "short",
   }).format(new Date(timestamp));
 }
+
+const BACKBONE_ROLES = [
+  Protobuf.Config.Config_DeviceConfig_Role.ROUTER,
+  Protobuf.Config.Config_DeviceConfig_Role.ROUTER_LATE,
+  Protobuf.Config.Config_DeviceConfig_Role.CLIENT_BASE,
+];
 
 const DarkMeshDashboardPage = () => {
   const navigate = useNavigate();
@@ -157,12 +167,41 @@ const DarkMeshDashboardPage = () => {
   const [beaconDraft, setBeaconDraft] = useState<BeaconConfig>(beaconConfig);
   const [huntDraft, setHuntDraft] = useState<HuntConfig>(huntConfig);
   const [exportFavoriteOnly, setExportFavoriteOnly] = useState(false);
+  const [exportGpsOnly, setExportGpsOnly] = useState(false);
+  const [exportBackboneOnly, setExportBackboneOnly] = useState(false);
+  const nodeDB = useNodeDB();
+  const [pruneHours, setPruneHours] = useState<number>(24);
 
   // destinationOptions available for future schedule UI
 
   useEffect(() => {
     setBeaconDraft(beaconConfig);
   }, [beaconConfig]);
+
+  const [beaconFilter, setBeaconFilter] = useState("");
+
+  const filteredBeaconDestinationOptions = (() => {
+    const q = beaconFilter.trim();
+    const direct = destinationOptions.filter((o) => o.value.startsWith("direct:"));
+    const broadcasts = destinationOptions.filter((o) => o.value.startsWith("broadcast:"));
+
+    if (!q) return [...broadcasts, ...direct];
+
+    const ql = q.toLowerCase();
+    const matchedBroadcasts = broadcasts.filter((b) => (b.label || "").toLowerCase().includes(ql));
+
+    const nodes = direct.map((o) => ({
+      num: Number(o.value.split(":")[1]),
+      user: { shortName: o.label, longName: o.label },
+    }));
+    const matchedNodes = filterNodesByQuery(nodes, q);
+    const matchedSet = new Set(matchedNodes.map((n) => n.num));
+
+    const out: { label: string; value: string }[] = [];
+    for (const b of matchedBroadcasts) out.push(b);
+    for (const d of direct) if (matchedSet.has(Number(d.value.split(":")[1]))) out.push(d);
+    return out;
+  })();
 
   useEffect(() => {
     setHuntDraft(huntConfig);
@@ -217,14 +256,57 @@ const DarkMeshDashboardPage = () => {
     setHuntStatus(deviceId, "Hunt forwarding disabled");
   };
 
+  function TracePriorityButton() {
+    const traceEnabled = useDarkMeshStore(
+      (s) => (s.tracePriorityByDevice ?? {})[deviceId] ?? false,
+    );
+    const setTracePriority = useDarkMeshStore((s) => s.setTracePriority);
+
+    return (
+      <Button
+        size="sm"
+        variant={traceEnabled ? "solid" : "outline"}
+        onClick={() => setTracePriority(deviceId, !traceEnabled)}
+      >
+        {traceEnabled ? "Trace Priority: ON" : "Trace Priority: OFF"}
+      </Button>
+    );
+  }
+
   const handleExportDmdb = () => {
     if (!myNode) {
       toast({ title: "Connect to a node before exporting a DarkMesh NodeDB" });
       return;
     }
+    const BACKBONE_ROLES = [
+      Protobuf.Config.Config_DeviceConfig_Role.ROUTER,
+      Protobuf.Config.Config_DeviceConfig_Role.ROUTER_LATE,
+      Protobuf.Config.Config_DeviceConfig_Role.CLIENT_BASE,
+    ];
 
-    const dmdbContents = buildDmdbContents(nodes, myNode.num, exportFavoriteOnly);
-    const fileName = `darkmesh_${exportFavoriteOnly ? "favorites" : "nodes"}_${Date.now()}.dmdb`;
+    const filteredNodes = nodes.filter((node) => {
+      if (node.num === myNode.num) return false;
+      if (exportFavoriteOnly && !node.isFavorite) return false;
+      if (exportGpsOnly && !hasPos(node.position)) return false;
+      if (exportBackboneOnly) {
+        const role = node.user?.role ?? Protobuf.Config.Config_DeviceConfig_Role.CLIENT;
+        if (!BACKBONE_ROLES.includes(role)) return false;
+      }
+      return true;
+    });
+
+    const dmdbContents = buildDmdbContents(
+      filteredNodes,
+      myNode.num,
+      exportFavoriteOnly,
+      exportGpsOnly,
+      exportBackboneOnly,
+    );
+    const tags: string[] = [];
+    if (exportFavoriteOnly) tags.push("fav");
+    if (exportGpsOnly) tags.push("gps");
+    if (exportBackboneOnly) tags.push("backbone");
+    const fileName = `darkmesh_${tags.join("-") || "nodes"}_${Date.now()}.dmdb`;
     const blob = new Blob([dmdbContents], {
       type: "text/plain;charset=utf-8",
     });
@@ -248,7 +330,16 @@ const DarkMeshDashboardPage = () => {
     try {
       const parsed = parseDmdbContents(await file.text());
 
-      parsed.contacts.forEach((contact) => {
+      const contactsToAdd = parsed.backboneOnly
+        ? parsed.contacts.filter((contact) => {
+            const role = contact.user?.role ?? Protobuf.Config.Config_DeviceConfig_Role.CLIENT;
+            return BACKBONE_ROLES.includes(role);
+          })
+        : parsed.contacts;
+
+      const skipped = parsed.contacts.length - contactsToAdd.length;
+
+      contactsToAdd.forEach((contact) => {
         sendAdminMessage(
           create(Protobuf.Admin.AdminMessageSchema, {
             payloadVariant: {
@@ -267,8 +358,17 @@ const DarkMeshDashboardPage = () => {
         }
       });
 
+      const notes: string[] = [];
+      if (parsed.gpsOnly) notes.push("GPS-only exported file (advisory)");
+      if (parsed.backboneOnly)
+        notes.push(
+          `Backbone-only exported file${skipped > 0 ? `; skipped ${skipped} non-backbone contacts` : ""}`,
+        );
+      if (parsed.favoriteOnly) notes.push("Imported contacts marked as favorites");
+
       toast({
-        title: `Imported ${parsed.contacts.length} DarkMesh contacts from v${parsed.version}`,
+        title: `Imported ${contactsToAdd.length} DarkMesh contacts from v${parsed.version}`,
+        description: notes.join("; ") || undefined,
       });
     } catch (error) {
       toast({
@@ -289,6 +389,9 @@ const DarkMeshDashboardPage = () => {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-6">
+          <div>
+            <NotificationsPanel />
+          </div>
           {/* Traceroute Visualization removed per design update */}
           <DashboardCard
             title="Scheduled Messages"
@@ -347,6 +450,10 @@ const DarkMeshDashboardPage = () => {
                 ))
               )}
             </div>
+
+            <div className="mt-4">
+              <PowerNotificationPanel destinationOptions={destinationOptions} />
+            </div>
           </DashboardCard>
 
           <DashboardCard
@@ -356,6 +463,12 @@ const DarkMeshDashboardPage = () => {
             <div className="grid gap-3 md:grid-cols-2">
               <label className="text-sm">
                 <span className="mb-1 block text-slate-500 dark:text-slate-400">Destination</span>
+                <input
+                  className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm mb-2 dark:border-zinc-700 dark:bg-zinc-900"
+                  placeholder="Search channels or contacts"
+                  value={beaconFilter}
+                  onChange={(event) => setBeaconFilter(event.target.value)}
+                />
                 <select
                   className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                   value={encodeDestinationValue(beaconDraft.kind, beaconDraft.destination)}
@@ -373,7 +486,7 @@ const DarkMeshDashboardPage = () => {
                     }));
                   }}
                 >
-                  {destinationOptions.map((option) => (
+                  {filteredBeaconDestinationOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -511,6 +624,8 @@ const DarkMeshDashboardPage = () => {
               >
                 Open map
               </Button>
+              {/* Trace priority toggle for current device */}
+              <TracePriorityButton />
               {selectedTraceRoute ? (
                 <Button variant="outline" onClick={() => setSelectedTraceRoute(undefined)}>
                   Clear overlay
@@ -561,6 +676,65 @@ const DarkMeshDashboardPage = () => {
                   </div>
                 ))
               )}
+            </div>
+          </DashboardCard>
+
+          <DashboardCard
+            title="NodeDB Cleanup"
+            description="Remove stale nodes not heard from in the selected hours."
+          >
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-zinc-400" htmlFor="darkmesh-prune-hours">
+                Prune nodes older than
+              </label>
+              <select
+                id="darkmesh-prune-hours"
+                className="h-10 rounded-md border border-slate-300 bg-white/95 px-3 text-sm text-slate-800 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-100"
+                value={String(pruneHours)}
+                onChange={(e) => setPruneHours(Number(e.target.value))}
+              >
+                <option value="3">3 hours</option>
+                <option value="6">6 hours</option>
+                <option value="12">12 hours</option>
+                <option value="18">18 hours</option>
+                <option value="24">24 hours</option>
+              </select>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={Boolean(nodeDB?.skipFavoritesDuringPrune)}
+                  onChange={(v) => {
+                    try {
+                      nodeDB.setPruneSkipFavorites(Boolean(v));
+                    } catch (err) {
+                      console.warn("setPruneSkipFavorites failed", err);
+                    }
+                  }}
+                >
+                  Skip favorites
+                </Checkbox>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    try {
+                      const days = pruneHours / 24;
+                      const pruned = nodeDB.pruneStaleNodesWithDays(days);
+                      toast({
+                        title: pruned > 0 ? `Pruned ${pruned} node(s)` : "No nodes to prune",
+                      });
+                    } catch (err) {
+                      toast({
+                        title: "Prune failed",
+                        description: err instanceof Error ? err.message : String(err),
+                      });
+                    }
+                  }}
+                >
+                  Run prune
+                </Button>
+              </div>
             </div>
           </DashboardCard>
         </div>
@@ -692,6 +866,32 @@ const DarkMeshDashboardPage = () => {
               />
               Export only favorite nodes
             </label>
+
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={exportGpsOnly}
+                onChange={(event) => setExportGpsOnly(event.target.checked)}
+              />
+              Only nodes with GPS
+            </label>
+
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={exportBackboneOnly}
+                onChange={(event) => setExportBackboneOnly(event.target.checked)}
+              />
+              Backbone network only (routers/base)
+            </label>
+
+            <div className="mt-2 text-xs text-slate-500">
+              <div>
+                BACKBONE: nodes whose role is <strong>ROUTER</strong>, <strong>ROUTER_LATE</strong>{" "}
+                or <strong>CLIENT_BASE</strong>.
+              </div>
+              <div>GPS: node has recorded position (latitude/longitude) available.</div>
+            </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-900/70">
               <div className="font-medium text-slate-900 dark:text-slate-100">
