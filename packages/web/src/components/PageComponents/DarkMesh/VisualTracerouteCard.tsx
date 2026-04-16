@@ -7,6 +7,7 @@ import { Protobuf } from "@meshtastic/core";
 import type { Types } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useMemo } from "react";
+import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 
 const SNR_GOOD_THRESHOLD = -7;
 const SNR_FAIR_THRESHOLD = -15;
@@ -238,6 +239,10 @@ export function VisualTracerouteCard({
       )}
     >
       <div className="font-semibold">{sections.title}</div>
+      <div className="mt-1 flex items-center gap-2">
+        {/* Trace priority toggle */}
+        <TracePriorityToggle />
+      </div>
       <div className="mt-2 text-[0.75rem] text-zinc-400">
         Total route distance: {totalDistance.toFixed(2)} km
       </div>
@@ -262,6 +267,29 @@ export function VisualTracerouteCard({
           Clear traceroute
         </Button>
       </div>
+    </div>
+  );
+}
+
+function TracePriorityToggle() {
+  const { id: deviceId } = useDevice();
+  const traceEnabled = useDarkMeshStore((s) => (s.tracePriorityByDevice ?? {})[deviceId] ?? false);
+  const setTracePriority = useDarkMeshStore((s) => s.setTracePriority);
+
+  return (
+    <div className="ml-auto flex items-center gap-2">
+      <div className="text-[0.7rem] text-zinc-400">Trace priority</div>
+      <button
+        type="button"
+        onClick={() => setTracePriority(deviceId, !traceEnabled)}
+        className={`h-8 rounded-md px-3 text-[0.75rem] font-semibold ${
+          traceEnabled
+            ? "bg-emerald-500 text-black"
+            : "border border-slate-400 bg-transparent text-zinc-100"
+        }`}
+      >
+        {traceEnabled ? "ON" : "OFF"}
+      </button>
     </div>
   );
 }
