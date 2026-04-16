@@ -2,6 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { featureFlags } from "@core/services/featureFlags";
 import { validateIncomingNode } from "@core/stores/nodeDBStore/nodeValidation";
 import { createStorage } from "@core/stores/utils/indexDB.ts";
+import * as nodeinfoPersistence from "@core/stores/nodeinfoPersistence";
 import { Protobuf, type Types } from "@meshtastic/core";
 type NodeInfoWithRx = Protobuf.Mesh.NodeInfo & { rxRssi?: number };
 import { produce } from "immer";
@@ -19,6 +20,7 @@ type NodeDBData = {
   myNodeNum: number | undefined;
   nodeMap: Map<number, Protobuf.Mesh.NodeInfo>;
   nodeErrors: Map<number, NodeError>;
+  nodeIndex?: number[];
 };
 
 export interface NodeDB extends NodeDBData {
@@ -27,7 +29,11 @@ export interface NodeDB extends NodeDBData {
   addNode: (nodeInfo: Protobuf.Mesh.NodeInfo) => void;
   removeNode: (nodeNum: number) => void;
   removeAllNodes: (keepMyNode?: boolean) => void;
-  pruneStaleNodes: () => number;
+  pruneStaleNodes: (skipFavorites?: boolean) => number;
+  /** Configure whether pruning should skip favorite nodes */
+  skipFavoritesDuringPrune?: boolean;
+  /** Setter to persist preference for skipping favorites during prune */
+  setPruneSkipFavorites: (skip: boolean) => void;
   processPacket: (data: ProcessPacketParams) => void;
   addTelemetry: (telemetry: Types.PacketMetadata<Protobuf.Telemetry.Telemetry>) => void;
   addUser: (user: Types.PacketMetadata<Protobuf.Mesh.User>) => void;
@@ -84,8 +90,20 @@ function nodeDBFactory(
     nodeMap,
     nodeErrors,
     environmentMetricsMap,
+    // whether to skip favorite nodes when pruning (in-memory preference)
+    skipFavoritesDuringPrune: false,
+    setPruneSkipFavorites: (skip: boolean) =>
+      set(
+        produce<PrivateNodeDBState>((draft) => {
+          const nodeDB = draft.nodeDBs.get(id);
+          if (!nodeDB) {
+            throw new Error(`No nodeDB found (id: ${id})`);
+          }
+          nodeDB.skipFavoritesDuringPrune = skip;
+        }),
+      ),
 
-    addNode: (node) =>
+    addNode: (node) => {
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -136,9 +154,22 @@ function nodeDBFactory(
             );
           }
         }),
-      ),
+      );
 
-    removeNode: (nodeNum) =>
+      // Persist the added/updated node asynchronously
+      try {
+        const persisted = get().nodeDBs.get(id)?.nodeMap.get(node.num);
+        if (persisted) {
+          nodeinfoPersistence
+            .putNode(id, persisted)
+            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+        }
+      } catch (e) {
+        console.warn("nodeinfoPersistence: failed to persist node after addNode", e);
+      }
+    },
+
+    removeNode: (nodeNum) => {
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -149,9 +180,14 @@ function nodeDBFactory(
           updated.delete(nodeNum);
           nodeDB.nodeMap = updated;
         }),
-      ),
+      );
 
-    removeAllNodes: (keepMyNode) =>
+      nodeinfoPersistence
+        .deleteNode(id, nodeNum)
+        .catch((e) => console.warn("nodeinfoPersistence.deleteNode failed", e));
+    },
+
+    removeAllNodes: (keepMyNode) => {
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -184,13 +220,41 @@ function nodeDBFactory(
               )
             : new Map<number, Protobuf.Telemetry.EnvironmentMetrics>();
         }),
-      ),
+      );
 
-    pruneStaleNodes: () => {
+      if (!keepMyNode) {
+        nodeinfoPersistence
+          .clearDb(id)
+          .catch((e) => console.warn("nodeinfoPersistence.clearDb failed", e));
+      } else {
+        // keep only myNode persisted
+        try {
+          const myNode = get()
+            .nodeDBs.get(id)
+            ?.nodeMap.get(get().nodeDBs.get(id)!.myNodeNum ?? -1);
+          nodeinfoPersistence
+            .clearDb(id)
+            .then(() => {
+              if (myNode) {
+                return nodeinfoPersistence.putNode(id, myNode);
+              }
+            })
+            .catch((e) => console.warn("nodeinfoPersistence.clearDb+put failed", e));
+        } catch (e) {
+          console.warn("nodeinfoPersistence: error during removeAllNodes persistence", e);
+        }
+      }
+    },
+
+    pruneStaleNodes: (skipFavorites?: boolean) => {
       const nodeDB = get().nodeDBs.get(id);
       if (!nodeDB) {
         throw new Error(`No nodeDB found (id: ${id})`);
       }
+      const nodeSkipFav =
+        typeof skipFavorites === "boolean"
+          ? skipFavorites
+          : (nodeDB.skipFavoritesDuringPrune ?? false);
 
       const nowSec = Math.floor(Date.now() / 1000);
       const cutoffSec = nowSec - NODE_RETENTION_DAYS * 24 * 60 * 60;
@@ -206,10 +270,18 @@ function nodeDBFactory(
           const newNodeMap = new Map<number, Protobuf.Mesh.NodeInfo>();
 
           for (const [nodeNum, node] of nodeDB.nodeMap) {
+            // Optionally skip favorites when pruning
+            const isFav = Boolean(node.isFavorite);
+
             // Keep myNode regardless of lastHeard
             // Keep nodes that have been heard recently
             // Keep nodes without lastHeard (just in case)
-            if (nodeNum === nodeDB.myNodeNum || !node.lastHeard || node.lastHeard >= cutoffSec) {
+            if (
+              nodeNum === nodeDB.myNodeNum ||
+              !node.lastHeard ||
+              node.lastHeard >= cutoffSec ||
+              (nodeSkipFav && isFav)
+            ) {
               newNodeMap.set(nodeNum, node);
             } else {
               prunedCount++;
@@ -227,6 +299,57 @@ function nodeDBFactory(
         console.log(
           `[NodeDB] Pruned ${prunedCount} stale node(s) older than ${NODE_RETENTION_DAYS} days`,
         );
+      }
+
+      return prunedCount;
+    },
+    // prune with configurable days (not persisted)
+    pruneStaleNodesWithDays: (days: number, skipFavorites?: boolean) => {
+      const nodeDB = get().nodeDBs.get(id);
+      if (!nodeDB) {
+        throw new Error(`No nodeDB found (id: ${id})`);
+      }
+      const nodeSkipFav =
+        typeof skipFavorites === "boolean"
+          ? skipFavorites
+          : (nodeDB.skipFavoritesDuringPrune ?? false);
+
+      const nowSec = Math.floor(Date.now() / 1000);
+      const cutoffSec = nowSec - days * 24 * 60 * 60;
+      let prunedCount = 0;
+
+      set(
+        produce<PrivateNodeDBState>((draft) => {
+          const nodeDB = draft.nodeDBs.get(id);
+          if (!nodeDB) {
+            throw new Error(`No nodeDB found (id: ${id})`);
+          }
+
+          const newNodeMap = new Map<number, Protobuf.Mesh.NodeInfo>();
+
+          for (const [nodeNum, node] of nodeDB.nodeMap) {
+            const isFav = Boolean(node.isFavorite);
+            if (
+              nodeNum === nodeDB.myNodeNum ||
+              !node.lastHeard ||
+              node.lastHeard >= cutoffSec ||
+              (nodeSkipFav && isFav)
+            ) {
+              newNodeMap.set(nodeNum, node);
+            } else {
+              prunedCount++;
+              console.log(
+                `[NodeDB] Pruning stale node ${nodeNum} (last heard ${Math.floor((nowSec - node.lastHeard) / 86400)} days ago)`,
+              );
+            }
+          }
+
+          nodeDB.nodeMap = newNodeMap;
+        }),
+      );
+
+      if (prunedCount > 0) {
+        console.log(`[NodeDB] Pruned ${prunedCount} stale node(s) older than ${days} days`);
       }
 
       return prunedCount;
@@ -270,7 +393,7 @@ function nodeDBFactory(
         }),
       ),
 
-    processPacket: (data) =>
+    processPacket: (data) => {
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -307,9 +430,22 @@ function nodeDBFactory(
             );
           }
         }),
-      ),
+      );
 
-    addTelemetry: (telemetry) =>
+      // persist updated node
+      try {
+        const persisted = get().nodeDBs.get(id)?.nodeMap.get(data.from);
+        if (persisted) {
+          nodeinfoPersistence
+            .putNode(id, persisted)
+            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+        }
+      } catch (e) {
+        console.warn("nodeinfoPersistence: failed to persist node after processPacket", e);
+      }
+    },
+
+    addTelemetry: (telemetry) => {
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -348,9 +484,21 @@ function nodeDBFactory(
             );
           }
         }),
-      ),
+      );
 
-    addUser: (user) =>
+      try {
+        const persisted = get().nodeDBs.get(id)?.nodeMap.get(telemetry.from);
+        if (persisted) {
+          nodeinfoPersistence
+            .putNode(id, persisted)
+            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+        }
+      } catch (e) {
+        console.warn("nodeinfoPersistence: failed to persist node after addTelemetry", e);
+      }
+    },
+
+    addUser: (user) => {
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -372,9 +520,21 @@ function nodeDBFactory(
             );
           }
         }),
-      ),
+      );
 
-    addPosition: (position) =>
+      try {
+        const persisted = get().nodeDBs.get(id)?.nodeMap.get(user.from);
+        if (persisted) {
+          nodeinfoPersistence
+            .putNode(id, persisted)
+            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+        }
+      } catch (e) {
+        console.warn("nodeinfoPersistence: failed to persist node after addUser", e);
+      }
+    },
+
+    addPosition: (position) => {
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -394,7 +554,19 @@ function nodeDBFactory(
             console.log(`[NodeDB] Adding new node from position packet: ${position.from}`);
           }
         }),
-      ),
+      );
+
+      try {
+        const persisted = get().nodeDBs.get(id)?.nodeMap.get(position.from);
+        if (persisted) {
+          nodeinfoPersistence
+            .putNode(id, persisted)
+            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+        }
+      } catch (e) {
+        console.warn("nodeinfoPersistence: failed to persist node after addPosition", e);
+      }
+    },
 
     setNodeNum: (nodeNum) =>
       set(
@@ -458,7 +630,7 @@ function nodeDBFactory(
         }),
       ),
 
-    updateFavorite: (nodeNum, isFavorite) =>
+    updateFavorite: (nodeNum, isFavorite) => {
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -474,9 +646,21 @@ function nodeDBFactory(
             });
           }
         }),
-      ),
+      );
 
-    updateIgnore: (nodeNum, isIgnored) =>
+      try {
+        const persisted = get().nodeDBs.get(id)?.nodeMap.get(nodeNum);
+        if (persisted) {
+          nodeinfoPersistence
+            .putNode(id, persisted)
+            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+        }
+      } catch (e) {
+        console.warn("nodeinfoPersistence: failed to persist node after updateFavorite", e);
+      }
+    },
+
+    updateIgnore: (nodeNum, isIgnored) => {
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -492,7 +676,19 @@ function nodeDBFactory(
             });
           }
         }),
-      ),
+      );
+
+      try {
+        const persisted = get().nodeDBs.get(id)?.nodeMap.get(nodeNum);
+        if (persisted) {
+          nodeinfoPersistence
+            .putNode(id, persisted)
+            .catch((e) => console.warn("nodeinfoPersistence.putNode failed", e));
+        }
+      } catch (e) {
+        console.warn("nodeinfoPersistence: failed to persist node after updateIgnore", e);
+      }
+    },
 
     getNodesLength: () => {
       const nodeDB = get().nodeDBs.get(id);
@@ -600,14 +796,18 @@ const persistOptions: PersistOptions<PrivateNodeDBState, NodeDBPersisted> = {
   storage: createStorage<NodeDBPersisted>(),
   version: CURRENT_STORE_VERSION,
   partialize: (s): NodeDBPersisted => ({
+    // Persist only metadata here; NodeInfo binary blobs are stored separately
     nodeDBs: new Map(
       Array.from(s.nodeDBs.entries()).map(([id, db]) => [
         id,
         {
           id: db.id,
           myNodeNum: db.myNodeNum,
-          nodeMap: db.nodeMap,
+          // don't persist nodeMap here - load it from nodeinfoPersistence on rehydrate
+          nodeMap: new Map<number, Protobuf.Mesh.NodeInfo>(),
           nodeErrors: db.nodeErrors,
+          // include a small index of node keys to indicate authoritative nodes at persist time
+          nodeIndex: Array.from(db.nodeMap.keys()),
         },
       ]),
     ),
@@ -616,28 +816,69 @@ const persistOptions: PersistOptions<PrivateNodeDBState, NodeDBPersisted> = {
     if (!state) {
       return;
     }
-    console.debug(
-      "NodeDBStore: Rehydrating state with ",
-      state.nodeDBs.size,
-      " nodeDBs -",
-      state.nodeDBs,
-    );
 
-    useNodeDBStore.setState(
-      produce<PrivateNodeDBState>((draft) => {
-        const rebuilt = new Map<number, NodeDB>();
-        for (const [id, data] of (draft.nodeDBs as unknown as Map<number, NodeDBData>).entries()) {
-          if (data.myNodeNum !== undefined) {
-            // Only rebuild if there is a nodenum set otherwise orphan dbs will acumulate
-            rebuilt.set(
-              id,
-              nodeDBFactory(id, useNodeDBStore.getState, useNodeDBStore.setState, data),
-            );
+    (async () => {
+      console.debug(
+        "NodeDBStore: Rehydrating state with ",
+        state.nodeDBs.size,
+        " nodeDBs -",
+        state.nodeDBs,
+      );
+
+      // Build NodeDB instances, and hydrate nodeMap from nodeinfoPersistence
+      const rebuilt = new Map<number, NodeDB>();
+      for (const [id, data] of (state.nodeDBs as unknown as Map<number, NodeDBData>).entries()) {
+        if (data.myNodeNum !== undefined) {
+          const dbData: NodeDBData = { ...data };
+          try {
+            // Backwards compatibility: if the persisted state contains nodeMap entries (older versions),
+            // migrate them into the new nodeinfoPersistence store.
+            if (data.nodeMap && (data.nodeMap as Map<number, Protobuf.Mesh.NodeInfo>).size > 0) {
+              try {
+                const nodesFromPersist = Array.from(
+                  (data.nodeMap as Map<number, Protobuf.Mesh.NodeInfo>).values(),
+                );
+                await nodeinfoPersistence.putNodesBatch(id, nodesFromPersist);
+                dbData.nodeMap = new Map<number, Protobuf.Mesh.NodeInfo>(
+                  nodesFromPersist.map((n) => [n.num, n]),
+                );
+              } catch (e) {
+                console.warn(`NodeDBStore: failed to migrate embedded nodeMap for db ${id}`, e);
+                dbData.nodeMap = new Map<number, Protobuf.Mesh.NodeInfo>();
+              }
+            } else {
+              const nodes = await nodeinfoPersistence.getAllNodes(id);
+              // If persist-time node index exists, prefer nodes from that index (authoritative)
+              if (Array.isArray(dbData.nodeIndex) && dbData.nodeIndex.length > 0) {
+                const setIdx = new Set(dbData.nodeIndex);
+                const filtered = nodes.filter((n) => setIdx.has(n.num));
+                dbData.nodeMap = new Map<number, Protobuf.Mesh.NodeInfo>(
+                  filtered.map((n) => [n.num, n]),
+                );
+              } else {
+                dbData.nodeMap = new Map<number, Protobuf.Mesh.NodeInfo>(
+                  nodes.map((n) => [n.num, n]),
+                );
+              }
+            }
+          } catch (e) {
+            console.warn(`NodeDBStore: failed to load nodeinfo for db ${id}`, e);
+            dbData.nodeMap = new Map<number, Protobuf.Mesh.NodeInfo>();
           }
+
+          rebuilt.set(
+            id,
+            nodeDBFactory(id, useNodeDBStore.getState, useNodeDBStore.setState, dbData),
+          );
         }
-        draft.nodeDBs = rebuilt;
-      }),
-    );
+      }
+
+      useNodeDBStore.setState(
+        produce<PrivateNodeDBState>((draft) => {
+          draft.nodeDBs = rebuilt;
+        }),
+      );
+    })();
   },
 };
 
