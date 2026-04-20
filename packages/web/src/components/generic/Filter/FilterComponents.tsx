@@ -24,8 +24,8 @@ type RangeKeys<T> = {
 interface FilterSliderProps<K extends RangeKeys<FilterState>> {
   filterKey: K;
   // narrow as unknown to avoid indexed generic access complexity
-  filterState: unknown;
-  defaultFilterValues: unknown;
+  filterState: FilterState;
+  defaultFilterValues: FilterState;
   onChange: (key: K) => (value: number[]) => void;
   labelContent?: React.ReactNode;
   label?: string;
@@ -38,8 +38,8 @@ type EnumArrayKeys<T> = {
 interface FilterMultiProps<K extends EnumArrayKeys<FilterState>> {
   filterKey: K;
   options: number[];
-  filterState: unknown;
-  setFilterState: React.Dispatch<React.SetStateAction<unknown>>;
+  filterState: FilterState;
+  setFilterState: React.Dispatch<React.SetStateAction<FilterState>>;
   getLabel?: (value: number) => string;
 }
 
@@ -47,7 +47,7 @@ interface FilterToggleProps<K extends keyof FilterState> {
   label: string;
   alternativeLabels: [string, string];
   filterKey: K;
-  filterState: unknown;
+  filterState: FilterState;
   onChange: (key: K, value: string) => void;
 }
 
@@ -80,11 +80,19 @@ export const FilterSlider = <K extends RangeKeys<FilterState>>({
   step,
 }: FilterSliderProps<K>) => {
   const sliderId = useId();
-  const value: [number, number] = filterState[filterKey] as unknown as [number, number];
-  const defaultValue: [number, number] = defaultFilterValues[filterKey] as unknown as [
-    number,
-    number,
-  ];
+  function getRangeValue<Key extends RangeKeys<FilterState>>(
+    state: FilterState,
+    key: Key,
+  ): [number, number] {
+    try {
+      return (state as unknown as Record<string, unknown>)[String(key)] as [number, number];
+    } catch {
+      return [0, 0];
+    }
+  }
+
+  const value: [number, number] = getRangeValue(filterState, filterKey);
+  const defaultValue: [number, number] = getRangeValue(defaultFilterValues, filterKey);
 
   const showRange = value[0] !== value[1];
   const defaultLabel = (

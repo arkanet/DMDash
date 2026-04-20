@@ -7,10 +7,8 @@ import { useEffect } from "react";
 import { defaultBeaconConfig, defaultHuntConfig, useDarkMeshStore } from "./store.ts";
 import {
   buildDistressMessage,
-  buildHuntPayload,
   computeNextRunAt,
   getNodeDisplayName,
-  normalizeHuntEndpoint,
   resolveDestination,
   resolveRelayCandidate,
 } from "./utils.ts";
@@ -21,24 +19,68 @@ async function forwardHuntPacket<T>(
   huntConfig: typeof defaultHuntConfig,
   packet: Types.PacketMetadata<T>,
 ) {
-  const response = await fetch(`${normalizeHuntEndpoint(huntConfig.endpoint)}/api/mobile`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${huntConfig.token}`,
-      "Content-Type": "application/json",
-    },
-    body: buildHuntPayload(hunterId, packet),
-  });
+  // Forwarding behavior depends on huntConfig.mode:
+  // - 'local'  => persist to local traceroute store only
+  // - 'remote' => POST to configured endpoint only
+  // - 'both'   => do both (persist locally and POST remote)
+  const mode =
+    (huntConfig && (huntConfig as { mode?: (typeof defaultHuntConfig)["mode"] }).mode) || "local";
+  try {
+    // lazy-import traceroute store to avoid circular deps
+    const { default: useTracerouteStore } = await import("@core/stores/tracerouteStore");
 
-  if (!response.ok) {
-    throw new Error(`Hunt endpoint responded with ${response.status}`);
+    // persist locally when requested
+    if (mode === "local" || mode === "both") {
+      try {
+        useTracerouteStore
+          .getState()
+          .addTraceroute(
+            deviceId,
+            packet as unknown as Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
+            { source: "hunt" },
+          );
+        // update UI state for local persistence
+        useDarkMeshStore.getState().setHuntStatus(deviceId, "Stored packet in local hunt DB");
+      } catch (e) {
+        // log but continue if remote forwarding is enabled
+        console.warn("local traceroute persistence failed", e);
+      }
+    }
+
+    // perform remote forward when requested
+    if ((mode === "remote" || mode === "both") && huntConfig.endpoint && huntConfig.token) {
+      const endpoint = huntConfig.endpoint.replace(/\/+$/g, "");
+      const url = `${endpoint}/api/hunt`;
+      const body = { deviceId, hunterId, packet };
+
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${huntConfig.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) {
+        throw new Error(`Hunt forward failed: ${resp.status}`);
+      }
+
+      // mark forwarded for telemetry/UI
+      useDarkMeshStore.getState().markHuntForwarded(deviceId);
+      return;
+    }
+
+    // If we get here, either mode was 'local' or remote config missing; treat as success
+    return;
+  } catch (err) {
+    // surface errors to caller
+    throw err instanceof Error ? err : new Error(String(err));
   }
-
-  useDarkMeshStore.getState().markHuntForwarded(deviceId);
 }
 
 export function DarkMeshRuntime() {
-  const { connection } = useDevice();
+  const { connection, traceroutes: deviceTraceroutes } = useDevice();
   const { getMyNode, getNode, getNodes } = useNodeDB();
   const selectedDeviceId = useAppStore((state) => state.selectedDeviceId);
   const { toast } = useToast();
@@ -48,6 +90,48 @@ export function DarkMeshRuntime() {
     if (!connection || selectedDeviceId === undefined) {
       return;
     }
+
+    // Migrate any existing in-memory traceroutes from the device store
+    (async () => {
+      try {
+        const mod = await import("@core/stores/tracerouteStore");
+        const useTracerouteStore = (mod &&
+          (mod.default ??
+            (mod as unknown as { useTracerouteStore?: unknown }).useTracerouteStore)) as unknown as
+          | {
+              getState: () =>
+                | {
+                    getTraceroutes: () => unknown[];
+                    addTraceroute: (deviceId: number, pkt: unknown, opts?: unknown) => void;
+                  }
+                | undefined;
+            }
+          | undefined;
+        if (!useTracerouteStore) return;
+        const existing = useTracerouteStore.getState()?.getTraceroutes?.() ?? [];
+        if (existing && existing.length > 0) {
+          // already migrated
+          return;
+        }
+
+        // deviceTraceroutes is a Map<number, RouteDiscovery[]>
+        for (const entry of deviceTraceroutes?.entries() ?? []) {
+          const [deviceId, arr] = entry as unknown as [
+            number,
+            Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>[],
+          ];
+          for (const pkt of arr) {
+            try {
+              useTracerouteStore.getState()?.addTraceroute?.(deviceId, pkt, { source: "device" });
+            } catch {
+              // ignore per-packet errors
+            }
+          }
+        }
+      } catch {
+        // ignore migration failures
+      }
+    })();
 
     console.debug("DarkMeshRuntime: subscribing to connection events for device", selectedDeviceId);
     try {

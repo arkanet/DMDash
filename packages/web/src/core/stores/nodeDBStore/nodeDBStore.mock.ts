@@ -30,4 +30,8 @@ export const mockNodeDBStore: NodeDB = {
   updateFavorite: vi.fn(),
   updateIgnore: vi.fn(),
   setNodeNum: vi.fn(),
+  environmentMetricsMap: new Map(),
+  setPruneSkipFavorites: vi.fn(),
+  addTelemetry: vi.fn(),
+  getEnvironmentMetrics: vi.fn(),
 };

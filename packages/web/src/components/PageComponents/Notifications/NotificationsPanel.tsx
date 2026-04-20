@@ -60,7 +60,7 @@ export function NotificationsPanel() {
     }));
     const matched = filterNodesByQuery(nodesForFilter, q) as { num: number }[];
     if (matched.length === 1) {
-      setSelectedNotifNodeNum(matched[0].num);
+      setSelectedNotifNodeNum(matched[0]?.num ?? null);
     }
   }, [notifNodeFilter, nodeOptions, primaryScope]);
 
@@ -95,7 +95,9 @@ export function NotificationsPanel() {
   };
 
   const onBatterySettingChange = (patch: Partial<typeof batteryCfg>) => {
-    const merged = { ...batteryCfg, ...patch, scope: primaryScope };
+    const scopeForCfg =
+      primaryScope === "local" ? "selected" : (primaryScope as "all" | "selected" | "connected_bt");
+    const merged = { ...batteryCfg, ...patch, scope: scopeForCfg };
     setConfig({ batteryMonitoring: merged });
   };
 

@@ -38,7 +38,8 @@ export function hashToAngle(key: string): number {
 }
 
 export function fanOutOffsetsPx(size: number, key: string): Array<PxOffset> {
-  const R = 10 + 5 * size; // radius in pixels
+  // increase fan-out radius to reduce overlapping markers
+  const R = 16 + 8 * size; // radius in pixels
   const base = hashToAngle(key);
   const out: Array<PxOffset> = [];
 

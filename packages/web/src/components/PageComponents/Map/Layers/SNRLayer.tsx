@@ -29,9 +29,11 @@ export interface SNRLayerProps {
 
 export interface SNRTooltipProps {
   pos: { x: number; y: number };
-  snr: number;
-  from: string;
-  to: string;
+  // snr values for each endpoint (A -> B, B -> A)
+  snrA?: number | undefined;
+  snrB?: number | undefined;
+  from?: string;
+  to?: string;
 }
 
 type NeighborPlus = Protobuf.Mesh.Neighbor & {
@@ -240,7 +242,22 @@ function generateNeighborLines(neighborInfos: NeighborInfos[]): FeatureCollectio
   return { type: "FeatureCollection", features };
 }
 
-export const SNRTooltip = ({ pos, snr, from, to }: Partial<SNRTooltipProps> = {}) => {
+export interface SNRTooltipWithLengthProps extends Partial<SNRTooltipProps> {
+  lengthKm?: number | undefined;
+  fromShort?: string | undefined;
+  toShort?: string | undefined;
+}
+
+export const SNRTooltip = ({
+  pos,
+  snrA,
+  snrB,
+  from,
+  to,
+  lengthKm,
+  fromShort,
+  toShort,
+}: SNRTooltipWithLengthProps = {}) => {
   const { t } = useTranslation();
 
   if (!pos) {
@@ -249,7 +266,7 @@ export const SNRTooltip = ({ pos, snr, from, to }: Partial<SNRTooltipProps> = {}
   return (
     <div
       className={cn(
-        "absolute block p-2 px-3 text-sm bg-white dark:bg-slate-800 rounded-lg shadow",
+        "absolute block p-2 px-3 text-sm bg-white dark:bg-slate-800 rounded-lg shadow snr-tooltip",
         "",
       )}
       style={{ left: `${pos.x + 5}px`, top: `${pos.y + 10}px` }}
@@ -265,8 +282,28 @@ export const SNRTooltip = ({ pos, snr, from, to }: Partial<SNRTooltipProps> = {}
         )}
       </div>
       <div>
-        SNR: <Mono>{snr?.toFixed?.(2) ?? t("unknown.shortName")}</Mono> dB
+        {snrA !== undefined && snrB !== undefined && snrA === snrB ? (
+          <div>
+            SNR AVG: <Mono>{snrA.toFixed(2)}</Mono> dB
+          </div>
+        ) : (
+          <>
+            <div>
+              SNR from {fromShort ?? from ?? "A"}:{" "}
+              <Mono>{snrA !== undefined ? snrA.toFixed(2) : t("unknown.shortName")}</Mono> dB
+            </div>
+            <div>
+              SNR to {toShort ?? to ?? "B"}:{" "}
+              <Mono>{snrB !== undefined ? snrB.toFixed(2) : t("unknown.shortName")}</Mono> dB
+            </div>
+          </>
+        )}
       </div>
+      {typeof lengthKm === "number" && (
+        <div>
+          Lunghezza: <Mono>{lengthKm.toFixed(2)}</Mono> km
+        </div>
+      )}
     </div>
   );
 };

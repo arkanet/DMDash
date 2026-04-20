@@ -23,6 +23,7 @@ import {
 } from "./store.ts";
 import PowerNotificationPanel from "@components/PageComponents/PowerNotification/PowerNotificationPanel.tsx";
 import NotificationsPanel from "@components/PageComponents/Notifications/NotificationsPanel.tsx";
+import TraceroutePanel from "./TraceroutePanel";
 import {
   buildDmdbContents,
   createNodeInfoFromSharedContact,
@@ -219,25 +220,36 @@ const DarkMeshDashboardPage = () => {
   };
 
   const handleValidateHunt = async () => {
+    // If mode includes remote, perform health check against configured endpoint; otherwise enable local mode
     try {
-      const response = await fetch(`${huntDraft.endpoint.replace(/\/+$/g, "")}/api/health`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${huntDraft.token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      if (huntDraft.mode === "remote" || huntDraft.mode === "both") {
+        const response = await fetch(`${huntDraft.endpoint.replace(/\/+$/g, "")}/api/health`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${huntDraft.token}`,
+            "Content-Type": "application/json",
+          },
+        });
 
-      if (!response.ok) {
-        throw new Error(`Endpoint returned ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`Endpoint returned ${response.status}`);
+        }
+
+        upsertHuntConfig(deviceId, {
+          ...huntDraft,
+          enabled: true,
+        });
+        setHuntStatus(deviceId, "Health check passed. Hunt forwarding is active.");
+        toast({ title: "DarkMesh hunting endpoint validated" });
+      } else {
+        // local-only: just enable local forwarding
+        upsertHuntConfig(deviceId, {
+          ...huntDraft,
+          enabled: true,
+        });
+        setHuntStatus(deviceId, "Local hunt forwarding enabled (packets persisted locally)");
+        toast({ title: "Local hunting enabled" });
       }
-
-      upsertHuntConfig(deviceId, {
-        ...huntDraft,
-        enabled: true,
-      });
-      setHuntStatus(deviceId, "Health check passed. Hunt forwarding is active.");
-      toast({ title: "DarkMesh hunting endpoint validated" });
     } catch (error) {
       setHuntError(
         deviceId,
@@ -393,7 +405,9 @@ const DarkMeshDashboardPage = () => {
           <div>
             <NotificationsPanel />
           </div>
-          {/* Traceroute Visualization removed per design update */}
+          <div>
+            <TraceroutePanel />
+          </div>
           <DashboardCard
             title="Scheduled Messages"
             description="Create and manage scheduled DarkMesh messages."
@@ -755,6 +769,7 @@ const DarkMeshDashboardPage = () => {
               <Input
                 id="darkmesh-hunt-endpoint"
                 value={huntDraft.endpoint}
+                disabled={huntDraft.mode === "local"}
                 onChange={(event) =>
                   setHuntDraft((current) => ({
                     ...current,
@@ -769,6 +784,7 @@ const DarkMeshDashboardPage = () => {
               <Input
                 id="darkmesh-hunt-token"
                 value={huntDraft.token}
+                disabled={huntDraft.mode === "local"}
                 onChange={(event) =>
                   setHuntDraft((current) => ({
                     ...current,
@@ -776,6 +792,24 @@ const DarkMeshDashboardPage = () => {
                   }))
                 }
               />
+            </label>
+
+            <label className="block text-sm">
+              <span className="mb-1 block text-slate-500 dark:text-slate-400">Forwarding mode</span>
+              <select
+                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                value={huntDraft.mode ?? "local"}
+                onChange={(event) =>
+                  setHuntDraft((current) => ({
+                    ...current,
+                    mode: event.target.value as HuntConfig["mode"],
+                  }))
+                }
+              >
+                <option value="local">Local (persist only)</option>
+                <option value="remote">Remote (forward only)</option>
+                <option value="both">Both (local + remote)</option>
+              </select>
             </label>
 
             <label className="block text-sm">

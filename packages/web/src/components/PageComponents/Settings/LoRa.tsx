@@ -60,8 +60,6 @@ export const LoRa = ({ onFormInit }: LoRaConfigProps) => {
               label: t("lora.frequencySlot.label"),
               description: t("lora.frequencySlot.description"),
               properties: {
-                min: 1,
-                max: 8,
                 step: 1,
               },
             },

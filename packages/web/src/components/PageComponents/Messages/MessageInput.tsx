@@ -417,8 +417,10 @@ export const MessageInput = forwardRef(
 
       // If user just released the '@' key, immediately open the mention selector
       // Use KeyboardEvent detection when possible
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const key = (e as any)?.key;
+      let key: string | undefined;
+      if (e && "key" in e) {
+        key = (e as React.KeyboardEvent).key;
+      }
       if (key === "@") {
         const before = inputRef.current.value.slice(0, pos ?? 0);
         const at = before.lastIndexOf("@");

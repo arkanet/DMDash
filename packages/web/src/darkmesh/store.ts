@@ -36,6 +36,8 @@ export interface HuntConfig {
   enabled: boolean;
   endpoint: string;
   token: string;
+  /** hunt mode: local = persist only, remote = send to endpoint only, both = do both */
+  mode?: "local" | "remote" | "both";
   backgroundMode: "fast" | "medium" | "slow" | "super_slow";
   forwardedCount: number;
   lastForwardAt?: number;
@@ -109,6 +111,7 @@ export const defaultHuntConfig: HuntConfig = {
   enabled: false,
   endpoint: "https://maps.loracity.it",
   token: "ioL4ath3",
+  mode: "local",
   backgroundMode: "fast",
   forwardedCount: 0,
 };

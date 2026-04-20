@@ -360,11 +360,12 @@ export const MessageItem = ({
           const encoder = new TextEncoder();
           const emojiBytes = encoder.encode(emoji);
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (device.connection as any).sendPacket(
+          await device.connection.sendPacket(
             emojiBytes,
-            (Protobuf.Portnums as unknown as { PortNum: Record<string, number> }).PortNum
-              .TEXT_MESSAGE_APP,
+            Number(
+              (Protobuf.Portnums as unknown as { PortNum: Record<string, number> }).PortNum
+                .TEXT_MESSAGE_APP,
+            ),
             message.to,
             message.channel,
             true,

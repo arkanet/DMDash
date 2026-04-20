@@ -607,9 +607,15 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                     const got = await new Promise<boolean>((resolve) => {
                       const handler = (loc: unknown) => {
                         try {
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                          const l = loc as any;
-                          const from = l.from?.valueOf ? l.from.valueOf() : l.from;
+                          const l = loc as unknown as {
+                            from?: number | { valueOf?: () => number };
+                          };
+                          const from =
+                            l.from &&
+                            typeof (l.from as unknown as { valueOf?: unknown }).valueOf ===
+                              "function"
+                              ? (l.from as { valueOf: () => number }).valueOf()
+                              : (l.from as number | undefined);
                           if (from === num) {
                             connection.events.onPositionPacket.unsubscribe(handler);
                             clearTimeout(timer);

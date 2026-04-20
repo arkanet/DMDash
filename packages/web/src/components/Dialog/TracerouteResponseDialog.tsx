@@ -7,6 +7,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { TraceRoute } from "../PageComponents/Messages/TraceRoute.tsx";
+import { useTracerouteStore } from "@core/stores/tracerouteStore";
+import { useAppStore } from "@core/stores/appStore";
 import {
   Dialog,
   DialogClose,
@@ -51,6 +53,13 @@ export const TracerouteResponseDialog = ({
   function handleViewOnMap() {
     if (!traceroute) {
       return;
+    }
+
+    try {
+      const deviceId = useAppStore.getState().selectedDeviceId ?? -1;
+      useTracerouteStore.getState().addTraceroute(deviceId, traceroute, { source: "manual" });
+    } catch (e) {
+      console.warn("failed to persist manual traceroute", e);
     }
 
     setSelectedTraceRoute(traceroute);

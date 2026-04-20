@@ -551,12 +551,12 @@ function deviceFactory(
               const summary: Record<string, unknown> = { deviceId: id };
               try {
                 summary.constructorName = connection?.constructor?.name ?? null;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                summary.hasEvents = Boolean(connection && (connection as any).events);
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                if ((connection as any)?.events) {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  summary.eventKeys = Object.keys((connection as any).events).slice(0, 20);
+                summary.hasEvents = Boolean(
+                  connection && (connection as unknown as { events?: unknown }).events,
+                );
+                const ev = (connection as unknown as { events?: Record<string, unknown> }).events;
+                if (ev) {
+                  summary.eventKeys = Object.keys(ev).slice(0, 20);
                 }
               } catch {
                 // ignore

@@ -1,6 +1,7 @@
 import type { HeatmapMode } from "@components/PageComponents/Map/Layers/HeatmapLayer.tsx";
 import { Checkbox } from "@components/UI/Checkbox/index.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@components/UI/Popover.tsx";
+import { Button } from "@components/UI/Button.tsx";
 import { cn } from "@core/utils/cn.ts";
 import { LayersIcon } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
@@ -166,6 +167,31 @@ export function MapLayerTool({
             )}
           </div>
         ))}
+        <div>
+          <div>
+            <Checkbox
+              checked={visibilityState.traceroutes}
+              onChange={() =>
+                setVisibilityState({
+                  ...visibilityState,
+                  traceroutes: !visibilityState.traceroutes,
+                })
+              }
+              className={cn("flex items-center gap-2")}
+            >
+              <span className="dark:text-slate-200">Traceroute Links</span>
+            </Checkbox>
+          </div>
+          <div className="pt-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setVisibilityState({ ...visibilityState, traceroutes: true })}
+            >
+              Show Links
+            </Button>
+          </div>
+        </div>
         {/*<CheckboxItem
           key="traceroutes"
           label={t("layerTool.traceroutes")}

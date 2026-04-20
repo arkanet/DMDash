@@ -14,15 +14,30 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@app/*": ["./src/*"],
-      "@public/*": ["./public/*"],
-      "@pages/*": ["./src/pages/*"],
-      "@components/*": ["./src/components/*"],
-      "@core/*": ["./src/core/*"],
-      "@layouts/*": ["./src/layouts/*"]
+      "@app/*": [
+        "./src/*"
+      ],
+      "@public/*": [
+        "./public/*"
+      ],
+      "@pages/*": [
+        "./src/pages/*"
+      ],
+      "@components/*": [
+        "./src/components/*"
+      ],
+      "@core/*": [
+        "./src/core/*"
+      ],
+      "@layouts/*": [
+        "./src/layouts/*"
+      ]
     }
   },
-  "include": ["src", ".d.ts"],
+  "include": [
+    "src",
+    ".d.ts"
+  ],
   "exclude": [
     "routeTree.gen.ts",
     "node_modules",
@@ -30,6 +45,9 @@
     "build",
     "coverage",
     "out",
-    ".vscode-test"
+    ".vscode-test",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/__tests__/**"
   ]
 }
