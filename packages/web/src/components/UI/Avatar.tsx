@@ -1,5 +1,6 @@
 import { useNodeDB } from "@app/core/stores";
 import { getColorFromNodeNum, isLightColor } from "@app/core/utils/color";
+import { getNodeShortName } from "@app/darkmesh/utils.ts";
 import {
   Tooltip,
   TooltipArrow,
@@ -28,8 +29,7 @@ export const Avatar = ({
   className,
 }: AvatarProps) => {
   const { t } = useTranslation();
-  const { getNode } = useNodeDB();
-  const node = getNode(nodeNum);
+  const node = useNodeDB((s) => s.getNode(nodeNum));
 
   if (!nodeNum) {
     return null;
@@ -40,14 +40,21 @@ export const Avatar = ({
     lg: "size-16 text-lg",
   };
 
-  const shortName = node?.user?.shortName ?? "";
-  const longName = node?.user?.longName ?? "";
-  const displayName = shortName || longName;
+  // Per le regole UI: Avatar mostra sempre lo shortName; se mancante, mostra ultime 4 cifre di nameHex.
+  // Non mostrare mai il longName troncato qui.
+  const shortName = getNodeShortName(node);
+  let displayName = shortName;
+  if (!displayName) {
+    const nameHex =
+      (node?.user as unknown as { nameHex?: string })?.nameHex ??
+      (node as unknown as { nameHex?: string })?.nameHex;
+    if (nameHex && nameHex.length >= 4) displayName = nameHex.slice(-4).toUpperCase();
+  }
 
   const bgColor = getColorFromNodeNum(nodeNum);
   const isLight = isLightColor(bgColor);
   const textColor = isLight ? "#000000" : "#FFFFFF";
-  const initials = displayName.slice(0, 4) || t("unknown.shortName");
+  const initials = displayName ? displayName.slice(0, 4) : t("unknown.shortName");
 
   return (
     <div

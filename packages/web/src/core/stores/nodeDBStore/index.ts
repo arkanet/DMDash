@@ -404,6 +404,16 @@ function nodeDBFactory(
           }
           const existingNode = nodeDB.nodeMap.get(data.from);
           const nowSec = Math.floor(Date.now() / 1000); // lastHeard is in seconds(!)
+
+          // Helpers for validation
+          const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
+            nodeDB.setNodeError(nodeNum, err);
+          };
+          const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
+            const arr = Array.from(nodeDB.nodeMap.values());
+            return filter ? arr.filter(filter) : arr;
+          };
+
           if (existingNode) {
             const updated: NodeInfoWithRx = {
               ...existingNode,
@@ -413,7 +423,17 @@ function nodeDBFactory(
               rxRssi: data.rxRssi != null ? data.rxRssi : (existingNode as NodeInfoWithRx).rxRssi,
             };
 
-            nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(data.from, updated);
+            const next = validateIncomingNode(
+              updated as Protobuf.Mesh.NodeInfo,
+              setNodeErrorProxy,
+              getNodesProxy,
+            );
+            if (!next) {
+              // validation rejected the update; don't modify store
+              return;
+            }
+
+            nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(data.from, next as Protobuf.Mesh.NodeInfo);
           } else {
             // create a minimal NodeInfo message via the protobuf helper so it has the required $typeName
             const createdMsg = create(Protobuf.Mesh.NodeInfoSchema, {
@@ -426,10 +446,16 @@ function nodeDBFactory(
               (createdMsg as unknown as NodeInfoWithRx).rxRssi = data.rxRssi;
             }
 
-            nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(
-              data.from,
+            const next = validateIncomingNode(
               createdMsg as Protobuf.Mesh.NodeInfo,
+              setNodeErrorProxy,
+              getNodesProxy,
             );
+            if (!next) {
+              return;
+            }
+
+            nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(data.from, next as Protobuf.Mesh.NodeInfo);
           }
         }),
       );
@@ -477,7 +503,28 @@ function nodeDBFactory(
                 : baseNode.deviceMetrics,
           };
 
-          nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(telemetry.from, updatedNode);
+          // validation helpers
+          const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
+            nodeDB.setNodeError(nodeNum, err);
+          };
+          const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
+            const arr = Array.from(nodeDB.nodeMap.values());
+            return filter ? arr.filter(filter) : arr;
+          };
+
+          const next = validateIncomingNode(
+            updatedNode as Protobuf.Mesh.NodeInfo,
+            setNodeErrorProxy,
+            getNodesProxy,
+          );
+          if (!next) {
+            return;
+          }
+
+          nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(
+            telemetry.from,
+            next as Protobuf.Mesh.NodeInfo,
+          );
 
           if (telemetry.data.variant.case === "environmentMetrics") {
             nodeDB.environmentMetricsMap = new Map(nodeDB.environmentMetricsMap).set(
@@ -514,7 +561,23 @@ function nodeDBFactory(
             user: user.data,
             num: user.from,
           };
-          nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(user.from, updated);
+
+          const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
+            nodeDB.setNodeError(nodeNum, err);
+          };
+          const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
+            const arr = Array.from(nodeDB.nodeMap.values());
+            return filter ? arr.filter(filter) : arr;
+          };
+
+          const next = validateIncomingNode(
+            updated as Protobuf.Mesh.NodeInfo,
+            setNodeErrorProxy,
+            getNodesProxy,
+          );
+          if (!next) return;
+
+          nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(user.from, next as Protobuf.Mesh.NodeInfo);
 
           if (isNew) {
             console.log(
@@ -550,7 +613,26 @@ function nodeDBFactory(
             position: position.data,
             num: position.from,
           };
-          nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(position.from, updated);
+
+          const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
+            nodeDB.setNodeError(nodeNum, err);
+          };
+          const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
+            const arr = Array.from(nodeDB.nodeMap.values());
+            return filter ? arr.filter(filter) : arr;
+          };
+
+          const next = validateIncomingNode(
+            updated as Protobuf.Mesh.NodeInfo,
+            setNodeErrorProxy,
+            getNodesProxy,
+          );
+          if (!next) return;
+
+          nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(
+            position.from,
+            next as Protobuf.Mesh.NodeInfo,
+          );
 
           if (isNew) {
             console.log(`[NodeDB] Adding new node from position packet: ${position.from}`);

@@ -1,7 +1,8 @@
 import { useNodeDB } from "@core/stores";
 import type { Protobuf, Types } from "@meshtastic/core";
-import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useTranslation } from "react-i18next";
+import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils";
+import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import {
   Dialog,
   DialogClose,
@@ -26,11 +27,10 @@ export const LocationResponseDialog = ({
   const { getNode } = useNodeDB();
 
   const from = getNode(location?.from ?? 0);
-  const longName =
-    from?.user?.longName ?? (from ? `!${numberToHexUnpadded(from?.num)}` : t("unknown.shortName"));
-  const shortName =
-    from?.user?.shortName ??
-    (from ? `${numberToHexUnpadded(from?.num).substring(0, 4)}` : t("unknown.shortName"));
+  const longName = from
+    ? (getNodeLongName(from) ?? `!${numberToHexUnpadded(from.num).toUpperCase()}`)
+    : t("unknown.longName");
+  const shortName = getNodeShortName(from) ?? t("unknown.shortName");
 
   const position = location?.data;
 

@@ -1,5 +1,6 @@
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { Protobuf, Types } from "@meshtastic/core";
+import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 
 export type DarkMeshChatKind = "broadcast" | "direct";
 
@@ -36,11 +37,38 @@ export function getNodeDisplayName(
   if (node?.user?.longName) {
     return node.user.longName;
   }
-  if (node?.user?.shortName) {
-    return node.user.shortName;
-  }
+  const short = getNodeShortName(node);
+  if (short) return short;
   const fallback = node?.num ?? fallbackNum;
-  return fallback !== undefined ? `!${fallback.toString(16).toUpperCase()}` : "Unknown node";
+  return fallback !== undefined
+    ? numberToHexUnpadded(fallback).slice(-4).toUpperCase()
+    : "Unknown node";
+}
+
+export function getNodeShortName(
+  node?: Pick<Protobuf.Mesh.NodeInfo, "num" | "user">,
+): string | undefined {
+  const sn = node?.user?.shortName;
+  if (sn && sn.trim().length > 0 && sn !== "UNK") return sn;
+  // Prefer nameHex from user, then top-level node.nameHex, then derive from numeric node.num
+  const nameHexFromUser = (node?.user as unknown as { nameHex?: string })?.nameHex;
+  const nameHexTop = (node as unknown as { nameHex?: string })?.nameHex;
+  const nameHex = nameHexFromUser ?? nameHexTop;
+  if (nameHex && nameHex.length >= 4) return nameHex.slice(-4).toUpperCase();
+  if (node?.num !== undefined) return numberToHexUnpadded(node.num).slice(-4).toUpperCase();
+  return undefined;
+}
+
+export function getNodeLongName(
+  node?: Pick<Protobuf.Mesh.NodeInfo, "num" | "user">,
+): string | undefined {
+  if (node?.user?.longName) return node.user.longName;
+  const nameHexFromUser = (node?.user as unknown as { nameHex?: string })?.nameHex;
+  const nameHexTop = (node as unknown as { nameHex?: string })?.nameHex;
+  const nameHex = nameHexFromUser ?? nameHexTop;
+  if (nameHex && nameHex.length > 0) return nameHex.toUpperCase();
+  if (node?.num !== undefined) return `!${numberToHexUnpadded(node.num).toUpperCase()}`;
+  return undefined;
 }
 
 export function resolveDestination(

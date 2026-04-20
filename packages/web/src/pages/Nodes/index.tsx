@@ -13,6 +13,7 @@ import { Input } from "@components/UI/Input.tsx";
 import useLang from "@core/hooks/useLang.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import { Protobuf, type Types } from "@meshtastic/core";
+import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { LockIcon, LockOpenIcon } from "lucide-react";
 import { type JSX, useCallback, useDeferredValue, useEffect, useState } from "react";
@@ -134,12 +135,12 @@ const NodesPage = (): JSX.Element => {
         .match(/.{1,2}/g)
         ?.join(":") ?? t("unknown.shortName");
 
-    const shortName = node.user?.shortName ?? numberToHexUnpadded(node.num).slice(-4).toUpperCase();
+    const shortName =
+      getNodeShortName(node) ??
+      (node ? `!${numberToHexUnpadded(node.num).toUpperCase()}` : t("unknown.shortName"));
     const longName =
-      node.user?.longName ??
-      t("fallbackName", {
-        last4: shortName,
-      });
+      getNodeLongName(node) ??
+      (node ? `!${numberToHexUnpadded(node.num).toUpperCase()}` : t("unknown.longName"));
 
     // precompute small-spark values for SNR/RSSI mini-graphs using Gateway thresholds
     const snrSpan = Math.abs(SNR_GOOD_THRESHOLD - SNR_FAIR_THRESHOLD) || 8;

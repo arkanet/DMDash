@@ -8,7 +8,7 @@ import { defaultBeaconConfig, defaultHuntConfig, useDarkMeshStore } from "./stor
 import {
   buildDistressMessage,
   computeNextRunAt,
-  getNodeDisplayName,
+  getNodeLongName,
   resolveDestination,
   resolveRelayCandidate,
 } from "./utils.ts";
@@ -166,7 +166,7 @@ export function DarkMeshRuntime() {
 
         useDarkMeshStore.getState().setGateway(selectedDeviceId, {
           nodeNum: directNode.num,
-          nodeName: getNodeDisplayName(directNode, directNode.num),
+          nodeName: getNodeLongName(directNode) ?? String(directNode?.num ?? ""),
           source: "direct",
           confidence: 100,
           observedAt: Date.now(),
@@ -190,7 +190,7 @@ export function DarkMeshRuntime() {
 
         useDarkMeshStore.getState().setGateway(selectedDeviceId, {
           nodeNum: relayCandidate.node.num,
-          nodeName: getNodeDisplayName(relayCandidate.node, relayCandidate.node.num),
+          nodeName: getNodeLongName(relayCandidate.node) ?? String(relayCandidate.node?.num ?? ""),
           source: "relay",
           confidence: relayCandidate.confidence,
           observedAt: Date.now(),
@@ -220,7 +220,7 @@ export function DarkMeshRuntime() {
 
       useDarkMeshStore.getState().setGateway(selectedDeviceId, {
         nodeNum: hopNode.num,
-        nodeName: getNodeDisplayName(hopNode, hopNode.num),
+        nodeName: getNodeLongName(hopNode) ?? String(hopNode?.num ?? ""),
         source: "traceroute",
         confidence: traceroute.data.route.length > 1 ? 84 : 92,
         observedAt: Date.now(),

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { filterNodesByQuery, highlightMatch } from "@core/utils/filterNodes.ts";
+import type { Protobuf } from "@meshtastic/core";
+import { getNodeShortName } from "@app/darkmesh/utils.ts";
 
 export type NodeOption = {
   num: number;
@@ -38,10 +40,13 @@ export default function NodeSelector({
   }, []);
 
   const filtered = useMemo(() => {
-    const mapped = nodes.map((n) => ({
-      num: n.num,
-      user: { shortName: n.shortName, longName: n.longName },
-    }));
+    const mapped = nodes.map(
+      (n) =>
+        ({ num: n.num, user: { shortName: n.shortName, longName: n.longName } }) as unknown as Pick<
+          Protobuf.Mesh.NodeInfo,
+          "user" | "num"
+        >,
+    );
     return filterNodesByQuery(mapped, debouncedFilter);
   }, [nodes, debouncedFilter]);
 
@@ -61,7 +66,7 @@ export default function NodeSelector({
   const selectedLabel = (() => {
     if (!value) return undefined;
     const sel = nodes.find((n) => n.num === value);
-    return sel ? (sel.shortName ?? `!${sel.num}`) : undefined;
+    return sel ? (getNodeShortName(sel) ?? `!${sel.num}`) : undefined;
   })();
 
   return (
@@ -75,8 +80,16 @@ export default function NodeSelector({
           onFocus={() => setShowDropdown(true)}
         />
         <div
+          role="button"
+          tabIndex={0}
           className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm flex items-center dark:border-zinc-700 dark:bg-zinc-900 cursor-pointer"
           onClick={() => setShowDropdown((s) => !s)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setShowDropdown((s) => !s);
+            }
+          }}
         >
           <div className="truncate">{selectedLabel ?? "-- choose node --"}</div>
         </div>
@@ -90,16 +103,25 @@ export default function NodeSelector({
           {filtered.map((n) => (
             <div
               key={n.num}
+              role="option"
+              tabIndex={0}
               className="px-3 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
               onMouseDown={(e) => {
                 e.preventDefault();
                 onChange(n.num);
                 setShowDropdown(false);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onChange(n.num);
+                  setShowDropdown(false);
+                }
+              }}
             >
               <div className="flex flex-col">
                 <div className="truncate">
-                  {renderHighlighted(n.user?.shortName ?? `!${n.num}`, debouncedFilter)}
+                  {renderHighlighted(getNodeShortName(n) ?? `!${n.num}`, debouncedFilter)}
                   <span className="text-xs text-text-secondary"> {` (${n.num}) `}</span>
                 </div>
                 <div className="text-xs text-text-secondary">

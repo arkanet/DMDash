@@ -15,6 +15,8 @@ import {
   UserLockIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
+import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 
 interface WaypointDetailProps {
   waypoint: WaypointWithMetadata;
@@ -166,7 +168,18 @@ export const WaypointDetail = ({ waypoint, myNode }: WaypointDetailProps) => {
                 <span className="truncate">{t("waypointDetail.lockedTo")}</span>
               </dt>
               <dd className="ms-auto text-right">
-                {getNode(waypoint.lockedTo)?.user?.longName ?? t("unknown.longName")}
+                {(() => {
+                  const n = getNode(waypoint.lockedTo);
+                  const long = n ? getNodeLongName(n) : undefined;
+                  if (long) return long;
+                  try {
+                    return n
+                      ? `!${numberToHexUnpadded(n.num).toUpperCase()}`
+                      : t("unknown.longName");
+                  } catch {
+                    return t("unknown.longName");
+                  }
+                })()}
               </dd>
             </div>
           )}

@@ -37,6 +37,8 @@ import {
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
+import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 
 export interface Group {
   id: string;
@@ -115,7 +117,16 @@ export const CommandPalette = () => {
           label: t("manage.command.switchNode"),
           icon: ArrowLeftRightIcon,
           subItems: getDevices().map((device) => ({
-            label: getNode(device.hardware.myNodeNum)?.user?.longName ?? t("unknown.shortName"),
+            label: (() => {
+              const n = getNode(device.hardware.myNodeNum);
+              const long = n ? getNodeLongName(n) : undefined;
+              if (long) return long;
+              try {
+                return `!${numberToHexUnpadded(device.hardware.myNodeNum).toUpperCase()}`;
+              } catch {
+                return t("unknown.shortName");
+              }
+            })(),
             icon: <Avatar nodeNum={device.hardware.myNodeNum} />,
             action() {
               setSelectedDevice(device.id);

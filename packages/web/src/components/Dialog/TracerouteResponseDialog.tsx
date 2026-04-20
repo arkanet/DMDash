@@ -2,6 +2,7 @@ import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { Button } from "@components/UI/Button.tsx";
 import { useNodeDB } from "@core/stores";
 import type { Protobuf, Types } from "@meshtastic/core";
+import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -38,11 +39,10 @@ export const TracerouteResponseDialog = ({
   const snrTowards = (traceroute?.data.snrTowards ?? []).map((snr) => snr / 4);
   const snrBack = (traceroute?.data.snrBack ?? []).map((snr) => snr / 4);
   const from = getNode(traceroute?.to ?? 0); // The origin of the traceroute = the "to" node of the mesh packet
-  const fromLongName =
-    from?.user?.longName ?? (from ? `!${numberToHexUnpadded(from?.num)}` : t("unknown.shortName"));
-  const fromShortName =
-    from?.user?.shortName ??
-    (from ? `${numberToHexUnpadded(from?.num).substring(0, 4)}` : t("unknown.shortName"));
+  const fromLongName = from
+    ? (getNodeLongName(from) ?? `!${numberToHexUnpadded(from.num).toUpperCase()}`)
+    : t("unknown.longName");
+  const fromShortName = getNodeShortName(from) ?? t("unknown.shortName");
 
   const toUser = getNode(traceroute?.from ?? 0); // The destination of the traceroute = the "from" node of the mesh packet
 

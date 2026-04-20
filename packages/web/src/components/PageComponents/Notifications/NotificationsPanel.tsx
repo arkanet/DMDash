@@ -1,9 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
+import { Protobuf } from "@meshtastic/core";
 import { useNotifications } from "@core/hooks/useNotifications.ts";
 import NotificationItem from "./NotificationItem";
 import { useNodeDB } from "@core/stores";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { filterNodesByQuery } from "@core/utils/filterNodes.ts";
+import { useTranslation } from "react-i18next";
+import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils";
 // using select + filter UI (like Scheduled Messages)
 
 export function NotificationsPanel() {
@@ -14,13 +17,15 @@ export function NotificationsPanel() {
   const currentCfg = useNotificationsStore((s) => s.config);
   const [filter, setFilter] = useState<"all" | "unseen">("all");
 
+  const { t } = useTranslation();
+
   const nodeOptions = nodes
     .filter((n) => Boolean(n))
     .sort((l, r) => (r.lastHeard ?? 0) - (l.lastHeard ?? 0))
     .map((n) => ({
       num: n.num,
-      shortName: n.user?.shortName,
-      longName: n.user?.longName,
+      shortName: getNodeShortName(n as Protobuf.Mesh.NodeInfo),
+      longName: getNodeLongName(n as Protobuf.Mesh.NodeInfo),
       nameHex:
         (n.user as unknown as { nameHex?: string })?.nameHex ??
         (n as unknown as { nameHex?: string })?.nameHex,
@@ -56,7 +61,7 @@ export function NotificationsPanel() {
     if (!q) return;
     const nodesForFilter = nodeOptions.map((o) => ({
       num: o.num,
-      user: { shortName: o.shortName, longName: o.longName },
+      user: { shortName: o.shortName, longName: o.longName, nameHex: o.nameHex },
     }));
     const matched = filterNodesByQuery(nodesForFilter, q) as { num: number }[];
     if (matched.length === 1) {
@@ -159,7 +164,9 @@ export function NotificationsPanel() {
                     // Use the same immediate filtering semantics as the Distress Beacon
                     const q = notifNodeFilter?.trim();
                     const direct = nodeOptions.map((n) => ({
-                      label: n.shortName ?? `!${n.num}`,
+                      label:
+                        n.shortName ??
+                        (n.nameHex ? `!${n.nameHex.toUpperCase()}` : t("unknown.shortName")),
                       value: `direct:${n.num}`,
                     }));
                     if (!q)
@@ -201,9 +208,12 @@ export function NotificationsPanel() {
             <span className="ml-1">Enable low battery notifications</span>
           </label>
           <div className="md:col-span-1">
-            <label className="block text-xs text-text-secondary">Battery % threshold</label>
+            <label htmlFor="battery-threshold" className="block text-xs text-text-secondary">
+              Battery % threshold
+            </label>
             <input
               type="number"
+              id="battery-threshold"
               min={0}
               max={100}
               value={batteryCfg.batteryPercentThreshold}
@@ -215,8 +225,11 @@ export function NotificationsPanel() {
           </div>
 
           <div className="md:col-span-1">
-            <label className="block text-xs text-text-secondary">Voltage threshold (V)</label>
+            <label htmlFor="voltage-threshold" className="block text-xs text-text-secondary">
+              Voltage threshold (V)
+            </label>
             <input
+              id="voltage-threshold"
               type="number"
               min={0}
               step={0.01}

@@ -24,6 +24,8 @@ import { useDeviceContext } from "@core/hooks/useDeviceContext";
 import { cn } from "@core/utils/cn.ts";
 import { randId } from "@core/utils/randId.ts";
 import { Protobuf, Types, Constants } from "@meshtastic/core";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
+import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { HashIcon, LockIcon, LockOpenIcon } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
@@ -373,7 +375,15 @@ export const MessagesPage = () => {
           <SidebarButton
             key={node.num}
             preventCollapse
-            label={node.user?.longName ?? t("unknown.shortName")}
+            label={((): string => {
+              const long = getNodeLongName(node);
+              if (long) return long;
+              try {
+                return `!${numberToHexUnpadded(node.num).toUpperCase()}`;
+              } catch {
+                return t("unknown.shortName");
+              }
+            })()}
             count={node.unreadCount > 0 ? node.unreadCount : undefined}
             active={numericChatId === node.num && chatType === MessageType.Direct}
             onClick={() => {
@@ -407,7 +417,8 @@ export const MessagesPage = () => {
           isBroadcast && currentChannel
             ? getChannelName(currentChannel)
             : isDirect && otherNode
-              ? (otherNode.user?.longName ?? t("unknown.longName"))
+              ? (getNodeLongName(otherNode) ??
+                `!${numberToHexUnpadded(otherNode.num).toUpperCase()}`)
               : t("emptyState.title"),
       })} 
       `}

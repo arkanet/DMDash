@@ -5,7 +5,7 @@ import { Button } from "@components/UI/Button.tsx";
 import useTracerouteStore, { StoredRouteDiscovery } from "@core/stores/tracerouteStore";
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { useNodeDB } from "@core/stores";
-import { getNodeDisplayName } from "@app/darkmesh/utils";
+import { getNodeLongName } from "@app/darkmesh/utils";
 import { useNavigate } from "@tanstack/react-router";
 
 export default function TraceroutePanel() {
@@ -70,7 +70,7 @@ export default function TraceroutePanel() {
                   <div className="font-medium">
                     From {(() => {
                       const n = getNode(t.from as number);
-                      return n ? getNodeDisplayName(n, n.num) : t.from;
+                      return n ? (getNodeLongName(n) ?? t.from) : t.from;
                     })()} • {new Date(t.rxTime).toLocaleString()}
                   </div>
                   <div className="text-xs text-slate-600 dark:text-zinc-400">
@@ -78,7 +78,7 @@ export default function TraceroutePanel() {
                     {((t.data?.route ?? []) as number[]).map((num, idx) => {
                       const n = getNode(num);
                       return (
-                        (n ? getNodeDisplayName(n, n.num) : String(num)) +
+                        (n ? (getNodeLongName(n) ?? String(num)) : String(num)) +
                         (idx < ((t.data?.route ?? []) as number[]).length - 1 ? " → " : "")
                       );
                     })}

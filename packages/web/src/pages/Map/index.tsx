@@ -21,7 +21,7 @@ import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
 import { Button } from "@components/UI/Button.tsx";
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
-import { distanceKm, getNodeDisplayName } from "@app/darkmesh/utils.ts";
+import { distanceKm, getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
 import { useMapFitting } from "@core/hooks/useMapFitting.ts";
 import { useDevice, useNodeDB } from "@core/stores";
 import { useToast } from "@core/hooks/useToast.ts";
@@ -180,8 +180,8 @@ const MapPage: React.FC = () => {
               to: b,
               tracerouteFrom: tr.from,
               tracerouteTo: tr.to,
-              name: nodeA.user?.longName ?? null,
-              shortName: nodeA.user?.shortName ?? null,
+              name: getNodeLongName(nodeA) ?? null,
+              shortName: getNodeShortName(nodeA) ?? null,
               lengthKm: distanceKm(
                 { latitude: latA, longitude: lngA },
                 { latitude: latB, longitude: lngB },
@@ -226,8 +226,8 @@ const MapPage: React.FC = () => {
               to: b,
               tracerouteFrom: tr.from,
               tracerouteTo: tr.to,
-              name: nodeA.user?.longName ?? null,
-              shortName: nodeA.user?.shortName ?? null,
+              name: getNodeLongName(nodeA) ?? null,
+              shortName: getNodeShortName(nodeA) ?? null,
               lengthKm: distanceKm(
                 { latitude: latA2, longitude: lngA2 },
                 { latitude: latB2, longitude: lngB2 },
@@ -592,17 +592,17 @@ const MapPage: React.FC = () => {
           const fromNode = fromNum ? getNode(fromNum) : undefined;
           const toNode = toNum ? getNode(toNum) : undefined;
           const fromName = fromNode
-            ? getNodeDisplayName(fromNode, fromNum!)
+            ? (getNodeLongName(fromNode) ?? undefined)
             : fromNum
-              ? String(fromNum)
+              ? undefined
               : undefined;
           const toName = toNode
-            ? getNodeDisplayName(toNode, toNum!)
+            ? (getNodeLongName(toNode) ?? undefined)
             : toNum
-              ? String(toNum)
+              ? undefined
               : undefined;
-          const fromShort = fromNode?.user?.shortName ?? undefined;
-          const toShort = toNode?.user?.shortName ?? undefined;
+          const fromShort = getNodeShortName(fromNode) ?? undefined;
+          const toShort = getNodeShortName(toNode) ?? undefined;
           const lengthKm = (props.lengthKm ?? props.length) as number | undefined;
           setClickedLink({
             pos: { x: event.point.x, y: event.point.y },
@@ -726,8 +726,8 @@ const MapPage: React.FC = () => {
       trace: selectedTraceRoute,
       involvedNodes,
       involvedNodeNums: new Set(involvedNodes.map((node) => node.num)),
-      sourceLabel: getNodeDisplayName(sourceNode, sourceNode.num),
-      destinationLabel: getNodeDisplayName(destinationNode, destinationNode.num),
+      sourceLabel: getNodeLongName(sourceNode) ?? undefined,
+      destinationLabel: getNodeLongName(destinationNode) ?? undefined,
       totalDistance: pathDistanceKm(forwardCoordinates) + pathDistanceKm(backwardCoordinates),
       featureCollection: {
         type: "FeatureCollection" as const,
@@ -791,8 +791,8 @@ const MapPage: React.FC = () => {
               properties: {
                 role: "node",
                 nodeNum: n.num,
-                name: n.user?.longName ?? null,
-                shortName: n.user?.shortName ?? null,
+                name: getNodeLongName(n) ?? null,
+                shortName: getNodeShortName(n) ?? null,
               },
               geometry: {
                 type: "Point" as const,
@@ -1071,7 +1071,7 @@ const MapPage: React.FC = () => {
                 <div className="font-semibold">Waiting for traceroute response</div>
                 <div className="mt-2 text-[0.75rem] text-zinc-400">
                   {pendingTraceRouteNode
-                    ? getNodeDisplayName(pendingTraceRouteNode, pendingTraceRouteNode.num)
+                    ? (getNodeLongName(pendingTraceRouteNode) ?? undefined)
                     : `!${numberToHexUnpadded(pendingTraceRouteTarget ?? 0).toUpperCase()}`}
                 </div>
                 <div className="mt-4 flex gap-3">

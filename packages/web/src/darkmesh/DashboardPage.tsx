@@ -28,6 +28,7 @@ import {
   buildDmdbContents,
   createNodeInfoFromSharedContact,
   getNodeDisplayName,
+  getNodeLongName,
   parseDmdbContents,
 } from "./utils.ts";
 import { hasPos } from "@core/utils/geo.ts";
@@ -145,7 +146,7 @@ const DarkMeshDashboardPage = () => {
         .filter((node) => Boolean(node.user))
         .sort((left, right) => (right.lastHeard ?? 0) - (left.lastHeard ?? 0))
         .map((node) => ({
-          label: getNodeDisplayName(node, node.num),
+          label: getNodeLongName(node) ?? undefined,
           value: encodeDestinationValue("direct", node.num),
         })),
     [nodes],

@@ -17,6 +17,8 @@ import { hasPos, toLngLat } from "@core/utils/geo.ts";
 import type { Protobuf } from "@meshtastic/core";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
+import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import type { MapRef } from "react-map-gl/maplibre";
 
 export interface NodeMarkerProps {
@@ -86,8 +88,8 @@ export const NodesLayer = ({
           lng={lng}
           lat={lat}
           offset={expandedOffsets?.[i]}
-          label={node.user?.shortName ?? t("unknown.shortName")}
-          tooltipLabel={node.user?.longName ?? t("unknown.longName")}
+          label={getNodeShortName(node)}
+          tooltipLabel={getNodeLongName(node) ?? `!${numberToHexUnpadded(node.num).toUpperCase()}`}
           hasError={hasNodeError(node.num)}
           isFavorite={node.isFavorite ?? false}
           avatarClassName={getNodeMarkerClassName?.(node)}
@@ -159,7 +161,7 @@ export const NodesLayer = ({
         id={myNode.num}
         lng={lng}
         lat={lat}
-        label={myNode.user?.shortName?.toString() ?? String(myNode.num)}
+        label={getNodeShortName(myNode) ?? String(myNode.num)}
         tooltipLabel={t("myNode.tooltip")}
         hasError={false}
         isFavorite={true}

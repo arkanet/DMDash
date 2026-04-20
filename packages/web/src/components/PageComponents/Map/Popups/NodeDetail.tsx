@@ -44,6 +44,8 @@ import {
 } from "@radix-ui/react-tooltip";
 import { useNavigate } from "@tanstack/react-router";
 import { fromByteArray } from "base64-js";
+import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
+import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import {
   BarChart2,
   LockIcon,
@@ -82,7 +84,7 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>("");
 
-  const name = node.user?.longName ?? t("unknown.shortName");
+  const name = getNodeLongName(node) ?? `!${numberToHexUnpadded(node.num)}`;
 
   function findValidUrlInText(text: string) {
     const tokens = text.split(/\s+/);
@@ -530,7 +532,9 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
               )}
 
               <div className="flex flex-wrap gap-2 items-center">
-                {node.user?.shortName && <div>"{node.user.shortName}"</div>}
+                {(getNodeShortName(node) ?? node.user?.shortName) && (
+                  <div>"{getNodeShortName(node) ?? node.user?.shortName}"</div>
+                )}
                 {node.user?.id && <div>{node.user.id}</div>}
               </div>
 

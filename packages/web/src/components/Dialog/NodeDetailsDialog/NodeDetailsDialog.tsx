@@ -61,7 +61,11 @@ import { Input } from "@components/UI/Input.tsx";
 import { Checkbox } from "@components/UI/Checkbox/index.tsx";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { QRCode } from "react-qrcode-logo";
-import { buildSharedContactUrl } from "../../../darkmesh/utils.ts";
+import {
+  buildSharedContactUrl,
+  getNodeShortName,
+  getNodeLongName,
+} from "../../../darkmesh/utils.ts";
 import NodeMetricsChart from "@components/NodeMetricsChart.tsx";
 import NodeSignalChart from "@components/NodeSignalChart.tsx";
 import { useEffect, useState } from "react";
@@ -129,6 +133,7 @@ export const NodeDetailsDialog = ({
   }
 
   const currentNode = nodeForRender;
+  const computedShortName = getNodeShortName(currentNode) ?? t("unknown.shortName");
   const neighborInfo = getNeighborInfo(currentNode?.num ?? effectiveNodeNum);
 
   function handleDirectMessage() {
@@ -369,14 +374,14 @@ export const NodeDetailsDialog = ({
                         {linkText}
                       </a>
                       {after}
-                      {` (${currentNode.user?.shortName ?? t("unknown.shortName")})`}
+                      {` (${computedShortName})`}
                     </span>
                   );
                 }
 
                 return (
                   <span>
-                    {`${currentNode.user?.longName ?? t("unknown.shortName")} (${currentNode.user?.shortName ?? t("unknown.shortName")})`}
+                    {`${getNodeLongName(currentNode) ?? `!${numberToHexUnpadded(currentNode.num).toUpperCase()}`} (${computedShortName})`}
                   </span>
                 );
               })()}

@@ -290,11 +290,11 @@ export const SNRTooltip = ({
           <>
             <div>
               SNR from {fromShort ?? from ?? "A"}:{" "}
-              <Mono>{snrA !== undefined ? snrA.toFixed(2) : t("unknown.shortName")}</Mono> dB
+              <Mono>{snrA !== undefined ? snrA.toFixed(2) : t("unknown.num")}</Mono> dB
             </div>
             <div>
               SNR to {toShort ?? to ?? "B"}:{" "}
-              <Mono>{snrB !== undefined ? snrB.toFixed(2) : t("unknown.shortName")}</Mono> dB
+              <Mono>{snrB !== undefined ? snrB.toFixed(2) : t("unknown.num")}</Mono> dB
             </div>
           </>
         )}

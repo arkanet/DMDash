@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from "@components/UI/Dialog.tsx";
 import { useDevice, useNodeDB } from "@core/stores";
+import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
+import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { fromByteArray } from "base64-js";
 import { DownloadIcon, PrinterIcon } from "lucide-react";
 import React from "react";
@@ -23,6 +25,13 @@ export const PkiBackupDialog = ({ open, onOpenChange }: PkiBackupDialogProps) =>
   const { t } = useTranslation("dialog");
   const { config, setDialogOpen } = useDevice();
   const { getMyNode } = useNodeDB();
+  const myNode = getMyNode();
+  const myShortName = myNode
+    ? (getNodeShortName(myNode) ?? `!${numberToHexUnpadded(myNode.num).toUpperCase()}`)
+    : t("unknown.shortName");
+  const myLongName = myNode
+    ? (getNodeLongName(myNode) ?? `!${numberToHexUnpadded(myNode.num).toUpperCase()}`)
+    : t("unknown.longName");
   const privateKey = config.security?.privateKey;
   const publicKey = config.security?.publicKey;
 
@@ -49,8 +58,8 @@ export const PkiBackupDialog = ({ open, onOpenChange }: PkiBackupDialogProps) =>
           <head>
             <title>${t("pkiBackup.header", {
               interpolation: { escapeValue: false },
-              shortName: getMyNode()?.user?.shortName ?? t("unknown.shortName"),
-              longName: getMyNode()?.user?.longName ?? t("unknown.longName"),
+              shortName: myShortName,
+              longName: myLongName,
             })}</title>
             <style>
               body { font-family: Arial, sans-serif; padding: 20px; }
@@ -59,11 +68,7 @@ export const PkiBackupDialog = ({ open, onOpenChange }: PkiBackupDialogProps) =>
             </style>
           </head>
           <body>
-            <h1>${t("pkiBackup.header", {
-              interpolation: { escapeValue: false },
-              shortName: getMyNode()?.user?.shortName ?? t("unknown.shortName"),
-              longName: getMyNode()?.user?.longName ?? t("unknown.longName"),
-            })}</h1>
+            <h1>${t("pkiBackup.header", { interpolation: { escapeValue: false }, shortName: myShortName, longName: myLongName })}</h1>
             <h3>${t("pkiBackup.secureBackup")}</h3>
             <h3>${t("pkiBackup.publicKey")}</h3>
             <p>${decodeKeyData(publicKey)}</p>
@@ -77,7 +82,7 @@ export const PkiBackupDialog = ({ open, onOpenChange }: PkiBackupDialogProps) =>
       printWindow.print();
       closeDialog();
     }
-  }, [decodeKeyData, privateKey, publicKey, closeDialog, t, getMyNode]);
+  }, [decodeKeyData, privateKey, publicKey, closeDialog, t, myShortName, myLongName]);
 
   const createDownloadKeyFile = React.useCallback(() => {
     if (!privateKey || !publicKey) {
@@ -88,11 +93,7 @@ export const PkiBackupDialog = ({ open, onOpenChange }: PkiBackupDialogProps) =>
     const decodedPublicKey = decodeKeyData(publicKey);
 
     const formattedContent = [
-      `${t("pkiBackup.header", {
-        interpolation: { escapeValue: false },
-        shortName: getMyNode()?.user?.shortName ?? t("unknown.shortName"),
-        longName: getMyNode()?.user?.longName ?? t("unknown.longName"),
-      })}\n\n`,
+      `${t("pkiBackup.header", { interpolation: { escapeValue: false }, shortName: myShortName, longName: myLongName })}\n\n`,
       `${t("pkiBackup.privateKey")}\n`,
       decodedPrivateKey,
       `\n\n${t("pkiBackup.publicKey")}\n`,
@@ -107,8 +108,8 @@ export const PkiBackupDialog = ({ open, onOpenChange }: PkiBackupDialogProps) =>
     link.href = url;
     link.download = t("pkiBackup.fileName", {
       interpolation: { escapeValue: false },
-      shortName: getMyNode()?.user?.shortName ?? t("unknown.shortName"),
-      longName: getMyNode()?.user?.longName ?? t("unknown.longName"),
+      shortName: myShortName,
+      longName: myLongName,
     });
 
     link.style.display = "none";
@@ -117,7 +118,7 @@ export const PkiBackupDialog = ({ open, onOpenChange }: PkiBackupDialogProps) =>
     document.body.removeChild(link);
     closeDialog();
     URL.revokeObjectURL(url);
-  }, [decodeKeyData, privateKey, publicKey, closeDialog, t, getMyNode]);
+  }, [decodeKeyData, privateKey, publicKey, closeDialog, t, myShortName, myLongName]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
