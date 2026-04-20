@@ -134,44 +134,46 @@ export function NeighborInfoPanel({
             </button>
           </div>
 
-          <ul className="space-y-2">
-            {sortedNeighbors.map((neighbor) => {
-              const shortName =
-                getNode(neighbor.nodeId)?.user?.shortName ?? String(neighbor.nodeId);
-              const hex = `!${numberToHexUnpadded(neighbor.nodeId)}`;
-              const snr = typeof neighbor.snr === "number" ? neighbor.snr.toFixed(2) : "-";
+          <div className={cn(sortedNeighbors.length > 4 ? "max-h-40 overflow-y-auto" : "")}>
+            <ul className="space-y-2">
+              {sortedNeighbors.map((neighbor) => {
+                const shortName =
+                  getNode(neighbor.nodeId)?.user?.shortName ?? String(neighbor.nodeId);
+                const hex = `!${numberToHexUnpadded(neighbor.nodeId)}`;
+                const snr = typeof neighbor.snr === "number" ? neighbor.snr.toFixed(2) : "-";
 
-              return (
-                <li
-                  key={`${nodeNum}-${neighbor.nodeId}`}
-                  className="rounded-md bg-white/60 px-2 py-1 dark:bg-black/10"
-                >
-                  <div
-                    className={cn(
-                      "grid grid-cols-3 items-center gap-2",
-                      dense ? "text-[11px]" : "text-xs",
-                    )}
+                return (
+                  <li
+                    key={`${nodeNum}-${neighbor.nodeId}`}
+                    className="rounded-md bg-white/60 px-2 py-1 dark:bg-black/10"
                   >
-                    <button
-                      type="button"
-                      className="truncate text-left text-left"
-                      onClick={() => onOpenNode?.(neighbor.nodeId)}
+                    <div
+                      className={cn(
+                        "grid grid-cols-3 items-center gap-2",
+                        dense ? "text-[11px]" : "text-xs",
+                      )}
                     >
-                      {shortName}
-                    </button>
-                    <button
-                      type="button"
-                      className="text-center"
-                      onClick={() => onOpenNode?.(neighbor.nodeId)}
-                    >
-                      {hex}
-                    </button>
-                    <div className="text-right">{snr}</div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                      <button
+                        type="button"
+                        className="truncate text-left text-left"
+                        onClick={() => onOpenNode?.(neighbor.nodeId)}
+                      >
+                        {shortName}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-center"
+                        onClick={() => onOpenNode?.(neighbor.nodeId)}
+                      >
+                        {hex}
+                      </button>
+                      <div className="text-right">{snr}</div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       )}
     </div>
