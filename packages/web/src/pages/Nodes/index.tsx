@@ -13,7 +13,8 @@ import { Input } from "@components/UI/Input.tsx";
 import useLang from "@core/hooks/useLang.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import { Protobuf, type Types } from "@meshtastic/core";
-import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
+import { getNodeShortName, getNodeLongName, distanceKm } from "@app/darkmesh/utils.ts";
+import { hasPos, toLngLat } from "@core/utils/geo.ts";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { LockIcon, LockOpenIcon } from "lucide-react";
 import { type JSX, useCallback, useDeferredValue, useEffect, useState } from "react";
@@ -27,7 +28,7 @@ import {
   RSSI_GOOD_THRESHOLD,
   RSSI_FAIR_THRESHOLD,
 } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
-import { base16 } from "rfc4648";
+// removed unused base16 import (MAC column removed)
 
 const NODEDB_DEBOUNCE_MS = 250;
 
@@ -115,25 +116,23 @@ const NodesPage = (): JSX.Element => {
     };
   }, [connection, handleLocation]);
 
+  const nodeDB = useNodeDB();
+  const myNode = nodeDB.getNode ? nodeDB.getNode(hardware.myNodeNum) : undefined;
+
   const tableHeadings: Heading[] = [
     { title: "", sortable: false },
     { title: t("nodesTable.headings.longName"), sortable: true },
+    { title: t("nodesTable.headings.distance", "Distance"), sortable: true },
     { title: t("nodesTable.headings.connection"), sortable: true },
     { title: t("nodesTable.headings.lastHeard"), sortable: true },
     { title: t("nodesTable.headings.encryption"), sortable: false },
     { title: t("nodesTable.headings.role", "Role"), sortable: true },
     { title: t("nodesTable.headings.utilization", "Air/Ch Util"), sortable: true },
     { title: t("nodesTable.headings.snrRssi", "SNR RSSI"), sortable: true },
-    { title: t("nodesTable.headings.model"), sortable: true },
-    { title: t("nodesTable.headings.macAddress"), sortable: true },
   ];
 
   const tableRows: DataRow[] = filteredNodes.map((node) => {
-    const macAddress =
-      base16
-        .stringify(node.user?.macaddr ?? [])
-        .match(/.{1,2}/g)
-        ?.join(":") ?? t("unknown.shortName");
+    // MAC Address column removed — no client-side MAC formatting here
 
     const shortName =
       getNodeShortName(node) ??
@@ -180,6 +179,15 @@ const NodesPage = (): JSX.Element => {
       }
     }
 
+    // compute distance relative to local node when possible
+    const distanceVal: number | undefined =
+      myNode && hasPos(myNode.position) && hasPos(node.position)
+        ? distanceKm(
+            { latitude: toLngLat(myNode.position)[1], longitude: toLngLat(myNode.position)[0] },
+            { latitude: toLngLat(node.position)[1], longitude: toLngLat(node.position)[0] },
+          )
+        : undefined;
+
     return {
       id: node.num,
       isFavorite: node.isFavorite,
@@ -209,6 +217,19 @@ const NodesPage = (): JSX.Element => {
             </h1>
           ),
           sortValue: longName,
+        },
+        {
+          content: (
+            <div
+              style={{ width: "fit-content", maxWidth: "fit-content" }}
+              className="text-[0.75rem]"
+            >
+              {typeof distanceVal === "number"
+                ? `${distanceVal.toFixed(2)} km`
+                : t("unknown.shortName")}
+            </div>
+          ),
+          sortValue: typeof distanceVal === "number" ? distanceVal : Number.POSITIVE_INFINITY,
         },
         {
           content: (
@@ -359,27 +380,7 @@ const NodesPage = (): JSX.Element => {
           ),
           sortValue: node.snr,
         },
-        {
-          content: (
-            <div style={{ width: "fit-content", maxWidth: "fit-content" }}>
-              <Mono className="text-[0.65rem]">
-                {Protobuf.Mesh.HardwareModel[node.user?.hwModel ?? 0]}
-              </Mono>
-            </div>
-          ),
-          sortValue: Protobuf.Mesh.HardwareModel[node.user?.hwModel ?? 0] ?? "UNSET",
-        },
-        {
-          content: (
-            <div
-              style={{ width: "fit-content", maxWidth: "fit-content" }}
-              className="text-[0.75rem]"
-            >
-              <span className="font-mono text-[0.75rem] text-text-secondary">{macAddress}</span>
-            </div>
-          ),
-          sortValue: macAddress,
-        },
+        // Model and MAC columns intentionally removed — keep cells aligned with headings
       ],
     };
   });
