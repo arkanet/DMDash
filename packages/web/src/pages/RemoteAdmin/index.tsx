@@ -49,6 +49,7 @@ import { useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
 
 type RemoteAdminSection = "radio" | "device" | "module";
 type RemoteRadioTab = "lora" | "channels" | "security";
@@ -1208,8 +1209,8 @@ const RemoteAdminPage = () => {
   );
 
   const ActiveComponent = activeSection?.component;
-  const pageLabel = targetNode?.user?.longName
-    ? `${t("navigation.remoteAdmin", "Remote Admin")} · ${targetNode.user.longName}`
+  const pageLabel = getNodeLongName(targetNode)
+    ? `${t("navigation.remoteAdmin", "Remote Admin")} · ${getNodeLongName(targetNode)}`
     : `${t("navigation.remoteAdmin", "Remote Admin")} · ${nodeNum}`;
 
   return (

@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNodeDB, useDevice } from "@core/stores";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
 import {
   buildNodeMention,
   buildMentionId,
@@ -33,7 +34,7 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
     // (previously normalizedQueryMention was used for stricter matching; not needed for option B)
     return getNodes(undefined, true)
       .filter((n) => {
-        const longName = n.user?.longName ?? "";
+        const longName = getNodeLongName(n) ?? "";
         const shortName = n.user?.shortName ?? "";
         const mentionIdRaw = buildMentionId(n) ?? ""; // returns !HEX
         const mentionHex = mentionIdRaw.replace(/^!/, "").toLowerCase();
@@ -80,7 +81,7 @@ export const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
   const content = (
     <div className="rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-zinc-700 shadow-sm text-sm text-slate-700 dark:text-slate-200">
       {list.map((n) => {
-        const label = n.user?.longName || n.user?.shortName || buildNodeMention(n) || "Unknown";
+        const label = getNodeLongName(n) || n.user?.shortName || buildNodeMention(n) || "Unknown";
         const token = (
           buildNodeMention(n) || `@!${n.num.toString(16).padStart(8, "0")}`
         ).toLowerCase();

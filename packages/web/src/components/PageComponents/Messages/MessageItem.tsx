@@ -27,6 +27,7 @@ import { AlertCircle, CheckCircle2, CircleEllipsis, FileArchive } from "lucide-r
 import { Fragment, type ReactNode, useCallback, useMemo } from "react";
 import SwipeReplyMessage from "./SwipeReplyMessage";
 import { useTranslation } from "react-i18next";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
 
 // Cache for pending promises
 const myNodePromises = new Map<string, Promise<Protobuf.Mesh.NodeInfo>>();
@@ -180,7 +181,7 @@ export const MessageItem = ({
     const userIdHex = message.from.toString(16).toUpperCase().padStart(2, "0");
     const last4 = userIdHex.slice(-4);
     const fallbackName = t("fallbackName", { last4 });
-    const longName = messageUser?.user?.longName;
+    const longName = getNodeLongName(messageUser) ?? undefined;
     const derivedShortName = messageUser?.user?.shortName || fallbackName;
     const derivedDisplayName = longName || derivedShortName;
     const isFavorite = messageUser?.num !== myNodeNum && messageUser?.isFavorite;
@@ -228,8 +229,8 @@ export const MessageItem = ({
       }
 
       const senderNode = getNode(senderNodeNum);
-      if (senderNode?.user?.longName) {
-        return senderNode.user.longName;
+      if (getNodeLongName(senderNode)) {
+        return getNodeLongName(senderNode) as string;
       }
       if (senderNode?.user?.shortName) {
         return senderNode.user.shortName;
@@ -557,8 +558,8 @@ export const MessageItem = ({
 
                     const mentionedNode = mentionNodes.get(fragment.mentionId?.toUpperCase());
                     const mentionLabel =
-                      mentionedNode?.user?.longName ??
-                      mentionedNode?.user?.shortName ??
+                      getNodeLongName(mentionedNode as unknown as Protobuf.Mesh.NodeInfo) ||
+                      mentionedNode?.user?.shortName ||
                       fragment.mentionId;
 
                     if (!mentionedNode) {

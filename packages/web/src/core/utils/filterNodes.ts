@@ -7,11 +7,21 @@ export type NodeLike = {
   nodeID?: string | number | null;
 };
 
+import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
+
 export function filterNodesByQuery<T extends NodeLike>(nodes: T[], query: string): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return nodes;
   return nodes.filter((n) => {
-    const longName = (n.user?.longName ?? "").toLowerCase();
+    const rawLong =
+      n.user?.longName ??
+      (() => {
+        const nameHex = n.user?.nameHex ?? n.nameHex;
+        if (nameHex && nameHex.length > 0) return `Meshtastic ${nameHex.slice(-4)}`;
+        if (n.num !== undefined) return `Meshtastic ${numberToHexUnpadded(n.num).slice(-4)}`;
+        return "";
+      })();
+    const longName = rawLong.toLowerCase();
     const shortName = (n.user?.shortName ?? "").toLowerCase();
     const nameHex = (n.user?.nameHex ?? n.nameHex ?? "").toLowerCase();
     const nodeIdStr = String(n.nodeId ?? n.nodeID ?? n.num);

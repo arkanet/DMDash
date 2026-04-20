@@ -4,6 +4,7 @@ import type { Feature, FeatureCollection } from "geojson";
 import type { HeatmapLayerSpecification } from "maplibre-gl";
 import { useMemo } from "react";
 import { Layer, Source } from "react-map-gl/maplibre";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
 
 export type HeatmapMode = "density" | "snr";
 
@@ -26,7 +27,7 @@ export const HeatmapLayer = ({ id, filteredNodes, mode }: HeatmapLayerProps) => 
         },
         properties: {
           snr: node.snr,
-          name: node.user?.longName,
+          name: getNodeLongName(node),
           shortName: node.user?.shortName,
           num: node.num,
         },

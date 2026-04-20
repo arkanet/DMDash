@@ -1,4 +1,5 @@
 import { Protobuf } from "@meshtastic/core";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useCallback, useMemo } from "react";
 
@@ -76,7 +77,7 @@ export function useFilterNode() {
       const nodeName = filterState.nodeName.toLowerCase();
       if (nodeName) {
         const short = node.user?.shortName?.toLowerCase() ?? "";
-        const long = node.user?.longName?.toLowerCase() ?? "";
+        const long = (getNodeLongName(node) ?? "").toLowerCase();
         const numStr = node.num.toString();
         const hex = numberToHexUnpadded(node.num);
 

@@ -171,7 +171,7 @@ export const MessagesPage = () => {
     const lowerCaseSearchTerm = deferredSearch.toLowerCase();
 
     return getNodes((node: Protobuf.Mesh.NodeInfo) => {
-      const longName = node.user?.longName?.toLowerCase() ?? "";
+      const longName = (getNodeLongName(node) ?? "").toLowerCase();
       const shortName = node.user?.shortName?.toLowerCase() ?? "";
       return longName.includes(lowerCaseSearchTerm) || shortName.includes(lowerCaseSearchTerm);
     }, true)

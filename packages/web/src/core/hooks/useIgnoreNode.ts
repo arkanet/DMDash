@@ -4,6 +4,7 @@ import { useDevice, useNodeDB } from "@core/stores";
 import { Protobuf } from "@meshtastic/core";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
 
 interface IgnoreNodeOptions {
   nodeNum: number;
@@ -39,7 +40,7 @@ export function useIgnoreNode() {
 
       toast({
         title: t("toast.ignoreNode.title", {
-          nodeName: node?.user?.longName ?? "node",
+          nodeName: getNodeLongName(node) ?? "node",
           action: isIgnored
             ? t("toast.ignoreNode.action.added")
             : t("toast.ignoreNode.action.removed"),

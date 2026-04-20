@@ -426,7 +426,7 @@ export function DarkMeshRuntime() {
               includeName: beaconConfig.includeName,
               includeGps: beaconConfig.includeGps,
               includeTime: beaconConfig.includeTime,
-              myName: myNode?.user?.longName,
+              myName: getNodeLongName(myNode),
             });
 
             const sendTarget = resolveDestination(beaconConfig.kind, beaconConfig.destination);

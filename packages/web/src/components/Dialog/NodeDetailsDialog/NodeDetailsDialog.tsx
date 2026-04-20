@@ -319,7 +319,7 @@ export const NodeDetailsDialog = ({
           <DialogHeader>
             <DialogTitle>
               {(() => {
-                const ln = currentNode.user?.longName ?? "";
+                const ln = getNodeLongName(currentNode) ?? "";
 
                 function findValidUrlInText(text: string) {
                   const tokens = text.split(/\s+/);

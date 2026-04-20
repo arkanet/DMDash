@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@components/UI/Dialog.tsx";
 import { useMessages, useNodeDB } from "@core/stores";
+import { getNodeLongName, getNodeShortName } from "@app/darkmesh/utils.ts";
 import { LockKeyholeOpenIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useRefreshKeysDialog } from "./useRefreshKeysDialog.ts";
@@ -34,11 +35,11 @@ export const RefreshKeysDialog = ({ open, onOpenChange }: RefreshKeysDialogProps
   const text = {
     title: t("refreshKeys.title", {
       interpolation: { escapeValue: false },
-      identifier: nodeWithError?.user?.longName ?? "",
+      identifier: getNodeLongName(nodeWithError) ?? "",
     }),
     description: `${t("refreshKeys.description.unableToSendDmPrefix")}${
-      nodeWithError?.user?.longName ?? ""
-    } (${nodeWithError?.user?.shortName ?? ""})${t(
+      getNodeLongName(nodeWithError) ?? ""
+    } (${getNodeShortName(nodeWithError) ?? ""})${t(
       "refreshKeys.description.keyMismatchReasonSuffix",
     )}`,
   };

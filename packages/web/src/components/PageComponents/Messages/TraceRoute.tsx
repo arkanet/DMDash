@@ -1,6 +1,7 @@
 import { useNodeDB } from "@core/stores";
 import type { Protobuf } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
 import { useTranslation } from "react-i18next";
 
 type NodeUser = Pick<Protobuf.Mesh.NodeInfo, "user">;
@@ -32,7 +33,7 @@ const RoutePath = ({ title, from, to, path, snr }: RoutePathProps) => {
       className="ml-4 border-l-2 pl-2 border-l-slate-900 text-slate-900 dark:text-slate-100 dark:border-l-slate-100"
     >
       <p className="font-semibold">{title}</p>
-      <p>{from?.user?.longName}</p>
+      <p>{getNodeLongName(from as unknown as Protobuf.Mesh.NodeInfo)}</p>
       <p>
         ↓ {snr?.[0] ?? t("unknown.num")}
         {t("unit.dbm")}
@@ -40,7 +41,7 @@ const RoutePath = ({ title, from, to, path, snr }: RoutePathProps) => {
       {path.map((hop, i) => (
         <span key={getNode(hop)?.num ?? hop}>
           <p>
-            {getNode(hop)?.user?.longName ??
+            {getNodeLongName(getNode(hop) ?? ({} as Protobuf.Mesh.NodeInfo)) ??
               `${t("unknown.longName")} (!${numberToHexUnpadded(hop)})`}
           </p>
           <p>
@@ -49,7 +50,7 @@ const RoutePath = ({ title, from, to, path, snr }: RoutePathProps) => {
           </p>
         </span>
       ))}
-      <p>{to?.user?.longName}</p>
+      <p>{getNodeLongName(to as unknown as Protobuf.Mesh.NodeInfo)}</p>
     </span>
   );
 };

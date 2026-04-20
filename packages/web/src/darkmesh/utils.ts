@@ -62,12 +62,17 @@ export function getNodeShortName(
 export function getNodeLongName(
   node?: Pick<Protobuf.Mesh.NodeInfo, "num" | "user">,
 ): string | undefined {
+  // Prefer explicit longName when available
   if (node?.user?.longName) return node.user.longName;
+
+  // Fallback: show "Meshtastic <last4>" using nameHex when possible,
+  // otherwise derive from numeric node id.
   const nameHexFromUser = (node?.user as unknown as { nameHex?: string })?.nameHex;
   const nameHexTop = (node as unknown as { nameHex?: string })?.nameHex;
   const nameHex = nameHexFromUser ?? nameHexTop;
-  if (nameHex && nameHex.length > 0) return nameHex.toUpperCase();
-  if (node?.num !== undefined) return `!${numberToHexUnpadded(node.num).toUpperCase()}`;
+  if (nameHex && nameHex.length > 0) return `Meshtastic ${nameHex.slice(-4).toLowerCase()}`;
+  if (node?.num !== undefined)
+    return `Meshtastic ${numberToHexUnpadded(node.num).slice(-4).toLowerCase()}`;
   return undefined;
 }
 

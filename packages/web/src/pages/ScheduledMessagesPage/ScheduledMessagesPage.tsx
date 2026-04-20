@@ -3,6 +3,7 @@ import { PageLayout } from "@components/PageLayout.tsx";
 import PowerNotificationPanel from "@components/PageComponents/PowerNotification/PowerNotificationPanel.tsx";
 import { useTranslation } from "react-i18next";
 import { useDevice, useNodeDB } from "@core/stores";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
 
 export default function ScheduledMessagesPage(): JSX.Element {
   const { t } = useTranslation("scheduledMessages");
@@ -30,7 +31,7 @@ export default function ScheduledMessagesPage(): JSX.Element {
   const nodeOptions = nodes
     .filter((n) => Boolean(n.user))
     .sort((l, r) => (r.lastHeard ?? 0) - (l.lastHeard ?? 0))
-    .map((n) => ({ num: n.num, shortName: n.user?.shortName, longName: n.user?.longName }));
+    .map((n) => ({ num: n.num, shortName: n.user?.shortName, longName: getNodeLongName(n) }));
 
   const nodeDirectOptions = useMemo(
     () => nodeOptions.map((n) => ({ label: n.shortName || `!${n.num}`, value: `direct:${n.num}` })),

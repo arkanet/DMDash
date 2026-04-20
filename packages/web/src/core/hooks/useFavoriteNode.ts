@@ -4,6 +4,7 @@ import { useDevice, useNodeDB } from "@core/stores";
 import { Protobuf } from "@meshtastic/core";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { getNodeLongName } from "@app/darkmesh/utils.ts";
 
 interface FavoriteNodeOptions {
   nodeNum: number;
@@ -40,7 +41,7 @@ export function useFavoriteNode() {
           action: isFavorite
             ? t("toast.favoriteNode.action.added")
             : t("toast.favoriteNode.action.removed"),
-          nodeName: node?.user?.longName ?? t("node"),
+          nodeName: getNodeLongName(node) ?? t("node"),
           direction: isFavorite
             ? t("toast.favoriteNode.action.to")
             : t("toast.favoriteNode.action.from"),

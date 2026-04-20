@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { filterNodesByQuery, highlightMatch } from "@core/utils/filterNodes.ts";
 import type { Protobuf } from "@meshtastic/core";
-import { getNodeShortName } from "@app/darkmesh/utils.ts";
+import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
 
 export type NodeOption = {
   num: number;
@@ -125,7 +125,7 @@ export default function NodeSelector({
                   <span className="text-xs text-text-secondary"> {` (${n.num}) `}</span>
                 </div>
                 <div className="text-xs text-text-secondary">
-                  {renderHighlighted(n.user?.longName ?? "", debouncedFilter)}
+                  {renderHighlighted(getNodeLongName(n) ?? "", debouncedFilter)}
                 </div>
               </div>
             </div>

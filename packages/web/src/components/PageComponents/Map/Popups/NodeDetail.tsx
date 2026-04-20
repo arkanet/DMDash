@@ -497,7 +497,7 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
             <div className="min-w-0 flex-1">
               <Heading as="h5">
                 {(() => {
-                  const ln = node.user?.longName ?? "";
+                  const ln = getNodeLongName(node) ?? "";
                   const found = findValidUrlInText(ln);
                   if (found) {
                     const before = ln.slice(0, found.start);
