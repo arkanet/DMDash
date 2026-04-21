@@ -38,6 +38,7 @@ import {
 } from "@core/services/darkmesh/nodeActions.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
+import { create } from "@bufbuild/protobuf";
 import { Protobuf } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useNavigate } from "@tanstack/react-router";
@@ -331,6 +332,25 @@ export const NodeDetailsDialog = ({
   };
 
   function openNestedNode(nodeNum: number) {
+    // If node isn't present in nodeDB, create a minimal entry from neighbor info
+    const existing = nodeDB.getNode(nodeNum);
+    if (!existing) {
+      try {
+        const hex = numberToHexUnpadded(nodeNum);
+        const shortName = `${hex.slice(-4).toUpperCase()}`;
+
+        const created = create(Protobuf.Mesh.NodeInfoSchema, {
+          num: nodeNum,
+          user: create(Protobuf.Mesh.UserSchema, { shortName }),
+          lastHeard: Math.floor(Date.now() / 1000),
+        });
+
+        nodeDB.addNode(created);
+      } catch (err) {
+        logger.warn?.("openNestedNode: failed to create node from neighbor info", err);
+      }
+    }
+
     setNestedStack((s) => [...s, nodeNum]);
   }
 
