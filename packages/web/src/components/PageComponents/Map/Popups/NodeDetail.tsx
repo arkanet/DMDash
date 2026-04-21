@@ -59,6 +59,7 @@ import {
   Info,
 } from "lucide-react";
 import { useState } from "react";
+import { logger } from "@core/utils/logger";
 import { useTranslation } from "react-i18next";
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
 
@@ -149,7 +150,12 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
       await startVisualTraceroute(deviceId, connection, node.num);
       toast({ title: t("traceroute.sent", "Visual Traceroute request sent") });
     } catch (error) {
-      console.warn("visual traceroute request failed", error);
+      /*
+       Silenced non-blocking visual traceroute warning. Fallback: show toast.
+       Original line (commented):
+       // console.warn("visual traceroute request failed", error);
+      */
+      logger.warn?.("visual traceroute request failed", error);
       toast({
         title: t("traceroute.error", "Failed to send traceroute request"),
       });
@@ -168,7 +174,12 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
       setShowEnvironment(false);
       setShowNeighbor(true);
     } catch (error) {
-      console.warn("neighbor request failed", error);
+      /*
+       Silenced non-blocking neighbor request warning.
+       Original line (commented):
+       // console.warn("neighbor request failed", error);
+      */
+      logger.warn?.("neighbor request failed", error);
       toast({
         title: t("nodeDetail.neighbor.error", "Failed to request neighbor info"),
       });
@@ -187,7 +198,12 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
       setShowNeighbor(false);
       setShowEnvironment(true);
     } catch (error) {
-      console.warn("environment request failed", error);
+      /*
+       Silenced non-blocking environment request warning.
+       Original line (commented):
+       // console.warn("environment request failed", error);
+      */
+      logger.warn?.("environment request failed", error);
       toast({
         title: t("nodeDetail.metrics.error", "Failed to request environmental metrics"),
       });
@@ -368,7 +384,12 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                         setShareUrl(url);
                         setShareOpen(true);
                       } catch (_err) {
-                        console.warn("failed to build shared contact url", _err);
+                        /*
+                         Silenced non-blocking URL build failure warning.
+                         Original line (commented):
+                         // console.warn("failed to build shared contact url", _err);
+                        */
+                        logger.warn?.("failed to build shared contact url", _err);
                         toast({ title: t("nodeDetail.shareError", "Failed to build share URL") });
                       }
                     }}
@@ -433,7 +454,12 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
 
                         toast({ title: t("Request Node Info ...", { ns: "ui" }) });
                       } catch (err) {
-                        console.warn("popup nodeinfo request failed", err);
+                        /*
+                         Silenced non-blocking nodeinfo popup request warning.
+                         Original line (commented):
+                         // console.warn("popup nodeinfo request failed", err);
+                        */
+                        logger.warn?.("popup nodeinfo request failed", err);
                         toast({
                           title: t("Request Node Info Error", {
                             ns: "ui",
@@ -605,7 +631,12 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                     try {
                       await connection.requestPosition(num);
                     } catch (err) {
-                      console.warn("requestPosition failed", err);
+                      /*
+                       Silenced non-blocking position request failure.
+                       Original line (commented):
+                       // console.warn("requestPosition failed", err);
+                      */
+                      logger.warn?.("requestPosition failed", err);
                     }
 
                     // wait up to 15s for position packet from that node
@@ -647,7 +678,12 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                         setNodeNumDetails(num);
                         setDialogOpen("nodeDetails", true);
                       } catch (err) {
-                        console.warn("failed to open node details panel", err);
+                        /*
+                         Silenced non-blocking failure opening node details panel.
+                         Original line (commented):
+                         // console.warn("failed to open node details panel", err);
+                        */
+                        logger.warn?.("failed to open node details panel", err);
                         toast({ title: t("nodeDetail.gps.missing", "GPS data missing") });
                       }
                     }

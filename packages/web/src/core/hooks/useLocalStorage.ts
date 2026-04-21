@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { logger } from "../utils/logger";
 
 declare global {
   interface WindowEventMap {
@@ -40,7 +41,14 @@ export default function useLocalStorage<T>(
       const item = window.localStorage.getItem(key);
       return item ? deserializerRef.current(item) : getInitialValue();
     } catch (err) {
-      console.warn(`Error reading localStorage key “${key}”:`, err);
+      /*
+       Silenced non-blocking warning: Error reading localStorage key
+       Rationale: localStorage failures are non-blocking; app falls back to initial value.
+       To re-enable console output for debugging, set localStorage key `DM_LOG_LEVEL` to `debug`.
+       Original line (commented):
+       // console.warn(`Error reading localStorage key “${key}”:`, err);
+      */
+      logger.warn?.(`Error reading localStorage key “${key}”:`, err);
       return getInitialValue();
     }
   });
@@ -48,7 +56,12 @@ export default function useLocalStorage<T>(
   const setValue: Dispatch<SetStateAction<T>> = useCallback(
     (value) => {
       if (IS_SERVER) {
-        console.warn(`Tried setting localStorage key “${key}” in a non-client environment.`);
+        /*
+         Silenced non-blocking warning: attempted to set localStorage on server
+         Original line (commented):
+         // console.warn(`Tried setting localStorage key “${key}” in a non-client environment.`);
+        */
+        logger.warn?.(`Tried setting localStorage key “${key}” in a non-client environment.`);
         return;
       }
 
@@ -60,7 +73,12 @@ export default function useLocalStorage<T>(
           return newValue;
         });
       } catch (err) {
-        console.warn(`Error setting localStorage key “${key}”:`, err);
+        /*
+         Silenced non-blocking warning: error setting localStorage
+         Original line (commented):
+         // console.warn(`Error setting localStorage key “${key}”:`, err);
+        */
+        logger.warn?.(`Error setting localStorage key “${key}”:`, err);
       }
     },
     [key],
@@ -68,7 +86,12 @@ export default function useLocalStorage<T>(
 
   const removeValue = useCallback(() => {
     if (IS_SERVER) {
-      console.warn(`Tried removing localStorage key “${key}” in a non-client environment.`);
+      /*
+       Silenced non-blocking warning: attempted to remove localStorage on server
+       Original line (commented):
+       // console.warn(`Tried removing localStorage key “${key}” in a non-client environment.`);
+      */
+      logger.warn?.(`Tried removing localStorage key “${key}” in a non-client environment.`);
       return;
     }
     try {
@@ -76,7 +99,12 @@ export default function useLocalStorage<T>(
       setStoredValue(getInitialValue());
       window.dispatchEvent(new CustomEvent("local-storage", { detail: { key } }));
     } catch (err) {
-      console.warn(`Error removing localStorage key “${key}”:`, err);
+      /*
+       Silenced non-blocking warning: error removing localStorage
+       Original line (commented):
+       // console.warn(`Error removing localStorage key “${key}”:`, err);
+      */
+      logger.warn?.(`Error removing localStorage key “${key}”:`, err);
     }
   }, [key, getInitialValue]);
 
@@ -93,7 +121,12 @@ export default function useLocalStorage<T>(
           const item = window.localStorage.getItem(key);
           setStoredValue(item ? deserializerRef.current(item) : getInitialValue());
         } catch (err) {
-          console.warn(`Error syncing localStorage key “${key}”:`, err);
+          /*
+           Silenced non-blocking warning: error syncing localStorage across tabs
+           Original line (commented):
+           // console.warn(`Error syncing localStorage key “${key}”:`, err);
+          */
+          logger.warn?.(`Error syncing localStorage key “${key}”:`, err);
           setStoredValue(getInitialValue());
         }
       }

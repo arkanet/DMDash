@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { logger } from "../utils/logger";
 
 interface UseCopyToClipboardProps {
   timeout?: number;
@@ -19,7 +20,12 @@ export function useCopyToClipboard({ timeout = 2000 }: UseCopyToClipboardProps =
   const copy = useCallback(
     async (text: string) => {
       if (!navigator?.clipboard) {
-        console.warn("Clipboard API not available");
+        /*
+         Silenced non-blocking warning: Clipboard API missing
+         Original line (commented):
+         // console.warn("Clipboard API not available");
+        */
+        logger.warn?.("Clipboard API not available");
         setIsCopied(false);
         return false;
       }
@@ -39,7 +45,12 @@ export function useCopyToClipboard({ timeout = 2000 }: UseCopyToClipboardProps =
 
         return true;
       } catch (error) {
-        console.error("Failed to copy text to clipboard:", error);
+        /*
+         Transformed non-blocking error to conditional logger.error
+         Original line (commented):
+         // console.error("Failed to copy text to clipboard:", error);
+        */
+        logger.error?.("Failed to copy text to clipboard:", error);
         setIsCopied(false);
         return false;
       }

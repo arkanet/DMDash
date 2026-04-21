@@ -69,6 +69,7 @@ import {
 import NodeMetricsChart from "@components/NodeMetricsChart.tsx";
 import NodeSignalChart from "@components/NodeSignalChart.tsx";
 import { useEffect, useState } from "react";
+import { logger } from "@core/utils/logger";
 import { useTranslation } from "react-i18next";
 // useDarkMeshStore not needed here after switching to node's rxRssi
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
@@ -155,7 +156,12 @@ export const NodeDetailsDialog = ({
         title: t("toast.positionRequestSent.title", { ns: "ui" }),
       });
     } catch (error) {
-      console.warn("dialog position request failed", error);
+      /*
+       Silenced non-blocking position request warning in dialog.
+       Original line (commented):
+       // console.warn("dialog position request failed", error);
+      */
+      logger.warn?.("dialog position request failed", error);
       toast({
         title: t("toast.positionRequestError", {
           ns: "ui",
@@ -178,7 +184,12 @@ export const NodeDetailsDialog = ({
       });
       navigate({ to: "/map" });
     } catch (error) {
-      console.warn("dialog visual traceroute failed", error);
+      /*
+       Silenced non-blocking visual traceroute warning in dialog.
+       Original line (commented):
+       // console.warn("dialog visual traceroute failed", error);
+      */
+      logger.warn?.("dialog visual traceroute failed", error);
       toast({
         title: t("toast.tracerouteError.title", { ns: "ui" }),
       });
@@ -196,7 +207,12 @@ export const NodeDetailsDialog = ({
       toast({ title: "Neighbor Info" });
       await requestNeighborInfo(connection, currentNode.num);
     } catch (error) {
-      console.warn("dialog neighbor request failed", error);
+      /*
+       Silenced non-blocking neighbor request warning in dialog.
+       Original line (commented):
+       // console.warn("dialog neighbor request failed", error);
+      */
+      logger.warn?.("dialog neighbor request failed", error);
       toast({
         title: t("toast.neighborRequestError", {
           ns: "ui",
@@ -215,7 +231,12 @@ export const NodeDetailsDialog = ({
       toast({ title: "Environmental Info" });
       await requestEnvironmentMetrics(connection, currentNode.num);
     } catch (error) {
-      console.warn("dialog environment request failed", error);
+      /*
+       Silenced non-blocking environment request warning in dialog.
+       Original line (commented):
+       // console.warn("dialog environment request failed", error);
+      */
+      logger.warn?.("dialog environment request failed", error);
       toast({
         title: t("toast.metricsRequestError", {
           ns: "ui",
@@ -243,7 +264,12 @@ export const NodeDetailsDialog = ({
 
       toast({ title: t("Request Node Info ...", { ns: "ui" }) });
     } catch (error) {
-      console.warn("dialog nodeinfo request failed", error);
+      /*
+       Silenced non-blocking nodeinfo request warning in dialog.
+       Original line (commented):
+       // console.warn("dialog nodeinfo request failed", error);
+      */
+      logger.warn?.("dialog nodeinfo request failed", error);
       toast({
         title: t("Request Node Info Error", {
           ns: "ui",

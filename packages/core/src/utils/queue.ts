@@ -2,6 +2,7 @@ import { fromBinary } from "@bufbuild/protobuf";
 import * as Protobuf from "@meshtastic/protobufs";
 import { SimpleEventDispatcher } from "ste-simple-events";
 import type { PacketError, QueueItem } from "../types.ts";
+import { logger } from "./logger";
 
 export class Queue {
   private queue: QueueItem[] = [];
@@ -54,7 +55,12 @@ export class Queue {
               return;
             }
 
-            console.warn(`Packet ${item.id} of type ${decoded.payloadVariant.case} timed out`);
+            /*
+             Silenced non-blocking packet timeout warning.
+             Original line (commented):
+             // console.warn(`Packet ${item.id} of type ${decoded.payloadVariant.case} timed out`);
+            */
+            logger.warn?.(`Packet ${item.id} of type ${decoded.payloadVariant.case} timed out`);
 
             reject({
               id: item.id,
@@ -80,7 +86,11 @@ export class Queue {
   }
 
   public processError(e: PacketError): void {
-    console.error(`Error received for packet ${e.id}: ${Protobuf.Mesh.Routing_Error[e.error]}`);
+    /*
+     Transformed packet error to conditional logger.error. Original:
+     // console.error(`Error received for packet ${e.id}: ${Protobuf.Mesh.Routing_Error[e.error]}`);
+    */
+    logger.error?.(`Error received for packet ${e.id}: ${Protobuf.Mesh.Routing_Error[e.error]}`);
     this.errorNotifier.dispatch(e);
   }
 
@@ -119,7 +129,11 @@ export class Queue {
               this.lock = false;
               throw error;
             }
-            console.error(`Error sending packet ${item.id}`, error);
+            /*
+             Transformed send error to logger.error. Original:
+             // console.error(`Error sending packet ${item.id}`, error);
+            */
+            logger.error?.(`Error sending packet ${item.id}`, error);
           }
         }
       }
