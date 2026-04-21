@@ -102,6 +102,7 @@ export interface Device extends DeviceData {
   getUnreadCount: (nodeNum: number) => number;
   getAllUnreadCount: () => number;
   sendAdminMessage: (message: Protobuf.Admin.AdminMessage) => void;
+  sendNeighborInfoRequest: (targetNodeNum: number, maxNeighbors?: number) => void;
   addClientNotification: (clientNotificationPacket: Protobuf.Mesh.ClientNotification) => void;
   removeClientNotification: (index: number) => void;
   getClientNotification: (index: number) => Protobuf.Mesh.ClientNotification | undefined;
@@ -680,6 +681,24 @@ function deviceFactory(
         toBinary(Protobuf.Admin.AdminMessageSchema, message),
         Protobuf.Portnums.PortNum.ADMIN_APP,
         "self",
+      );
+    },
+
+    sendNeighborInfoRequest: (targetNodeNum: number, maxNeighbors?: number) => {
+      const device = get().devices.get(id);
+      if (!device) return;
+
+      const req = create(Protobuf.Mesh.NeighborInfoRequestSchema, {
+        requesterNodeId: device.myNodeNum ?? 0,
+        requestId: Math.floor(Math.random() * 0xffffffff),
+        timestamp: Math.trunc(Date.now() / 1000),
+        maxNeighbors: maxNeighbors ?? 0,
+      });
+
+      device.connection?.sendPacket(
+        toBinary(Protobuf.Mesh.NeighborInfoRequestSchema, req),
+        Protobuf.Portnums.PortNum.NEIGHBORINFO_APP,
+        targetNodeNum,
       );
     },
 

@@ -41,7 +41,7 @@ export function useFavoriteNode() {
           action: isFavorite
             ? t("toast.favoriteNode.action.added")
             : t("toast.favoriteNode.action.removed"),
-          nodeName: getNodeLongName(node) ?? t("node"),
+          nodeName: node?.user?.longName ? (getNodeLongName(node) ?? t("node")) : t("node"),
           direction: isFavorite
             ? t("toast.favoriteNode.action.to")
             : t("toast.favoriteNode.action.from"),

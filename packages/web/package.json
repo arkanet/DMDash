@@ -119,9 +119,7 @@
         "tar": "^7.5.11",
         "testing-library": "^0.0.2",
         "typescript": "^5.9.3",
-        "vitest": "^3.2.4"
-    },
-    "devDependencies": {
+        "vitest": "^3.2.4",
         "playwright": "^1.40.0"
     }
 }

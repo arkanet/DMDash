@@ -40,7 +40,7 @@ export function useIgnoreNode() {
 
       toast({
         title: t("toast.ignoreNode.title", {
-          nodeName: getNodeLongName(node) ?? "node",
+          nodeName: node?.user?.longName ? (getNodeLongName(node) ?? "node") : "node",
           action: isIgnored
             ? t("toast.ignoreNode.action.added")
             : t("toast.ignoreNode.action.removed"),

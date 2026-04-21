@@ -1,17 +1,18 @@
 {
-  "name": "@meshtastic/protobufs-ws",
+  "name": "@meshtastic/protobufs",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "description": "Workspace package for Meshtastic protobuf stubs (local dev only). This package is published to the JSR registry separately.",
   "license": "GPL-3.0-only",
   "files": [
+    "./packages/ts/",
     "./packages/ts/dist/"
   ],
   "exports": {
     ".": {
       "types": "./packages/ts/dist/mod.d.ts",
-      "default": "./packages/ts/dist/mod.js"
+      "default": "./packages/ts/mod.ts"
     },
     "./*": "./packages/ts/dist/*"
   },

@@ -579,7 +579,8 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                 nodeNum={node.num}
                 neighborInfo={neighborInfo}
                 dense
-                className="w-64 bg-white/5 p-2 dark:bg-black/10"
+                variant="popup"
+                className="w-64"
                 title={t("nodeDetail.neighbor.header", "Neighbor Nodes")}
                 onOpenNode={(num: number) => {
                   (async () => {
@@ -659,7 +660,8 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
               <EnvironmentMetricsPanel
                 metrics={environmentMetrics}
                 dense
-                className="w-56 bg-white/5 p-2 dark:bg-black/10"
+                variant="popup"
+                className="w-56"
                 title={t("nodeDetail.metrics.header", "Environmental Metrics")}
               />
             )}

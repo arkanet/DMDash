@@ -15,6 +15,7 @@ interface NeighborInfoPanelProps {
   title?: string;
   dense?: boolean;
   onOpenNode?: (nodeNum: number) => void;
+  variant?: "popup" | "dialog";
 }
 
 interface EnvironmentMetricsPanelProps {
@@ -22,6 +23,7 @@ interface EnvironmentMetricsPanelProps {
   className?: string;
   title?: string;
   dense?: boolean;
+  variant?: "popup" | "dialog";
 }
 
 function formatMetricValue(
@@ -49,6 +51,7 @@ export function NeighborInfoPanel({
   title,
   dense = false,
   onOpenNode,
+  variant = "dialog",
 }: NeighborInfoPanelProps) {
   const { t } = useTranslation("dialog");
   const { getNode } = useNodeDB();
@@ -91,13 +94,13 @@ export function NeighborInfoPanel({
     setSortDir(nextDir);
   }
 
+  const darkClasses =
+    variant === "popup"
+      ? "dark:bg-slate-100 dark:text-slate-600"
+      : "dark:bg-slate-700 dark:text-slate-300";
+
   return (
-    <div
-      className={cn(
-        "rounded-lg bg-slate-100 p-3 text-slate-900 dark:bg-slate-800 dark:text-slate-500",
-        className,
-      )}
-    >
+    <div className={cn("rounded-lg bg-slate-100 p-3 text-slate-900", darkClasses, className)}>
       <p className={cn("font-semibold", dense ? "text-sm" : "text-base")}>
         {title ?? t("nodeDetails.neighborPanel", "Neighbor Info")}
       </p>
@@ -185,6 +188,7 @@ export function EnvironmentMetricsPanel({
   className,
   title,
   dense = false,
+  variant = "dialog",
 }: EnvironmentMetricsPanelProps) {
   const { t } = useTranslation("dialog");
 
@@ -236,13 +240,13 @@ export function EnvironmentMetricsPanel({
     [metrics, t],
   );
 
+  const darkClasses =
+    variant === "popup"
+      ? "dark:bg-slate-100 dark:text-slate-600"
+      : "dark:bg-slate-700 dark:text-slate-300";
+
   return (
-    <div
-      className={cn(
-        "rounded-lg bg-slate-100 p-3 text-slate-900 dark:bg-slate-800 dark:text-slate-500",
-        className,
-      )}
-    >
+    <div className={cn("rounded-lg bg-slate-100 p-3 text-slate-900", darkClasses, className)}>
       <p className={cn("font-semibold", dense ? "text-sm" : "text-base")}>
         {title ?? t("nodeDetails.metricsPanel", "Environmental Metrics")}
       </p>

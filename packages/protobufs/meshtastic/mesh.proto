@@ -2148,6 +2148,24 @@ message NeighborInfo {
 }
 
 /*
+ * Request a node to send its NeighborInfo directly to the requester.
+ * This message is intended to be sent to a specific node on port NEIGHBORINFO_APP.
+ */
+message NeighborInfoRequest {
+  /* Node ID of the requester */
+  uint32 requester_node_id = 1;
+
+  /* Arbitrary request id chosen by requester, used to correlate responses */
+  uint32 request_id = 2;
+
+  /* Seconds since epoch for when the request was made */
+  uint32 timestamp = 3;
+
+  /* Optional: request that the responder limit the number of neighbors returned (0 = no limit) */
+  uint32 max_neighbors = 4;
+}
+
+/*
  * A single edge in the mesh
  */
 message Neighbor {

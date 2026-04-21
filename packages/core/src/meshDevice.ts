@@ -472,6 +472,36 @@ export class MeshDevice {
     );
   }
 
+  /**
+   * Requests NeighborInfo from a remote node (on port NEIGHBORINFO_APP).
+   * This is an on-demand request that asks the target node to reply directly
+   * with its `NeighborInfo` message. This request intentionally does not use
+   * any session_passkey so it can be used by any node.
+   */
+  public async requestNeighborInfo(targetNodeNum: number, maxNeighbors = 0): Promise<number> {
+    this.log.debug(
+      Emitter[Emitter.GetMetadata],
+      `🔎 Requesting NeighborInfo from ${targetNodeNum}`,
+    );
+
+    const reqMessage = create(Protobuf.Mesh.NeighborInfoRequestSchema, {
+      requesterNodeId: this.myNodeInfo.myNodeNum,
+      requestId: this.generateRandId(),
+      timestamp: Math.trunc(Date.now() / 1000),
+      maxNeighbors: maxNeighbors,
+    });
+
+    return await this.sendPacket(
+      toBinary(Protobuf.Mesh.NeighborInfoRequestSchema, reqMessage),
+      Protobuf.Portnums.PortNum.NEIGHBORINFO_APP,
+      targetNodeNum,
+      undefined,
+      true,
+      true,
+      false,
+    );
+  }
+
   /** Gets devices Owner */
   public async getOwner(): Promise<number> {
     this.log.debug(Emitter[Emitter.GetOwner], "👤 Requesting owner");

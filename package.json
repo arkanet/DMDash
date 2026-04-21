@@ -37,14 +37,20 @@
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.9.0",
-    "@meshtastic/protobufs": "jsr:^2.7.20",
+    "@meshtastic/protobufs": "workspace:*",
     "emoji-picker-react": "^4.9.0",
     "ste-simple-events": "^3.0.11",
+    "tailwind-merge": "^3.5.0",
     "tslog": "^4.9.3"
   },
   "devDependencies": {
     "@jridgewell/sourcemap-codec": "^1.5.5",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.3.1",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
     "glob": "^13.0.6",
     "husky": "^9.1.0",
     "lint-staged": "^16.0.0",
