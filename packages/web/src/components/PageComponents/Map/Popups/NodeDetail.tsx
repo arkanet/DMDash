@@ -31,6 +31,7 @@ import {
   startVisualTraceroute,
 } from "@core/services/darkmesh/nodeActions.ts";
 import { useDevice, useNodeDB, useAppStore } from "@core/stores";
+import { create } from "@bufbuild/protobuf";
 import { formatQuantity } from "@core/utils/string.ts";
 import type { Protobuf as ProtobufType } from "@meshtastic/core";
 import { Protobuf } from "@meshtastic/core";
@@ -73,8 +74,7 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
   const { t } = useTranslation("nodes");
   const { connection, hardware, id: deviceId, getNeighborInfo, setDialogOpen } = useDevice();
   const { setNodeNumDetails } = useAppStore();
-  const { getEnvironmentMetrics } = useNodeDB();
-  const { getNode } = useNodeDB();
+  const nodeDB = useNodeDB();
   const { updateFavorite } = useFavoriteNode();
 
   // not using gateway rxRssi here; use node's rxRssi where available
@@ -130,7 +130,7 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
     : `${hwModel}`;
 
   const neighborInfo = getNeighborInfo(node.num);
-  const environmentMetrics = getEnvironmentMetrics(node.num);
+  const environmentMetrics = nodeDB.getEnvironmentMetrics(node.num);
   const publicKey =
     node.user?.publicKey && node.user.publicKey.length > 0
       ? fromByteArray(node.user.publicKey)
@@ -610,8 +610,27 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                 title={t("nodeDetail.neighbor.header", "Neighbor Nodes")}
                 onOpenNode={(num: number) => {
                   (async () => {
+                    // If the node isn't in nodeDB yet, create a minimal entry (same modeling as dialog)
+                    try {
+                      const existing = nodeDB.getNode(num);
+                      if (!existing) {
+                        const hex = numberToHexUnpadded(num);
+                        const shortName = `${hex.slice(-4).toUpperCase()}`;
+
+                        const created = create(Protobuf.Mesh.NodeInfoSchema, {
+                          num: num,
+                          user: create(Protobuf.Mesh.UserSchema, { shortName }),
+                          lastHeard: Math.floor(Date.now() / 1000),
+                        });
+
+                        nodeDB.addNode(created);
+                      }
+                    } catch (err) {
+                      logger.warn?.("openPopupNode: failed to create node from neighbor info", err);
+                    }
+
                     // If node already has GPS, select immediately
-                    const target = getNode(num);
+                    const target = nodeDB.getNode(num);
                     if (
                       target?.position &&
                       target.position.latitudeI &&
