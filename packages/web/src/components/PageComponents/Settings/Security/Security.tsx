@@ -7,7 +7,11 @@ import {
 import { ManagedModeDialog } from "@components/Dialog/ManagedModeDialog.tsx";
 import { PkiRegenerateDialog } from "@components/Dialog/PkiRegenerateDialog.tsx";
 import { createZodResolver } from "@components/Form/createZodResolver.ts";
-import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
+import {
+  DynamicForm,
+  type DynamicFormFormInit,
+  useSyncFormValues,
+} from "@components/Form/DynamicForm.tsx";
 import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { getX25519PrivateKey, getX25519PublicKey } from "@core/utils/x25519.ts";
@@ -60,8 +64,9 @@ export const Security = ({ onFormInit }: SecurityConfigProps) => {
     resolver: createZodResolver(RawSecuritySchema),
     shouldFocusError: false,
     resetOptions: { keepDefaultValues: true },
-    values: formValues as RawSecurity,
   });
+  useSyncFormValues(formMethods, formValues as RawSecurity);
+
   const { setValue, trigger, handleSubmit, formState } = formMethods;
   const hasInitializedFormRef = useRef(false);
   const formMethodsRef = useRef(formMethods);

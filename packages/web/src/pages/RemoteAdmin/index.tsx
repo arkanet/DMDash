@@ -66,6 +66,16 @@ type RemoteAdminTab = RemoteRadioTab | RemoteDeviceTab | RemoteModuleTab;
 
 const REMOTE_RESPONSE_TIMEOUT_MS = 8000;
 
+const isRemoteAdminAckTimeoutError = (
+  error: unknown,
+): error is { id: number; error: Protobuf.Mesh.Routing_Error } => {
+  if (!error || typeof error !== "object" || !("error" in error)) {
+    return false;
+  }
+
+  return error.error === Protobuf.Mesh.Routing_Error.TIMEOUT;
+};
+
 const REMOTE_CONFIG_TAB_REQUESTS: Partial<
   Record<RemoteAdminTab, Protobuf.Admin.AdminMessage_ConfigType>
 > = {
@@ -554,21 +564,42 @@ const RemoteAdminPage = () => {
     [adminChannel, localDevice.connection, nodeNum],
   );
 
+  const createRemoteAdminSendFailurePromise = useCallback(
+    (
+      payloadVariant: Protobuf.Admin.AdminMessage["payloadVariant"],
+      options?: { includeSessionPasskey?: boolean; tolerateAckTimeout?: boolean },
+    ) =>
+      new Promise<never>((_resolve, reject) => {
+        void sendRemoteAdmin(payloadVariant, {
+          wantResponse: true,
+          includeSessionPasskey: options?.includeSessionPasskey,
+        }).catch((error) => {
+          if (options?.tolerateAckTimeout && isRemoteAdminAckTimeoutError(error)) {
+            return;
+          }
+
+          reject(error);
+        });
+      }),
+    [sendRemoteAdmin],
+  );
+
   const ensureRemoteSession = useCallback(async () => {
     if (sessionPasskeyRef.current.length > 0) {
       return;
     }
 
     const waitForSession = waitForRemoteAdminResponse();
-    await sendRemoteAdmin(
+    const sendFailure = createRemoteAdminSendFailurePromise(
       {
         case: "getDeviceMetadataRequest",
         value: true,
       },
-      { wantResponse: true },
+      { tolerateAckTimeout: true },
     );
-    await waitForSession;
-  }, [sendRemoteAdmin, waitForRemoteAdminResponse]);
+
+    await Promise.race([waitForSession, sendFailure]);
+  }, [createRemoteAdminSendFailurePromise, waitForRemoteAdminResponse]);
 
   const requestRemoteTab = useCallback(
     async (tab: RemoteAdminTab, options?: { force?: boolean; awaitResult?: boolean }) => {
@@ -587,42 +618,49 @@ const RemoteAdminPage = () => {
       try {
         await ensureRemoteSession();
 
+        let sendFailure: Promise<never> | undefined;
+
         if (tab === "user") {
-          await sendRemoteAdmin(
+          sendFailure = createRemoteAdminSendFailurePromise(
             {
               case: "getOwnerRequest",
               value: true,
             },
-            { wantResponse: true },
+            { tolerateAckTimeout: true },
           );
         } else if (tab === "channels") {
-          await sendRemoteAdmin(
+          sendFailure = createRemoteAdminSendFailurePromise(
             {
               case: "getChannelRequest",
               value: 1,
             },
-            { wantResponse: true },
+            { tolerateAckTimeout: true },
           );
         } else if (REMOTE_CONFIG_TAB_REQUESTS[tab] !== undefined) {
-          await sendRemoteAdmin(
+          sendFailure = createRemoteAdminSendFailurePromise(
             {
               case: "getConfigRequest",
               value: REMOTE_CONFIG_TAB_REQUESTS[tab],
             },
-            { wantResponse: true },
+            { tolerateAckTimeout: true },
           );
         } else if (REMOTE_MODULE_TAB_REQUESTS[tab] !== undefined) {
-          await sendRemoteAdmin(
+          sendFailure = createRemoteAdminSendFailurePromise(
             {
               case: "getModuleConfigRequest",
               value: REMOTE_MODULE_TAB_REQUESTS[tab],
             },
-            { wantResponse: true },
+            { tolerateAckTimeout: true },
           );
         }
 
-        if (options?.awaitResult) {
-          await waitForRemoteTabResponse(tab);
+        if (options?.awaitResult && sendFailure) {
+          await Promise.race([waitForRemoteTabResponse(tab), sendFailure]);
+        } else if (sendFailure) {
+          void sendFailure.catch((error) => {
+            console.warn(`remote admin ${tab} request failed`, error);
+            markRemoteTabFailed(tab);
+          });
         }
       } catch (error) {
         console.warn(`remote admin ${tab} request failed`, error);
@@ -713,13 +751,14 @@ const RemoteAdminPage = () => {
             channel.index + 1 < maxChannels
           ) {
             startRemoteTabTimeout("channels");
-            sendRemoteAdmin(
+            const sendFailure = createRemoteAdminSendFailurePromise(
               {
                 case: "getChannelRequest",
                 value: channel.index + 2,
               },
-              { wantResponse: true },
-            ).catch((error) => {
+              { tolerateAckTimeout: true },
+            );
+            void sendFailure.catch((error) => {
               console.warn("remote admin channel fetch failed", error);
               markRemoteTabFailed("channels");
             });
@@ -750,6 +789,7 @@ const RemoteAdminPage = () => {
     markRemoteTabLoaded,
     maxChannels,
     nodeNum,
+    createRemoteAdminSendFailurePromise,
     sendRemoteAdmin,
     setConfig,
     setModuleConfig,

@@ -2,7 +2,11 @@ import { type ChannelValidation, makeChannelSchema } from "@app/validation/chann
 import { create } from "@bufbuild/protobuf";
 import { PkiRegenerateDialog } from "@components/Dialog/PkiRegenerateDialog.tsx";
 import { createZodResolver } from "@components/Form/createZodResolver.ts";
-import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
+import {
+  DynamicForm,
+  type DynamicFormFormInit,
+  useSyncFormValues,
+} from "@components/Form/DynamicForm.tsx";
 import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
@@ -73,8 +77,9 @@ export const Channel = ({ onFormInit, channel }: SettingsPanelProps) => {
     resolver: createZodResolver(ChannelValidationSchema),
     shouldFocusError: false,
     resetOptions: { keepDefaultValues: true },
-    values: formValues as ChannelValidation,
   });
+  useSyncFormValues(formMethods, formValues as ChannelValidation);
+
   const { setValue, trigger, handleSubmit, formState } = formMethods;
   const hasInitializedFormRef = useRef(false);
   const formMethodsRef = useRef(formMethods);

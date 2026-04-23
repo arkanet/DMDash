@@ -65,6 +65,38 @@ export interface DynamicFormProps<T extends FieldValues> {
 
 export type DynamicFormFormInit<T extends FieldValues> = (methods: UseFormReturn<T, T, T>) => void;
 
+const serializeFormValues = (values: unknown): string =>
+  JSON.stringify(values, (_key, value) =>
+    value instanceof Uint8Array ? Array.from(value) : value,
+  );
+
+export function useSyncFormValues<T extends FieldValues>(
+  methods: Pick<UseFormReturn<T, T, T>, "reset" | "formState">,
+  values?: T,
+) {
+  const lastSyncedValuesRef = useRef<string>();
+  const valuesKey = values === undefined ? undefined : serializeFormValues(values);
+  const {
+    reset,
+    formState: { dirtyFields, isDirty },
+  } = methods;
+
+  useEffect(() => {
+    if (values === undefined || valuesKey === lastSyncedValuesRef.current) {
+      return;
+    }
+
+    lastSyncedValuesRef.current = valuesKey;
+    reset(values, {
+      keepDefaultValues: true,
+      keepDirty: isDirty,
+      keepDirtyValues: isDirty,
+      keepErrors: true,
+      keepTouched: true,
+    });
+  }, [dirtyFields, isDirty, reset, values, valuesKey]);
+}
+
 export function DynamicForm<T extends FieldValues>({
   propMethods,
   onSubmit,
@@ -84,12 +116,13 @@ export function DynamicForm<T extends FieldValues>({
     resolver: validationSchema ? createZodResolver(validationSchema) : undefined,
     shouldFocusError: false,
     resetOptions: { keepDefaultValues: true },
-    values,
   });
 
   const methods = propMethods ?? internalMethods;
   const hasInitializedFormRef = useRef(false);
   const internalMethodsRef = useRef(internalMethods);
+
+  useSyncFormValues(methods, values);
 
   const { handleSubmit, control, getValues, formState, getFieldState } = methods;
 
