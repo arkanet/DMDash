@@ -5,6 +5,31 @@ import { createStorage } from "@core/stores/utils/indexDB.ts";
 import * as nodeinfoPersistence from "@core/stores/nodeinfoPersistence";
 import { Protobuf, type Types } from "@meshtastic/core";
 import { distanceKm } from "@app/darkmesh/utils.ts";
+
+const normalizePosition = (p?: Protobuf.Mesh.Position) => {
+  if (!p) return p;
+  const out = { ...p } as unknown as Protobuf.Mesh.Position & { lat?: number; lon?: number };
+
+  // If protobuf integer representation exists, derive lat/lon
+  if (typeof p.latitudeI === "number" && typeof p.longitudeI === "number") {
+    out.lat = p.latitudeI / 1e7;
+    out.lon = p.longitudeI / 1e7;
+  }
+
+  // If lat/lon exist but are strings (possibly with comma decimal), coerce to numbers
+  if (out.lat !== undefined && typeof out.lat === "string") {
+    const norm = String(out.lat).replace(/,/g, ".");
+    const parsed = Number.parseFloat(norm);
+    out.lat = Number.isNaN(parsed) ? out.lat : parsed;
+  }
+  if (out.lon !== undefined && typeof out.lon === "string") {
+    const norm = String(out.lon).replace(/,/g, ".");
+    const parsed = Number.parseFloat(norm);
+    out.lon = Number.isNaN(parsed) ? out.lon : parsed;
+  }
+
+  return out as Protobuf.Mesh.Position;
+};
 type NodeInfoWithRx = Protobuf.Mesh.NodeInfo & { rxRssi?: number };
 type NodeInfoWithExtras = Protobuf.Mesh.NodeInfo & { distanceKm?: number };
 import { produce } from "immer";
@@ -108,6 +133,10 @@ function nodeDBFactory(
       ),
 
     addNode: (node) => {
+      // apply normalization to node.position if present
+      if (node.position) {
+        node.position = normalizePosition(node.position);
+      }
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -729,7 +758,7 @@ function nodeDBFactory(
           const isNew = !current;
           const updated = {
             ...(current ?? create(Protobuf.Mesh.NodeInfoSchema)),
-            position: position.data,
+            position: normalizePosition(position.data),
             num: position.from,
           };
 
@@ -1143,6 +1172,13 @@ const persistOptions: PersistOptions<PrivateNodeDBState, NodeDBPersisted> = {
                 dbData.nodeMap = new Map<number, Protobuf.Mesh.NodeInfo>(
                   nodes.map((n) => [n.num, n]),
                 );
+              }
+              // Normalize any positions loaded from persistence (accept strings with commas)
+              for (const [num, node] of Array.from(dbData.nodeMap.entries())) {
+                if (node.position) {
+                  node.position = normalizePosition(node.position);
+                  dbData.nodeMap.set(num, node);
+                }
               }
             }
           } catch (e) {

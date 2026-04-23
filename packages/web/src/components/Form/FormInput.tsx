@@ -56,9 +56,22 @@ export function GenericInput<T extends FieldValues>({
       field.inputChange(e);
     }
 
-    controllerField.onChange(
-      field.type === "number" ? Number.parseFloat(newValue).toString() : newValue,
-    );
+    if (field.type === "number") {
+      // normalize decimal separator: accept dot as decimal separator
+      const normalized = newValue.replace(/,/g, ".");
+
+      if (normalized === "") {
+        controllerField.onChange("");
+        return;
+      }
+
+      const parsed = Number.parseFloat(normalized);
+      // if parseFloat fails, keep the raw normalized input so the user can continue editing
+      controllerField.onChange(Number.isNaN(parsed) ? normalized : parsed.toString());
+      return;
+    }
+
+    controllerField.onChange(newValue);
   };
 
   const currentLength = controllerField.value ? String(controllerField.value).length : 0;
