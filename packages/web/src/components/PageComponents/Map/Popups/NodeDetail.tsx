@@ -170,6 +170,18 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
 
     try {
       toast({ title: t("nodeDetail.neighbor.requestSent", "Request Neighbor Info Sent...") });
+      if (!connection) {
+        throw new Error("No active connection to device");
+      }
+
+      if (
+        typeof connection.requestNeighborInfo !== "function" &&
+        typeof connection.sendPacket !== "function" &&
+        typeof connection.getMetadata !== "function"
+      ) {
+        throw new Error("Connection does not support neighbor requests");
+      }
+
       await requestNeighborInfo(connection, node.num);
       setShowEnvironment(false);
       setShowNeighbor(true);
@@ -180,9 +192,7 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
        // console.warn("neighbor request failed", error);
       */
       logger.warn?.("neighbor request failed", error);
-      toast({
-        title: t("nodeDetail.neighbor.error", "Failed to request neighbor info"),
-      });
+      toast({ title: "Failed to request neighbor info" });
     }
   }
 

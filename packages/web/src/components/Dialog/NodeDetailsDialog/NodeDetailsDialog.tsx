@@ -206,6 +206,18 @@ export const NodeDetailsDialog = ({
 
     try {
       toast({ title: "Neighbor Info" });
+      if (!connection) {
+        throw new Error("No active connection to device");
+      }
+
+      if (
+        typeof connection.requestNeighborInfo !== "function" &&
+        typeof connection.sendPacket !== "function" &&
+        typeof connection.getMetadata !== "function"
+      ) {
+        throw new Error("Connection does not support neighbor requests");
+      }
+
       await requestNeighborInfo(connection, currentNode.num);
     } catch (error) {
       /*
@@ -214,12 +226,7 @@ export const NodeDetailsDialog = ({
        // console.warn("dialog neighbor request failed", error);
       */
       logger.warn?.("dialog neighbor request failed", error);
-      toast({
-        title: t("toast.neighborRequestError", {
-          ns: "ui",
-          defaultValue: "Failed to request neighbor info",
-        }),
-      });
+      toast({ title: "Failed to request neighbor info" });
     }
   }
 
