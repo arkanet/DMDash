@@ -12,12 +12,24 @@
   },
   "sendMessage": {
     "placeholder": "Ange ditt meddelande här...",
-    "sendButton": "Skicka"
+    "sendButton": "Skicka",
+    "compress": "Compress"
+  },
+  "replyPreview": {
+    "title": "Replying",
+    "clear": "Clear reply"
+  },
+  "replyingTo": "Replying to",
+  "compressed": {
+    "label": "Compressed message",
+    "title": "Compressed message"
   },
   "actionsMenu": {
     "addReactionLabel": "Lägg till reaktion",
     "replyLabel": "Svara"
   },
+  "messages_actionsMenu_addReactionLabel": "EMOJI",
+  "messages_actionsMenu_replyLabel": "REPLAY",
   "deliveryStatus": {
     "delivered": {
       "label": "Meddelandet har levererats",

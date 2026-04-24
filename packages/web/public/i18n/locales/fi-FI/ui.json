@@ -195,9 +195,9 @@
   "showUnheard": {
     "label": "Ei koskaan kuultu"
   },
-  "language": {
-    "label": "Kieli",
-    "changeLanguage": "Vaihda kieli"
+  "languagePicker": {
+    "label": "Language",
+    "changeLanguage": "Change Language"
   },
   "theme": {
     "dark": "Tumma",
@@ -226,5 +226,9 @@
   "footer": {
     "text": "Powered by <0>▲ Vercel</0> | Meshtastic® on Meshtastic LLC:n rekisteröity tavaramerkki. | <1>Oikeudelliset tiedot</1>",
     "commitSha": "Ohjelmistokehitysversion SHA-tunniste: {{sha}}"
+  },
+  "language": {
+    "label": "Kieli",
+    "changeLanguage": "Vaihda kieli"
   }
 }

@@ -195,9 +195,9 @@
   "showUnheard": {
     "label": "Jamais entendu"
   },
-  "language": {
-    "label": "Langue",
-    "changeLanguage": "Changer la langue"
+  "languagePicker": {
+    "label": "Language",
+    "changeLanguage": "Change Language"
   },
   "theme": {
     "dark": "Sombre",
@@ -226,5 +226,9 @@
   "footer": {
     "text": "Propulsé par <0>▲ Vercel</0> | Meshtastic® est une marque déposée de Meshtastic LLC. | <1>Informations légales</1>",
     "commitSha": "SHA : {{sha}}"
+  },
+  "language": {
+    "label": "Langue",
+    "changeLanguage": "Changer la langue"
   }
 }

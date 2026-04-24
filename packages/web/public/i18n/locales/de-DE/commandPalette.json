@@ -28,6 +28,7 @@
   "contextual": {
     "label": "Kontextabhängig",
     "command": {
+      "nodeImport": "Node Import",
       "qrCode": "QR Code",
       "qrGenerator": "Generator",
       "qrImport": "Importieren",

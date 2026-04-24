@@ -21,7 +21,7 @@
     "nowDisconnected": "{{name}} ei ole enää yhteydessä",
     "disconnected": "Ei yhdistetty",
     "failed": "Yhteyden muodostaminen epäonnistui",
-    "checkConnetion": "Tarkista laitteesi tai asetukset ja yritä uudelleen",
+    "checkConnection": "Check your device or settings and try again",
     "defaultSet": "Asetettu oletukseksi",
     "defaultConnection": "Oletusyhteys on nyt {{nameisconnected}}",
     "deleted": "Poistettu",
@@ -29,6 +29,7 @@
     "pickConnectionAgain": "Yhteyttä ei voitu muodostaa. Saatat joutua valitsemaan laitteen tai portin uudelleen.",
     "added": "Yhteys lisätty",
     "savedByName": "{{name}} tallennettu.",
-    "savedCantConnect": "Yhteys tallennettiin, mutta siihen ei voitu yhdistää."
+    "savedCantConnect": "Yhteys tallennettiin, mutta siihen ei voitu yhdistää.",
+    "checkConnetion": "Tarkista laitteesi tai asetukset ja yritä uudelleen"
   }
 }

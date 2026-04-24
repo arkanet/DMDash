@@ -28,6 +28,8 @@
     "addReactionLabel": "Aggiungi una Reazione",
     "replyLabel": "Rispondi"
   },
+  "messages_actionsMenu_addReactionLabel": "Aggiungi reazione",
+  "messages_actionsMenu_replyLabel": "Rispondi",
   "deliveryStatus": {
     "delivered": {
       "label": "Messaggio inviato",

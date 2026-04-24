@@ -28,6 +28,7 @@
   "contextual": {
     "label": "관련 기능",
     "command": {
+      "nodeImport": "Node Import",
       "qrCode": "QR 코드",
       "qrGenerator": "생성",
       "qrImport": "불러오기",

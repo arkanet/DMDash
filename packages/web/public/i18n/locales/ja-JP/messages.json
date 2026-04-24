@@ -12,12 +12,24 @@
   },
   "sendMessage": {
     "placeholder": "Enter your message here...",
-    "sendButton": "送信"
+    "sendButton": "送信",
+    "compress": "Compress"
+  },
+  "replyPreview": {
+    "title": "Replying",
+    "clear": "Clear reply"
+  },
+  "replyingTo": "Replying to",
+  "compressed": {
+    "label": "Compressed message",
+    "title": "Compressed message"
   },
   "actionsMenu": {
     "addReactionLabel": "Add Reaction",
     "replyLabel": "返信"
   },
+  "messages_actionsMenu_addReactionLabel": "EMOJI",
+  "messages_actionsMenu_replyLabel": "REPLAY",
   "deliveryStatus": {
     "delivered": {
       "label": "Message delivered",

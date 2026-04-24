@@ -300,6 +300,10 @@
       "label": "Povoleno",
       "description": "Enable or disable Neighbor Info Module"
     },
+    "transmitOverLora": {
+      "label": "Transmit over LoRa",
+      "description": "When enabled, include Neighbor Info transmissions over LoRa radio"
+    },
     "updateInterval": {
       "label": "Update Interval",
       "description": "Interval in seconds of how often we should try to send our Neighbor Info to the mesh"
@@ -404,6 +408,10 @@
   "telemetry": {
     "title": "Telemetry Settings",
     "description": "Settings for the Telemetry module",
+    "deviceTelemetryEnabled": {
+      "label": "Send Device Telemetry",
+      "description": "Enable the device telemetry module to send metrics to the mesh"
+    },
     "deviceUpdateInterval": {
       "label": "Device Metrics",
       "description": "Interval aktualizace metrik zařízení (v sekundách)"

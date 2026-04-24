@@ -15,6 +15,14 @@
   "sidebar": {
     "label": "Конфигурация"
   },
+  "remoteAdmin": {
+    "toast": {
+      "loadError": {
+        "title": "Unable to load remote settings",
+        "description": "The remote node did not return its configuration."
+      }
+    }
+  },
   "device": {
     "title": "Настройки на устройството",
     "description": "Настройки за устройството",
@@ -283,7 +291,19 @@
     },
     "fixedPosition": {
       "description": "Да не се докладва GPS позиция, а ръчно зададена такава",
-      "label": "Фиксирана позиция"
+      "label": "Фиксирана позиция",
+      "latitude": {
+        "label": "Latitude",
+        "description": "Decimal degrees between -90 and 90 (e.g., 37.7749)"
+      },
+      "longitude": {
+        "label": "Longitude",
+        "description": "Decimal degrees between -180 and 180 (e.g., -122.4194)"
+      },
+      "altitude": {
+        "label": "Altitude",
+        "description": "Optional — enter the altitude in {{unit}} above sea level (e.g., 100). Leave blank if unknown or add extra height for antennas/masts."
+      }
     },
     "gpsMode": {
       "description": "Конфигуриране дали GPS на устройството е активиран, деактивиран или липсва",

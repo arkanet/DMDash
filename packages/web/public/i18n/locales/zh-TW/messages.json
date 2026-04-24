@@ -12,12 +12,24 @@
   },
   "sendMessage": {
     "placeholder": "請在此輸入訊息……",
-    "sendButton": "傳送"
+    "sendButton": "傳送",
+    "compress": "Compress"
+  },
+  "replyPreview": {
+    "title": "Replying",
+    "clear": "Clear reply"
+  },
+  "replyingTo": "Replying to",
+  "compressed": {
+    "label": "Compressed message",
+    "title": "Compressed message"
   },
   "actionsMenu": {
     "addReactionLabel": "新增反應",
     "replyLabel": "回覆"
   },
+  "messages_actionsMenu_addReactionLabel": "EMOJI",
+  "messages_actionsMenu_replyLabel": "REPLAY",
   "deliveryStatus": {
     "delivered": {
       "label": "訊息已送達",

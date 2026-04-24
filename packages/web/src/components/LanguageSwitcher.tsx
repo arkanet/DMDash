@@ -18,7 +18,7 @@ interface LanguageSwitcherProps {
 }
 
 export default function LanguageSwitcher({ disableHover = false }: LanguageSwitcherProps) {
-  const { i18n, t } = useTranslation("ui");
+  const { t } = useTranslation("ui");
   const { set: setLanguage, current, getSupportedLangs } = useLang();
 
   const handleLanguageChange = useCallback(
@@ -75,7 +75,7 @@ export default function LanguageSwitcher({ disableHover = false }: LanguageSwitc
               <span>{language.flag}</span>
               <span>{language.name}</span>
             </div>
-            {i18n.language === language.code && <Check className="h-4 w-4 text-primary" />}
+            {current?.code === language.code && <Check className="h-4 w-4 text-primary" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

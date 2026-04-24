@@ -39,6 +39,7 @@
       "longName": "긴 이름",
       "connection": "연결",
       "lastHeard": "최근 수신",
+      "role": "Role",
       "encryption": "암호화",
       "model": "하드웨어",
       "macAddress": "MAC 주소"
@@ -47,6 +48,9 @@
       "direct": "직접 연결",
       "away": "떨어짐",
       "viaMqtt": ", MQTT 경유"
+    },
+    "lastHeardStatus": {
+      "never": "Never"
     }
   },
   "actions": {

@@ -300,6 +300,10 @@
       "label": "Käytössä",
       "description": "Ota käyttöön tai poista käytöstä naapuruustietomoduuli"
     },
+    "transmitOverLora": {
+      "label": "Transmit over LoRa",
+      "description": "When enabled, include Neighbor Info transmissions over LoRa radio"
+    },
     "updateInterval": {
       "label": "Päivitysväli",
       "description": "Aikaväli sekunneissa siitä, kuinka usein mesh-verkossa lähetetään naapuritietoja verkkoon"
@@ -404,6 +408,10 @@
   "telemetry": {
     "title": "Telemetrian asetukset",
     "description": "Telemetria-moduulin asetukset",
+    "deviceTelemetryEnabled": {
+      "label": "Send Device Telemetry",
+      "description": "Enable the device telemetry module to send metrics to the mesh"
+    },
     "deviceUpdateInterval": {
       "label": "Laitteen mittausloki",
       "description": "Laitteen mittaustietojen päivitysväli (sekuntia)"

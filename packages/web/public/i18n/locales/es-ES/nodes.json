@@ -39,6 +39,7 @@
       "longName": "Long Name",
       "connection": "Connection",
       "lastHeard": "Last Heard",
+      "role": "Role",
       "encryption": "Cifrado",
       "model": "Model",
       "macAddress": "MAC Address"
@@ -47,6 +48,9 @@
       "direct": "Directo",
       "away": "away",
       "viaMqtt": ", via MQTT"
+    },
+    "lastHeardStatus": {
+      "never": "Never"
     }
   },
   "actions": {

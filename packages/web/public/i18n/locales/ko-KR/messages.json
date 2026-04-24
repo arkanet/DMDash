@@ -12,12 +12,24 @@
   },
   "sendMessage": {
     "placeholder": "여기에 메시지를 입력하세요...",
-    "sendButton": "보내기"
+    "sendButton": "보내기",
+    "compress": "Compress"
+  },
+  "replyPreview": {
+    "title": "Replying",
+    "clear": "Clear reply"
+  },
+  "replyingTo": "Replying to",
+  "compressed": {
+    "label": "Compressed message",
+    "title": "Compressed message"
   },
   "actionsMenu": {
     "addReactionLabel": "반응 추가",
     "replyLabel": "답장"
   },
+  "messages_actionsMenu_addReactionLabel": "EMOJI",
+  "messages_actionsMenu_replyLabel": "REPLAY",
   "deliveryStatus": {
     "delivered": {
       "label": "메시지 전송",

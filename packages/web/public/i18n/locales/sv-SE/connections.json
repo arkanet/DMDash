@@ -21,7 +21,7 @@
     "nowDisconnected": "{{name}} är nu frånkopplad",
     "disconnected": "Frånkopplad",
     "failed": "Anslutning misslyckades",
-    "checkConnetion": "Kontrollera enheten och inställningarna och försök igen",
+    "checkConnection": "Check your device or settings and try again",
     "defaultSet": "Standard vald",
     "defaultConnection": "Standardanslutningen är nu {{nameisconnected}}",
     "deleted": "Borttagen",
@@ -29,6 +29,7 @@
     "pickConnectionAgain": "Kunde inte ansluta. Du kan behöva välja enheten/porten på nytt.",
     "added": "Anslutning tillagd",
     "savedByName": "{{name}} sparad.",
-    "savedCantConnect": "Anslutningen har sparats men enheten kunde inte anslutas till."
+    "savedCantConnect": "Anslutningen har sparats men enheten kunde inte anslutas till.",
+    "checkConnetion": "Kontrollera enheten och inställningarna och försök igen"
   }
 }

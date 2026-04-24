@@ -15,6 +15,14 @@
   "sidebar": {
     "label": "Configuration"
   },
+  "remoteAdmin": {
+    "toast": {
+      "loadError": {
+        "title": "Unable to load remote settings",
+        "description": "The remote node did not return its configuration."
+      }
+    }
+  },
   "device": {
     "title": "Paramètres de l'appareil",
     "description": "Paramètres de l'appareil",
@@ -283,7 +291,19 @@
     },
     "fixedPosition": {
       "description": "Ne pas envoyer la position GPS mais une position saisie manuellement",
-      "label": "Position fixe"
+      "label": "Position fixe",
+      "latitude": {
+        "label": "Latitude",
+        "description": "Decimal degrees between -90 and 90 (e.g., 37.7749)"
+      },
+      "longitude": {
+        "label": "Longitude",
+        "description": "Decimal degrees between -180 and 180 (e.g., -122.4194)"
+      },
+      "altitude": {
+        "label": "Altitude",
+        "description": "Optional — enter the altitude in {{unit}} above sea level (e.g., 100). Leave blank if unknown or add extra height for antennas/masts."
+      }
     },
     "gpsMode": {
       "description": "Configuration du GPS : activé, désactivé ou non présent",

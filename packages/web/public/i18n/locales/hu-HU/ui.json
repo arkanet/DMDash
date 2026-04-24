@@ -195,8 +195,8 @@
   "showUnheard": {
     "label": "Never heard"
   },
-  "language": {
-    "label": "Nyelv",
+  "languagePicker": {
+    "label": "Language",
     "changeLanguage": "Change Language"
   },
   "theme": {
@@ -226,5 +226,9 @@
   "footer": {
     "text": "Powered by <0>▲ Vercel</0> | Meshtastic® is a registered trademark of Meshtastic LLC. | <1>Legal Information</1>",
     "commitSha": "Commit SHA: {{sha}}"
+  },
+  "language": {
+    "label": "Nyelv",
+    "changeLanguage": "Change Language"
   }
 }

@@ -21,7 +21,7 @@
     "nowDisconnected": "{{name}} are now disconnecte",
     "disconnected": "Відключено",
     "failed": "Failed to connect",
-    "checkConnetion": "Check your device or settings and try again",
+    "checkConnection": "Check your device or settings and try again",
     "defaultSet": "Default set",
     "defaultConnection": "Default connection is now {{nameisconnected}}",
     "deleted": "Deleted",
@@ -29,6 +29,7 @@
     "pickConnectionAgain": "Could not connect. You may need to reselect the device/port.",
     "added": "Connection added",
     "savedByName": "{{name}} saved.",
-    "savedCantConnect": "The connection was saved but could not connect."
+    "savedCantConnect": "The connection was saved but could not connect.",
+    "checkConnetion": "Check your device or settings and try again"
   }
 }

@@ -300,6 +300,10 @@
       "label": "Activé",
       "description": "Activer ou désactiver le module informations du voisinage"
     },
+    "transmitOverLora": {
+      "label": "Transmit over LoRa",
+      "description": "When enabled, include Neighbor Info transmissions over LoRa radio"
+    },
     "updateInterval": {
       "label": "Intervalle de mise à jour",
       "description": "Intervalle en secondes de la fréquence à laquelle nous devrions essayer d'envoyer nos informations de Voisinage au maillage"
@@ -404,6 +408,10 @@
   "telemetry": {
     "title": "Paramètres de télémétrie",
     "description": "Paramètres du module télémétrie",
+    "deviceTelemetryEnabled": {
+      "label": "Send Device Telemetry",
+      "description": "Enable the device telemetry module to send metrics to the mesh"
+    },
     "deviceUpdateInterval": {
       "label": "Métriques de l’appareil",
       "description": "Intervalle de mise à jour des métriques de l'appareil (secondes)"

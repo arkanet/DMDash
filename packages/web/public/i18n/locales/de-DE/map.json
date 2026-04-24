@@ -13,7 +13,9 @@
     "remoteNeighbors": "Entfernte Verbindungen anzeigen",
     "positionPrecision": "Positionsgenauigkeit anzeigen",
     "traceroutes": "Traceroutes anzeigen",
-    "waypoints": "Wegpunkte anzeigen"
+    "waypoints": "Wegpunkte anzeigen",
+    "heatmap": "Show heatmap",
+    "density": "Density"
   },
   "mapMenu": {
     "locateAria": "Meinen Knoten suchen",

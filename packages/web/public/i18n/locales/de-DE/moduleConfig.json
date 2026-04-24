@@ -300,6 +300,10 @@
       "label": "Aktiviert",
       "description": "Nachbarinformation Modul aktivieren oder deaktivieren"
     },
+    "transmitOverLora": {
+      "label": "Transmit over LoRa",
+      "description": "When enabled, include Neighbor Info transmissions over LoRa radio"
+    },
     "updateInterval": {
       "label": "Aktualisierungsintervall",
       "description": "Intervall in Sekunden, wie oft die Nachbarinformation an das Netz gesendet wird"
@@ -404,6 +408,10 @@
   "telemetry": {
     "title": "Telemetrieeinstellungen",
     "description": "Einstellungen für das Telemetriemodul",
+    "deviceTelemetryEnabled": {
+      "label": "Send Device Telemetry",
+      "description": "Enable the device telemetry module to send metrics to the mesh"
+    },
     "deviceUpdateInterval": {
       "label": "Gerätekennzahlen",
       "description": "Aktualisierungsintervall für Gerätekennzahlen (Sekunden)"

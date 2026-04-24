@@ -39,6 +39,7 @@
       "longName": "Długa nazwa",
       "connection": "Połączenie",
       "lastHeard": "Ostatnio słyszany",
+      "role": "Role",
       "encryption": "Szyfrowanie",
       "model": "Model",
       "macAddress": "Adres MAC"
@@ -47,6 +48,9 @@
       "direct": "Bezpośrednio",
       "away": "away",
       "viaMqtt": ", przez MQTT"
+    },
+    "lastHeardStatus": {
+      "never": "Never"
     }
   },
   "actions": {

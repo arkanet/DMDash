@@ -12,12 +12,24 @@
   },
   "sendMessage": {
     "placeholder": "Въведете Вашето съобщение тук...",
-    "sendButton": "Изпрати"
+    "sendButton": "Изпрати",
+    "compress": "Compress"
+  },
+  "replyPreview": {
+    "title": "Replying",
+    "clear": "Clear reply"
+  },
+  "replyingTo": "Replying to",
+  "compressed": {
+    "label": "Compressed message",
+    "title": "Compressed message"
   },
   "actionsMenu": {
     "addReactionLabel": "Добавяне на реакция",
     "replyLabel": "Отговор"
   },
+  "messages_actionsMenu_addReactionLabel": "EMOJI",
+  "messages_actionsMenu_replyLabel": "REPLAY",
   "deliveryStatus": {
     "delivered": {
       "label": "Съобщението е доставено",

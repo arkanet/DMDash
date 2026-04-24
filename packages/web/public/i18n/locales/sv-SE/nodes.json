@@ -39,6 +39,7 @@
       "longName": "Långt namn",
       "connection": "Anslutning",
       "lastHeard": "Senast hörd",
+      "role": "Role",
       "encryption": "Kryptering",
       "model": "Modell",
       "macAddress": "MAC-adress"
@@ -47,6 +48,9 @@
       "direct": "Direkt",
       "away": "bort",
       "viaMqtt": ", via MQTT"
+    },
+    "lastHeardStatus": {
+      "never": "Never"
     }
   },
   "actions": {

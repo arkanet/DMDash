@@ -195,9 +195,9 @@
   "showUnheard": {
     "label": "Unknown last heard"
   },
-  "language": {
-    "label": "語言",
-    "changeLanguage": "變更語言"
+  "languagePicker": {
+    "label": "Language",
+    "changeLanguage": "Change Language"
   },
   "theme": {
     "dark": "深色",
@@ -226,5 +226,9 @@
   "footer": {
     "text": "技術支援： <0>▲ Vercel</0> | Meshtastic® 是 Meshtastic LLC. 的註冊商標。| <1>法律資訊</1>",
     "commitSha": "Commit SHA: {{sha}}"
+  },
+  "language": {
+    "label": "語言",
+    "changeLanguage": "變更語言"
   }
 }

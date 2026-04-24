@@ -13,7 +13,9 @@
     "remoteNeighbors": "Visa fjärranslutningar",
     "positionPrecision": "Visa positionens precision",
     "traceroutes": "Visa traceroutes",
-    "waypoints": "Visa vägpunkter"
+    "waypoints": "Visa vägpunkter",
+    "heatmap": "Show heatmap",
+    "density": "Density"
   },
   "mapMenu": {
     "locateAria": "Hitta min nod",

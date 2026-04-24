@@ -12,12 +12,24 @@
   },
   "sendMessage": {
     "placeholder": "Введите сообщение...",
-    "sendButton": "Отправить"
+    "sendButton": "Отправить",
+    "compress": "Compress"
+  },
+  "replyPreview": {
+    "title": "Replying",
+    "clear": "Clear reply"
+  },
+  "replyingTo": "Replying to",
+  "compressed": {
+    "label": "Compressed message",
+    "title": "Compressed message"
   },
   "actionsMenu": {
     "addReactionLabel": "Добавить реакцию",
     "replyLabel": "Ответить"
   },
+  "messages_actionsMenu_addReactionLabel": "EMOJI",
+  "messages_actionsMenu_replyLabel": "REPLAY",
   "deliveryStatus": {
     "delivered": {
       "label": "Сообщение доставлено",

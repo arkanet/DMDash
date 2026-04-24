@@ -21,7 +21,7 @@
     "nowDisconnected": "{{name}} are now disconnecte",
     "disconnected": "Прекъсната връзка",
     "failed": "Свързването не е успешно",
-    "checkConnetion": "Проверете устройството или настройките си и опитайте отново",
+    "checkConnection": "Check your device or settings and try again",
     "defaultSet": "Default set",
     "defaultConnection": "Default connection is now {{nameisconnected}}",
     "deleted": "Изтрит",
@@ -29,6 +29,7 @@
     "pickConnectionAgain": "Не можа да се свърже. Може да се наложи да изберете отново устройството/порта.",
     "added": "Връзката е добавена",
     "savedByName": "{{name}} е запазен.",
-    "savedCantConnect": "Връзката беше запазена, но не можа да се осъществи свързване."
+    "savedCantConnect": "Връзката беше запазена, но не можа да се осъществи свързване.",
+    "checkConnetion": "Проверете устройството или настройките си и опитайте отново"
   }
 }

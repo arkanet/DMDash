@@ -25,6 +25,8 @@
         "check:fix": "pnpm lint:fix && pnpm format:fix",
         "dev": "vite",
         "dev:https": "USE_HTTPS=true vite",
+        "i18n:check": "node ./scripts/i18n-sync.mjs",
+        "i18n:fix": "node ./scripts/i18n-sync.mjs --fix",
         "test": "vitest",
         "e2e": "node e2e/run-e2e.cjs",
         "typecheck": "pnpm exec tsc --noEmit -p tsconfig.typecheck.json",

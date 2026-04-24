@@ -28,6 +28,7 @@
   "contextual": {
     "label": "Kontextusos",
     "command": {
+      "nodeImport": "Node Import",
       "qrCode": "QR-kód",
       "qrGenerator": "Generátor",
       "qrImport": "Importálás",

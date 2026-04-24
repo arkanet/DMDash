@@ -12,12 +12,24 @@
   },
   "sendMessage": {
     "placeholder": "Entrez votre message ici...",
-    "sendButton": "Envoyer"
+    "sendButton": "Envoyer",
+    "compress": "Compress"
+  },
+  "replyPreview": {
+    "title": "Replying",
+    "clear": "Clear reply"
+  },
+  "replyingTo": "Replying to",
+  "compressed": {
+    "label": "Compressed message",
+    "title": "Compressed message"
   },
   "actionsMenu": {
     "addReactionLabel": "Ajouter une réaction",
     "replyLabel": "Répondre"
   },
+  "messages_actionsMenu_addReactionLabel": "EMOJI",
+  "messages_actionsMenu_replyLabel": "REPLAY",
   "deliveryStatus": {
     "delivered": {
       "label": "Message délivré",

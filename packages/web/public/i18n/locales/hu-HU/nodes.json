@@ -39,6 +39,7 @@
       "longName": "Long Name",
       "connection": "Kapcsolat",
       "lastHeard": "Last Heard",
+      "role": "Role",
       "encryption": "Encryption",
       "model": "Model",
       "macAddress": "MAC Address"
@@ -47,6 +48,9 @@
       "direct": "Közvetlen",
       "away": "away",
       "viaMqtt": ", via MQTT"
+    },
+    "lastHeardStatus": {
+      "never": "Never"
     }
   },
   "actions": {

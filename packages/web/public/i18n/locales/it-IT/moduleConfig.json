@@ -300,6 +300,10 @@
       "label": "Abilitato",
       "description": "Abilita o disabilita Modulo Info Vicini"
     },
+    "transmitOverLora": {
+      "label": "Trasmetti via LoRa",
+      "description": "Se abilitato, include la trasmissione delle Informazioni Vicini sulla radio LoRa"
+    },
     "updateInterval": {
       "label": "Intervallo di Aggiornamento",
       "description": "Intervallo in secondi di quanto spesso dovremmo cercare di inviare le nostre Info Vicini alla mesh"

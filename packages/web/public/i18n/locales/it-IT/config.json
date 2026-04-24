@@ -291,7 +291,19 @@
     },
     "fixedPosition": {
       "description": "Non segnalare la posizione GPS, ma specificane una manualmente",
-      "label": "Posizione Fissa"
+      "label": "Posizione Fissa",
+      "latitude": {
+        "label": "Latitudine",
+        "description": "Gradi decimali tra -90 e 90 (es. 37.7749)"
+      },
+      "longitude": {
+        "label": "Longitudine",
+        "description": "Gradi decimali tra -180 e 180 (es. -122.4194)"
+      },
+      "altitude": {
+        "label": "Altitudine",
+        "description": "Facoltativa — inserisci l'altitudine in {{unit}} sul livello del mare (es. 100). Lascia vuoto se sconosciuta o aggiungi l'altezza extra di antenne o tralicci."
+      }
     },
     "gpsMode": {
       "description": "Configura se il GPS del dispositivo è abilitato, disabilitato o non presente",

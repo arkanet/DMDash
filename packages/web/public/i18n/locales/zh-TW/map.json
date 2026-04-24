@@ -13,7 +13,9 @@
     "remoteNeighbors": "顯示遠端連線",
     "positionPrecision": "顯示位置精度",
     "traceroutes": "顯示追蹤路由",
-    "waypoints": "顯示途經點"
+    "waypoints": "顯示途經點",
+    "heatmap": "Show heatmap",
+    "density": "Density"
   },
   "mapMenu": {
     "locateAria": "定位我的節點",

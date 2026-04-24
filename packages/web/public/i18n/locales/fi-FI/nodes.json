@@ -39,6 +39,7 @@
       "longName": "Pitkä nimi",
       "connection": "Yhteys",
       "lastHeard": "Viimeksi kuultu",
+      "role": "Role",
       "encryption": "Salaus",
       "model": "Malli",
       "macAddress": "MAC-osoite"
@@ -47,6 +48,9 @@
       "direct": "Suora",
       "away": "poissa",
       "viaMqtt": ", MQTT välityksellä"
+    },
+    "lastHeardStatus": {
+      "never": "Never"
     }
   },
   "actions": {

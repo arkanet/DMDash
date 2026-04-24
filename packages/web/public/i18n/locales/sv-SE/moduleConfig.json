@@ -300,6 +300,10 @@
       "label": "Aktiverad",
       "description": "Aktivera eller inaktivera granninformation-modulen"
     },
+    "transmitOverLora": {
+      "label": "Transmit over LoRa",
+      "description": "When enabled, include Neighbor Info transmissions over LoRa radio"
+    },
     "updateInterval": {
       "label": "Uppdateringsintervall",
       "description": "Intervall i sekunder av hur ofta granninformation ska försöka skickas till nätet"
@@ -404,6 +408,10 @@
   "telemetry": {
     "title": "Inställningar för telemetri",
     "description": "Inställningar för telemetrimodulen",
+    "deviceTelemetryEnabled": {
+      "label": "Send Device Telemetry",
+      "description": "Enable the device telemetry module to send metrics to the mesh"
+    },
     "deviceUpdateInterval": {
       "label": "Enhetens mätvärden",
       "description": "Uppdateringsintervall för enhetsdata"

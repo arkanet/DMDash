@@ -39,6 +39,7 @@
       "longName": "Полное имя",
       "connection": "Подключение",
       "lastHeard": "Последний раз слышен",
+      "role": "Role",
       "encryption": "Шифрование",
       "model": "Модель",
       "macAddress": "MAC-адрес"

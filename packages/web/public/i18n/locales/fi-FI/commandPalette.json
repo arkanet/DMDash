@@ -28,6 +28,7 @@
   "contextual": {
     "label": "Kontekstin mukainen",
     "command": {
+      "nodeImport": "Node Import",
       "qrCode": "QR-koodi",
       "qrGenerator": "QR-koodigeneraattori",
       "qrImport": "Tuo",

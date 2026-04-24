@@ -13,7 +13,9 @@
     "remoteNeighbors": "Näytä etäyhteydet",
     "positionPrecision": "Näytä sijainnin tarkkuus",
     "traceroutes": "Näytä reititykset",
-    "waypoints": "Näytä reittipisteet"
+    "waypoints": "Näytä reittipisteet",
+    "heatmap": "Show heatmap",
+    "density": "Density"
   },
   "mapMenu": {
     "locateAria": "Paikanna laitteeni",

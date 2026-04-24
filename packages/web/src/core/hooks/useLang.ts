@@ -19,14 +19,14 @@ function useLang() {
   const [_, setLanguageInStorage] = useLocalStorage<LanguageState | null>(STORAGE_KEY, null);
 
   const currentLanguage = useMemo((): Lang | undefined => {
-    const resolvedLanguage = i18n.resolvedLanguage ?? i18n.language;
+    const selectedLanguage = i18n.language ?? i18n.resolvedLanguage;
 
-    const exactMatch = supportedLanguages.find((language) => language.code === resolvedLanguage);
+    const exactMatch = supportedLanguages.find((language) => language.code === selectedLanguage);
     if (exactMatch) {
       return exactMatch;
     }
 
-    const baseLanguage = resolvedLanguage?.split("-")[0];
+    const baseLanguage = selectedLanguage?.split("-")[0];
     if (baseLanguage) {
       const familyMatch = supportedLanguages.find(
         (language) => language.code.split("-")[0] === baseLanguage,

@@ -21,7 +21,7 @@
     "nowDisconnected": "{{name}} ist jetzt getrennt",
     "disconnected": "Verbindung getrennt",
     "failed": "Verbindung fehlgeschlagen",
-    "checkConnetion": "Überprüfen Sie Ihr Gerät oder Ihre Einstellungen und versuchen Sie es erneut",
+    "checkConnection": "Check your device or settings and try again",
     "defaultSet": "Standard festgelegt",
     "defaultConnection": "Standardverbindung ist jetzt {{nameisconnected}}",
     "deleted": "Gelöscht",
@@ -29,6 +29,7 @@
     "pickConnectionAgain": "Verbindung fehlgeschlagen. Eventuell müssen Sie das Gerät/den Anschluss neu wählen.",
     "added": "Verbindung hinzugefügt",
     "savedByName": "{{name}} gespeichert.",
-    "savedCantConnect": "Die Verbindung wurde gespeichert, konnte sich aber nicht verbinden."
+    "savedCantConnect": "Die Verbindung wurde gespeichert, konnte sich aber nicht verbinden.",
+    "checkConnetion": "Überprüfen Sie Ihr Gerät oder Ihre Einstellungen und versuchen Sie es erneut"
   }
 }

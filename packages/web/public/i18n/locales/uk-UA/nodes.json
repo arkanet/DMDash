@@ -39,6 +39,7 @@
       "longName": "Довга назва",
       "connection": "Connection",
       "lastHeard": "Last Heard",
+      "role": "Role",
       "encryption": "Шифрування",
       "model": "Model",
       "macAddress": "MAC-адреса"
@@ -47,6 +48,9 @@
       "direct": "Direct",
       "away": "away",
       "viaMqtt": ", через MQTT"
+    },
+    "lastHeardStatus": {
+      "never": "Never"
     }
   },
   "actions": {

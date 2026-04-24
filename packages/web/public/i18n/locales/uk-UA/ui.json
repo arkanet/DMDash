@@ -195,9 +195,9 @@
   "showUnheard": {
     "label": "Never heard"
   },
-  "language": {
-    "label": "Мова",
-    "changeLanguage": "Змінити мову"
+  "languagePicker": {
+    "label": "Language",
+    "changeLanguage": "Change Language"
   },
   "theme": {
     "dark": "Темна",
@@ -226,5 +226,9 @@
   "footer": {
     "text": "Powered by <0>▲ Vercel</0> | Meshtastic® is a registered trademark of Meshtastic LLC. | <1>Legal Information</1>",
     "commitSha": "SHA коміту: {{sha}}"
+  },
+  "language": {
+    "label": "Мова",
+    "changeLanguage": "Змінити мову"
   }
 }

@@ -300,6 +300,10 @@
       "label": "Включено",
       "description": "Включить или отключить модуль информации о соседях"
     },
+    "transmitOverLora": {
+      "label": "Transmit over LoRa",
+      "description": "When enabled, include Neighbor Info transmissions over LoRa radio"
+    },
     "updateInterval": {
       "label": "Интервал обновления",
       "description": "Интервал в секундах между попытками отправки информации о соседях по mesh-сети"
@@ -404,6 +408,10 @@
   "telemetry": {
     "title": "Настройки телеметрии",
     "description": "Настройки модуля телеметрии",
+    "deviceTelemetryEnabled": {
+      "label": "Send Device Telemetry",
+      "description": "Enable the device telemetry module to send metrics to the mesh"
+    },
     "deviceUpdateInterval": {
       "label": "Метрики устройства",
       "description": "Интервал обновления метрик устройства (секунды)"

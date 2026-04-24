@@ -28,6 +28,7 @@
   "contextual": {
     "label": "Bağlamsal",
     "command": {
+      "nodeImport": "Node Import",
       "qrCode": "QR Kodu",
       "qrGenerator": "Oluşturucu",
       "qrImport": "İçeri aktar",

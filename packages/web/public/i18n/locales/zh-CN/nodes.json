@@ -39,6 +39,7 @@
       "longName": "长名称",
       "connection": "Connection",
       "lastHeard": "Last Heard",
+      "role": "Role",
       "encryption": "Encryption",
       "model": "模型",
       "macAddress": "MAC Address"
@@ -47,6 +48,9 @@
       "direct": "直频",
       "away": "away",
       "viaMqtt": ", via MQTT"
+    },
+    "lastHeardStatus": {
+      "never": "Never"
     }
   },
   "actions": {
