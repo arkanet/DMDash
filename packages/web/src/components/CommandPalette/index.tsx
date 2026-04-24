@@ -1,4 +1,3 @@
-import { Avatar } from "@components/UI/Avatar.tsx";
 import {
   CommandDialog,
   CommandEmpty,
@@ -8,37 +7,22 @@ import {
   CommandList,
 } from "@components/UI/Command.tsx";
 import { usePinnedItems } from "@core/hooks/usePinnedItems.ts";
-import { useAppStore, useDevice, useDeviceStore, useNodeDB } from "@core/stores";
+import { useAppStore, useDevice } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
-import { useNavigate } from "@tanstack/react-router";
 import { useCommandState } from "cmdk";
 import {
-  ArrowLeftRightIcon,
   BoxSelectIcon,
-  BugIcon,
-  CloudOff,
-  EraserIcon,
   FactoryIcon,
   HardDriveUpload,
-  LinkIcon,
   type LucideIcon,
-  MapIcon,
-  MessageSquareIcon,
   Pin,
-  PlusIcon,
   PowerIcon,
-  QrCodeIcon,
   RefreshCwIcon,
-  SettingsIcon,
-  SmartphoneIcon,
   TrashIcon,
-  UsersIcon,
 } from "lucide-react";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { getNodeLongName } from "@app/darkmesh/utils.ts";
-import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 
 export interface Group {
   id: string;
@@ -60,112 +44,25 @@ export interface SubItem {
 }
 
 export const CommandPalette = () => {
-  const { commandPaletteOpen, setCommandPaletteOpen, setConnectDialogOpen, setSelectedDevice } =
-    useAppStore();
-  const { getDevices } = useDeviceStore();
-  const { setDialogOpen, connection } = useDevice();
-  const { getNode } = useNodeDB();
+  const { commandPaletteOpen, setCommandPaletteOpen } = useAppStore();
+  const { setDialogOpen } = useDevice();
   const { pinnedItems, togglePinnedItem } = usePinnedItems({
     storageName: "pinnedCommandMenuGroups",
   });
   const { t } = useTranslation("commandPalette");
-  const navigate = useNavigate({ from: "/" });
 
   const groups: Group[] = [
-    {
-      id: "gotoGroup",
-      label: t("goto.label"),
-      icon: LinkIcon,
-      commands: [
-        {
-          label: t("goto.command.messages"),
-          icon: MessageSquareIcon,
-          action() {
-            navigate({ to: "/messages" });
-          },
-        },
-        {
-          label: t("goto.command.map"),
-          icon: MapIcon,
-          action() {
-            navigate({ to: "/map" });
-          },
-        },
-        {
-          label: t("goto.command.config"),
-          icon: SettingsIcon,
-          action() {
-            navigate({ to: "/config" });
-          },
-          tags: ["settings"],
-        },
-        {
-          label: t("goto.command.nodes"),
-          icon: UsersIcon,
-          action() {
-            navigate({ to: "/nodes" });
-          },
-        },
-      ],
-    },
-    {
-      id: "manageGroup",
-      label: t("manage.label"),
-      icon: SmartphoneIcon,
-      commands: [
-        {
-          label: t("manage.command.switchNode"),
-          icon: ArrowLeftRightIcon,
-          subItems: getDevices().map((device) => ({
-            label: (() => {
-              const n = getNode(device.hardware.myNodeNum);
-              const long = n ? getNodeLongName(n) : undefined;
-              if (long) return long;
-              try {
-                return `!${numberToHexUnpadded(device.hardware.myNodeNum).toUpperCase()}`;
-              } catch {
-                return t("unknown.shortName");
-              }
-            })(),
-            icon: <Avatar nodeNum={device.hardware.myNodeNum} />,
-            action() {
-              setSelectedDevice(device.id);
-            },
-          })),
-        },
-        {
-          label: t("manage.command.connectNewNode"),
-          icon: PlusIcon,
-          action() {
-            setConnectDialogOpen(true);
-          },
-        },
-      ],
-    },
     {
       id: "contextualGroup",
       label: t("contextual.label"),
       icon: BoxSelectIcon,
       commands: [
         {
-          label: t("contextual.command.qrCode"),
-          icon: QrCodeIcon,
-          subItems: [
-            {
-              label: t("contextual.command.qrGenerator"),
-              icon: <QrCodeIcon size={16} />,
-              action() {
-                setDialogOpen("QR", true);
-              },
-            },
-            {
-              label: t("contextual.command.qrImport"),
-              icon: <QrCodeIcon size={16} />,
-              action() {
-                setDialogOpen("import", true);
-              },
-            },
-          ],
+          label: t("contextual.command.nodeImport", "Node Import"),
+          icon: HardDriveUpload,
+          action() {
+            setDialogOpen("nodeImport", true);
+          },
         },
         {
           label: t("contextual.command.scheduleShutdown"),
@@ -182,26 +79,10 @@ export const CommandPalette = () => {
           },
         },
         {
-          label: t("contextual.command.dfuMode"),
-          icon: HardDriveUpload,
-          action() {
-            connection?.enterDfuMode();
-          },
-        },
-        {
           label: t("contextual.command.resetNodeDb"),
           icon: TrashIcon,
           action() {
             setDialogOpen("resetNodeDb", true);
-          },
-        },
-        {
-          label: t("contextual.command.disconnect"),
-          icon: CloudOff,
-          action() {
-            connection?.disconnect().catch((error) => {
-              console.error("Failed to disconnect:", error);
-            });
           },
         },
         {
@@ -216,34 +97,6 @@ export const CommandPalette = () => {
           icon: FactoryIcon,
           action() {
             setDialogOpen("factoryResetConfig", true);
-          },
-        },
-      ],
-    },
-    {
-      id: "debugGroup",
-      label: t("debug.label"),
-      icon: BugIcon,
-      commands: [
-        {
-          label: t("debug.command.reconfigure"),
-          icon: RefreshCwIcon,
-          action() {
-            void connection?.configure();
-          },
-        },
-        {
-          label: t("debug.command.clearAllStoredMessages"),
-          icon: EraserIcon,
-          action() {
-            setDialogOpen("deleteMessages", true);
-          },
-        },
-        {
-          label: t("debug.command.clearAllStores"),
-          icon: EraserIcon,
-          action() {
-            setDialogOpen("clearAllStores", true);
           },
         },
       ],
