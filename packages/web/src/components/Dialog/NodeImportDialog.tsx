@@ -9,6 +9,7 @@ import {
 } from "@components/UI/Dialog.tsx";
 import { Input } from "@components/UI/Input.tsx";
 import { Button } from "@components/UI/Button.tsx";
+import { useToast } from "@core/hooks/useToast.ts";
 import { useDevice, useNodeDB } from "@core/stores";
 import {
   parseSharedContactUrl,
@@ -27,6 +28,7 @@ export interface NodeImportDialogProps {
 export const NodeImportDialog = ({ open, onOpenChange }: NodeImportDialogProps) => {
   const { sendAdminMessage } = useDevice();
   const { addNode } = useNodeDB();
+  const { toast } = useToast();
   const { t } = useTranslation("dialog");
   const [input, setInput] = useState("");
   const [valid, setValid] = useState(false);
@@ -34,6 +36,52 @@ export const NodeImportDialog = ({ open, onOpenChange }: NodeImportDialogProps) 
   const [parsedResult, setParsedResult] = useState<ReturnType<typeof parseDmdbContents> | null>(
     null,
   );
+
+  const resetDialog = () => {
+    setConfirming(false);
+    setParsedResult(null);
+    onOpenChange(false);
+    setInput("");
+  };
+
+  const showImportSuccessToast = (importedCount: number) => {
+    if (importedCount <= 0) {
+      return;
+    }
+
+    toast(
+      importedCount === 1
+        ? {
+            title: t("nodeImport.toast.single.title", "Contact imported"),
+            description: t(
+              "nodeImport.toast.single.description",
+              "The contact is now available in your node list.",
+            ),
+          }
+        : {
+            title: t("nodeImport.toast.multiple.title", "Imported {{count}} contacts", {
+              count: importedCount,
+            }),
+            description: t(
+              "nodeImport.toast.multiple.description",
+              "The imported contacts are now available in your node list.",
+            ),
+          },
+    );
+  };
+
+  const importContacts = (contacts: Protobuf.Admin.SharedContact[], favoriteOnly: boolean) => {
+    contacts.forEach((contact) => {
+      sendAdminMessage(
+        create(Protobuf.Admin.AdminMessageSchema, {
+          payloadVariant: { case: "addContact", value: contact },
+        }),
+      );
+      addNode(createNodeInfoFromSharedContact(contact, favoriteOnly));
+    });
+
+    showImportSuccessToast(contacts.length);
+  };
 
   useEffect(() => {
     try {
@@ -90,29 +138,15 @@ export const NodeImportDialog = ({ open, onOpenChange }: NodeImportDialogProps) 
         }
 
         // Default: import all parsed contacts
-        parsed.contacts.forEach((contact) => {
-          sendAdminMessage(
-            create(Protobuf.Admin.AdminMessageSchema, {
-              payloadVariant: { case: "addContact", value: contact },
-            }),
-          );
-          addNode(createNodeInfoFromSharedContact(contact, parsed.favoriteOnly));
-        });
-        onOpenChange(false);
-        setInput("");
+        importContacts(parsed.contacts, parsed.favoriteOnly);
+        resetDialog();
         return;
       }
 
       // Otherwise assume single shared contact URL
       const contact = parseSharedContactUrl(input);
-      sendAdminMessage(
-        create(Protobuf.Admin.AdminMessageSchema, {
-          payloadVariant: { case: "addContact", value: contact },
-        }),
-      );
-      addNode(createNodeInfoFromSharedContact(contact, false));
-      onOpenChange(false);
-      setInput("");
+      importContacts([contact], false);
+      resetDialog();
     } catch (err) {
       // swallow; validation should have prevented this
       console.warn("Failed to import node", err);
@@ -132,22 +166,8 @@ export const NodeImportDialog = ({ open, onOpenChange }: NodeImportDialogProps) 
           ].includes(role);
         });
 
-    toImport.forEach((contact) => {
-      sendAdminMessage(
-        create(Protobuf.Admin.AdminMessageSchema, {
-          payloadVariant: { case: "addContact", value: contact },
-        }),
-      );
-      addNode(createNodeInfoFromSharedContact(contact, parsedResult.favoriteOnly));
-      if (parsedResult.favoriteOnly) {
-        // mark favorite via store helper if available
-      }
-    });
-
-    setConfirming(false);
-    setParsedResult(null);
-    onOpenChange(false);
-    setInput("");
+    importContacts(toImport, parsedResult.favoriteOnly);
+    resetDialog();
   };
 
   return (
