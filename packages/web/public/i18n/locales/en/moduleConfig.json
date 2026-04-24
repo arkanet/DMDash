@@ -408,6 +408,10 @@
   "telemetry": {
     "title": "Telemetry Settings",
     "description": "Settings for the Telemetry module",
+    "deviceTelemetryEnabled": {
+      "label": "Send Device Telemetry",
+      "description": "Enable the device telemetry module to send metrics to the mesh"
+    },
     "deviceUpdateInterval": {
       "label": "Device Metrics",
       "description": "Device metrics update interval (seconds)"

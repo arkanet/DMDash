@@ -404,6 +404,10 @@
   "telemetry": {
     "title": "Impostazioni Telemetria",
     "description": "Impostazioni per il modulo Telemetria",
+    "deviceTelemetryEnabled": {
+      "label": "Invia telemetria dispositivo",
+      "description": "Abilita il modulo di telemetria del dispositivo per inviare metriche sulla mesh"
+    },
     "deviceUpdateInterval": {
       "label": "Metriche Dispositivo",
       "description": "Intervallo aggiornamento metriche dispositivo (secondi)"

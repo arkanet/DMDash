@@ -17,6 +17,7 @@ export const Telemetry = ({ onFormInit }: TelemetryModuleConfigProps) => {
 
   const { moduleConfig, setChange, getEffectiveModuleConfig, removeChange } = useConfigTarget();
   const { t } = useTranslation("moduleConfig");
+  const disabledByDeviceTelemetry = [{ fieldName: "deviceTelemetryEnabled" as const }];
 
   const onSubmit = (data: TelemetryValidation) => {
     if (deepCompareConfig(moduleConfig.telemetry, data, true)) {
@@ -40,10 +41,20 @@ export const Telemetry = ({ onFormInit }: TelemetryModuleConfigProps) => {
           description: t("telemetry.description"),
           fields: [
             {
+              type: "toggle",
+              name: "deviceTelemetryEnabled",
+              label: t("telemetry.deviceTelemetryEnabled.label", "Send Device Telemetry"),
+              description: t(
+                "telemetry.deviceTelemetryEnabled.description",
+                "Enable the device telemetry module to send metrics to the mesh.",
+              ),
+            },
+            {
               type: "number",
               name: "deviceUpdateInterval",
               label: t("telemetry.deviceUpdateInterval.label"),
               description: t("telemetry.deviceUpdateInterval.description"),
+              disabledBy: disabledByDeviceTelemetry,
               properties: {
                 suffix: t("unit.second.plural"),
               },
@@ -53,6 +64,7 @@ export const Telemetry = ({ onFormInit }: TelemetryModuleConfigProps) => {
               name: "environmentUpdateInterval",
               label: t("telemetry.environmentUpdateInterval.label"),
               description: t("telemetry.environmentUpdateInterval.description"),
+              disabledBy: disabledByDeviceTelemetry,
               properties: {
                 suffix: t("unit.second.plural"),
               },
@@ -62,48 +74,56 @@ export const Telemetry = ({ onFormInit }: TelemetryModuleConfigProps) => {
               name: "environmentMeasurementEnabled",
               label: t("telemetry.environmentMeasurementEnabled.label"),
               description: t("telemetry.environmentMeasurementEnabled.description"),
+              disabledBy: disabledByDeviceTelemetry,
             },
             {
               type: "toggle",
               name: "environmentScreenEnabled",
               label: t("telemetry.environmentScreenEnabled.label"),
               description: t("telemetry.environmentScreenEnabled.description"),
+              disabledBy: disabledByDeviceTelemetry,
             },
             {
               type: "toggle",
               name: "environmentDisplayFahrenheit",
               label: t("telemetry.environmentDisplayFahrenheit.label"),
               description: t("telemetry.environmentDisplayFahrenheit.description"),
+              disabledBy: disabledByDeviceTelemetry,
             },
             {
               type: "toggle",
               name: "airQualityEnabled",
               label: t("telemetry.airQualityEnabled.label"),
               description: t("telemetry.airQualityEnabled.description"),
+              disabledBy: disabledByDeviceTelemetry,
             },
             {
               type: "number",
               name: "airQualityInterval",
               label: t("telemetry.airQualityInterval.label"),
               description: t("telemetry.airQualityInterval.description"),
+              disabledBy: disabledByDeviceTelemetry,
             },
             {
               type: "toggle",
               name: "powerMeasurementEnabled",
               label: t("telemetry.powerMeasurementEnabled.label"),
               description: t("telemetry.powerMeasurementEnabled.description"),
+              disabledBy: disabledByDeviceTelemetry,
             },
             {
               type: "number",
               name: "powerUpdateInterval",
               label: t("telemetry.powerUpdateInterval.label"),
               description: t("telemetry.powerUpdateInterval.description"),
+              disabledBy: disabledByDeviceTelemetry,
             },
             {
               type: "toggle",
               name: "powerScreenEnabled",
               label: t("telemetry.powerScreenEnabled.label"),
               description: t("telemetry.powerScreenEnabled.description"),
+              disabledBy: disabledByDeviceTelemetry,
             },
           ],
         },
