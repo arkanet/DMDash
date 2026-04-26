@@ -94,7 +94,7 @@ export const Table = ({ headings, rows }: TableProps) => {
       <table
         className="w-fit max-w-full table-auto"
         style={{
-          width: "fit-content",
+          width: "100%",
           maxWidth: "100%",
           tableLayout: "auto",
           contentVisibility: "auto",
