@@ -194,27 +194,39 @@ const NodesPage = (): JSX.Element => {
       cells: [
         {
           content: (
-            <Avatar
-              nodeNum={node.num}
-              showFavorite={node.isFavorite}
-              showError={hasNodeError(node.num)}
-            />
+            <div style={{ width: "fit-content", maxWidth: "fit-content" }}>
+              <div className="mx-auto" style={{ width: "2.25rem" }}>
+                <Avatar
+                  nodeNum={node.num}
+                  className={hasNodeError(node.num) ? "text-red-500" : undefined}
+                  showError={hasNodeError(node.num)}
+                  showFavorite={node.isFavorite}
+                  size="sm"
+                />
+              </div>
+            </div>
           ),
-          sortValue: shortName, // Non-sortable column
+          sortValue: shortName,
         },
         {
           content: (
-            <h1
+            <button
+              type="button"
               onMouseDown={() => handleNodeInfoDialog(node.num)}
               onKeyUp={(evt) => {
                 if (evt.key === "Enter") {
                   handleNodeInfoDialog(node.num);
                 }
               }}
-              className="cursor-pointer underline ml-2 whitespace-break-spaces"
+              className="cursor-pointer ml-2 whitespace-break-spaces text-left"
             >
-              {longName}
-            </h1>
+              <div className="underline font-medium">{longName}</div>
+              <div className="text-xs text-text-secondary mt-0.5">
+                {(node.user as unknown as { nameHex?: string })?.nameHex ??
+                  node.nameHex ??
+                  `!${numberToHexUnpadded(node.num).toUpperCase()}`}
+              </div>
+            </button>
           ),
           sortValue: longName,
         },
