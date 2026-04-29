@@ -6,9 +6,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@components/UI/Dialog.tsx";
-import { useMessages, useNodeDB } from "@core/stores";
+import { useDevice, useNodeDB } from "@core/stores";
 import { getNodeLongName, getNodeShortName } from "@app/darkmesh/utils.ts";
 import { LockKeyholeOpenIcon } from "lucide-react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useRefreshKeysDialog } from "./useRefreshKeysDialog.ts";
 
@@ -19,12 +20,27 @@ export interface RefreshKeysDialogProps {
 
 export const RefreshKeysDialog = ({ open, onOpenChange }: RefreshKeysDialogProps) => {
   const { t } = useTranslation("dialog");
-  const { activeChat } = useMessages();
-  const { nodeErrors, getNode } = useNodeDB();
+  const { refreshKeysNodeNum } = useDevice();
+  const { getNodeError, getNode } = useNodeDB();
 
   const { handleCloseDialog, handleNodeRemove } = useRefreshKeysDialog();
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        onOpenChange(nextOpen);
+        return;
+      }
 
-  const nodeErrorNum = nodeErrors.get(activeChat);
+      handleCloseDialog();
+    },
+    [handleCloseDialog, onOpenChange],
+  );
+
+  if (refreshKeysNodeNum === undefined) {
+    return null;
+  }
+
+  const nodeErrorNum = getNodeError(refreshKeysNodeNum);
 
   if (!nodeErrorNum) {
     return null;
@@ -45,7 +61,7 @@ export const RefreshKeysDialog = ({ open, onOpenChange }: RefreshKeysDialogProps
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-8 flex flex-col gap-2" aria-describedby={undefined}>
         <DialogClose onClick={handleCloseDialog} />
         <DialogHeader>

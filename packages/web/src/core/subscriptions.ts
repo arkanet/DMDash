@@ -221,11 +221,13 @@ export const subscribeAll = (
         case Protobuf.Mesh.Routing_Error.NO_CHANNEL:
           console.error(`Routing Error: ${routingPacket.data.variant.value}`);
           nodeDB.setNodeError(routingPacket.from, routingPacket?.data?.variant?.value);
+          device.setRefreshKeysNodeNum(routingPacket.from);
           device.setDialogOpen("refreshKeys", true);
           break;
         case Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY:
           console.error(`Routing Error: ${routingPacket.data.variant.value}`);
           nodeDB.setNodeError(routingPacket.from, routingPacket?.data?.variant?.value);
+          device.setRefreshKeysNodeNum(routingPacket.from);
           device.setDialogOpen("refreshKeys", true);
           break;
         default: {

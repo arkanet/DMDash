@@ -1,24 +1,30 @@
-import { useDevice, useMessages, useNodeDB } from "@core/stores";
+import { useDevice, useNodeDB } from "@core/stores";
 import { useCallback } from "react";
 
 export function useRefreshKeysDialog() {
-  const { setDialogOpen } = useDevice();
+  const { setDialogOpen, refreshKeysNodeNum, setRefreshKeysNodeNum } = useDevice();
   const { removeNode, clearNodeError, getNodeError } = useNodeDB();
-  const { activeChat } = useMessages();
 
   const handleCloseDialog = useCallback(() => {
     setDialogOpen("refreshKeys", false);
-  }, [setDialogOpen]);
+    setRefreshKeysNodeNum(undefined);
+  }, [setDialogOpen, setRefreshKeysNodeNum]);
 
   const handleNodeRemove = useCallback(() => {
-    const nodeWithError = getNodeError(activeChat);
-    if (!nodeWithError) {
+    if (refreshKeysNodeNum === undefined) {
+      handleCloseDialog();
       return;
     }
-    clearNodeError(activeChat);
+
+    const nodeWithError = getNodeError(refreshKeysNodeNum);
+    if (!nodeWithError) {
+      handleCloseDialog();
+      return;
+    }
+    clearNodeError(refreshKeysNodeNum);
     handleCloseDialog();
     return removeNode(nodeWithError?.node);
-  }, [activeChat, clearNodeError, getNodeError, removeNode, handleCloseDialog]);
+  }, [refreshKeysNodeNum, clearNodeError, getNodeError, removeNode, handleCloseDialog]);
 
   return {
     handleCloseDialog,

@@ -62,6 +62,7 @@ export interface Device extends DeviceData {
   metadata: Map<number, Protobuf.Mesh.DeviceMetadata>;
   connection?: MeshDevice;
   activeNode: number;
+  refreshKeysNodeNum: number | undefined;
   pendingSettingsChanges: boolean;
   messageDraft: string;
   unreadCounts: Map<number, number>;
@@ -96,6 +97,7 @@ export interface Device extends DeviceData {
   addMetadata: (from: number, metadata: Protobuf.Mesh.DeviceMetadata) => void;
   setDialogOpen: (dialog: DialogVariant, open: boolean) => void;
   getDialogOpen: (dialog: DialogVariant) => boolean;
+  setRefreshKeysNodeNum: (nodeNum: number | undefined) => void;
   setMessageDraft: (message: string) => void;
   incrementUnread: (nodeNum: number) => void;
   resetUnread: (nodeNum: number) => void;
@@ -192,6 +194,7 @@ function deviceFactory(
     metadata: new Map(),
     connection: undefined,
     activeNode: 0,
+    refreshKeysNodeNum: undefined,
     dialog: {
       import: false,
       nodeImport: false,
@@ -614,6 +617,17 @@ function deviceFactory(
         throw new Error(`Device ${id} not found`);
       }
       return device.dialog[dialog];
+    },
+
+    setRefreshKeysNodeNum: (nodeNum) => {
+      set(
+        produce<PrivateDeviceState>((draft) => {
+          const device = draft.devices.get(id);
+          if (device) {
+            device.refreshKeysNodeNum = nodeNum;
+          }
+        }),
+      );
     },
 
     setMessageDraft: (message: string) => {
