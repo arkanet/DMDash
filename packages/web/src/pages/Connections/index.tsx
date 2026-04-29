@@ -29,6 +29,7 @@ import { Separator } from "@components/UI/Separator.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  ArrowLeft,
   ExternalLink,
   LinkIcon,
   MoreHorizontal,
@@ -90,6 +91,14 @@ export const Connections = () => {
     });
   }, [connections]);
 
+  const hasConnectedDevice = useMemo(
+    () =>
+      connections.some(
+        (connection) => connection.status === "connected" || connection.status === "configured",
+      ),
+    [connections],
+  );
+
   return (
     <div className="min-h-full bg-[radial-gradient(circle_at_top,#611818_0%,#1f0d0d_33%,#090909_74%)] p-6 text-zinc-100">
       <div className="mx-auto space-y-6">
@@ -109,6 +118,16 @@ export const Connections = () => {
                 </h1>
               </div>
               <div className="flex flex-wrap items-center gap-2 md:basis-1/3 md:justify-end">
+                {hasConnectedDevice ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate({ to: "/map" })}
+                    className="gap-2 border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
+                  >
+                    <ArrowLeft className="size-4" />
+                    {t("button.backToApp", "Back to app")}
+                  </Button>
+                ) : null}
                 <Button
                   onClick={() => setAddOpen(true)}
                   className="gap-2 border border-[#7a2424] bg-[#551717] text-zinc-100 hover:bg-[#6c1d1d]"
