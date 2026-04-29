@@ -14,7 +14,7 @@ import {
 } from "@components/PageComponents/Map/Layers/HeatmapLayer.tsx";
 import { NodesLayer } from "@components/PageComponents/Map/Layers/NodesLayer.tsx";
 import { PrecisionLayer } from "@components/PageComponents/Map/Layers/PrecisionLayer.tsx";
-import { SNRLayer, SNRTooltip } from "@components/PageComponents/Map/Layers/SNRLayer.tsx";
+import { SNRTooltip } from "@components/PageComponents/Map/Layers/SNRLayer.tsx";
 import { WaypointLayer } from "@components/PageComponents/Map/Layers/WaypointLayer.tsx";
 import type { PopupState } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
 import { PageLayout } from "@components/PageLayout.tsx";
@@ -98,7 +98,6 @@ const MapPage: React.FC = () => {
   // visibility / layer UI
   const [visibilityState, setVisibilityState] = useState<VisibilityState>(defaultVisibilityState);
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("snr");
-  const snrLayerElementId = useId();
   const heatmapLayerElementId = useId();
 
   const heatmapLayerElement = useMemo(
@@ -109,17 +108,6 @@ const MapPage: React.FC = () => {
   );
 
   const myNode = getMyNode();
-  const snrLayerElement = useMemo(
-    () => (
-      <SNRLayer
-        id={snrLayerElementId}
-        filteredNodes={filteredNodes}
-        myNode={myNode}
-        visibilityState={visibilityState}
-      />
-    ),
-    [snrLayerElementId, filteredNodes, myNode, visibilityState],
-  );
 
   // hover tooltips are disabled; tooltips appear on click now
   const onMouseMove = useCallback(() => {
@@ -293,7 +281,7 @@ const MapPage: React.FC = () => {
     } as unknown as GeoJSON.FeatureCollection;
   }, [pinnedPopupNode, popupState, device.traceroutes, getNode]);
 
-  // All traceroute links (for 'Show Links' mode)
+  // All traceroute links
   const allTracerouteLinks = useMemo(() => {
     const features: Array<Record<string, unknown>> = [];
     const seen = new Set<string>();
@@ -1104,7 +1092,6 @@ const MapPage: React.FC = () => {
             onMouseMove={onMouseMove}
             onClick={onMapBackgroundClick}
             interactiveLayerIds={[
-              snrLayerElementId,
               `${heatmapLayerElementId}-interaction`,
               "darkmesh-traceroute-nodes",
               "darkmesh-traceroute-forward",
@@ -1115,7 +1102,6 @@ const MapPage: React.FC = () => {
           >
             {heatmapLayerElement}
             {markerElements}
-            {snrLayerElement}
             {precisionCirclesElement}
             {waypointLayerElement}
             {tracerouteOverlay && (
@@ -1184,6 +1170,7 @@ const MapPage: React.FC = () => {
                       -5,
                       "#10b981",
                     ],
+                    "line-dasharray": [2, 1.5],
                     "line-width": 5,
                     "line-opacity": 0.9,
                   }}
