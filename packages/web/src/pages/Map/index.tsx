@@ -89,7 +89,7 @@ const MapPage: React.FC = () => {
 
   // map helpers / refs
   const { default: mapRef } = useMap();
-  const { focusLngLat, fitToNodes } = useMapFitting(
+  const { focusLngLat, fitToNodes, fitToNodesKeepingCenter } = useMapFitting(
     mapRef as unknown as import("react-map-gl/maplibre").MapRef,
   );
   const prevTracerouteActive = useRef(false);
@@ -721,10 +721,15 @@ const MapPage: React.FC = () => {
     const involvedNodes = [...forwardNodes, ...backwardNodes].filter(
       (node, index, all) => all.findIndex((candidate) => candidate.num === node.num) === index,
     );
+    const positionedInvolvedNodes = involvedNodes.filter((node): node is Protobuf.Mesh.NodeInfo =>
+      Boolean(node.position && hasPos(node.position)),
+    );
 
     return {
       trace: selectedTraceRoute,
       involvedNodes,
+      positionedInvolvedNodes,
+      hasMissingNodePositions: positionedInvolvedNodes.length !== involvedNodes.length,
       involvedNodeNums: new Set(involvedNodes.map((node) => node.num)),
       sourceLabel: getNodeLongName(sourceNode) ?? undefined,
       destinationLabel: getNodeLongName(destinationNode) ?? undefined,
@@ -784,21 +789,19 @@ const MapPage: React.FC = () => {
                 };
               })
             : []),
-          ...involvedNodes
-            .filter((n) => Boolean(n.position && hasPos(n.position)))
-            .map((n) => ({
-              type: "Feature" as const,
-              properties: {
-                role: "node",
-                nodeNum: n.num,
-                name: getNodeLongName(n) ?? null,
-                shortName: getNodeShortName(n) ?? null,
-              },
-              geometry: {
-                type: "Point" as const,
-                coordinates: toLngLat(n.position),
-              },
-            })),
+          ...positionedInvolvedNodes.map((n) => ({
+            type: "Feature" as const,
+            properties: {
+              role: "node",
+              nodeNum: n.num,
+              name: getNodeLongName(n) ?? null,
+              shortName: getNodeShortName(n) ?? null,
+            },
+            geometry: {
+              type: "Point" as const,
+              coordinates: toLngLat(n.position),
+            },
+          })),
         ],
       },
     };
@@ -968,7 +971,12 @@ const MapPage: React.FC = () => {
       mapRef.resize();
 
       if (tracerouteOverlay && !wasActive) {
-        fitToNodes(tracerouteOverlay.involvedNodes);
+        if (tracerouteOverlay.hasMissingNodePositions) {
+          fitToNodesKeepingCenter(tracerouteOverlay.positionedInvolvedNodes);
+          return;
+        }
+
+        fitToNodes(tracerouteOverlay.positionedInvolvedNodes);
       }
     });
 
@@ -1007,7 +1015,7 @@ const MapPage: React.FC = () => {
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [fitToNodes, mapRef, tracerouteOverlay]);
+  }, [fitToNodes, fitToNodesKeepingCenter, mapRef, tracerouteOverlay]);
 
   // Hide traceroute overlay / links only on double-click
   useEffect(() => {
