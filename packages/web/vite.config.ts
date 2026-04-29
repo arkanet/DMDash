@@ -7,6 +7,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 import { createHtmlPlugin } from "vite-plugin-html";
 import { VitePWA } from "vite-plugin-pwa";
+import { handleHuntForwardProxy, handleHuntHealthProxy } from "./server/huntProxy";
 
 let hash = "";
 let version = "v0.0.0";
@@ -33,6 +34,39 @@ try {
 const CONTENT_SECURITY_POLICY =
   "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn-cookieyes.com; style-src 'self' 'unsafe-inline' data: https://rsms.me https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' data: https://rsms.me https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self';";
 
+function darkMeshHuntDevProxy() {
+  return {
+    name: "darkmesh-hunt-dev-proxy",
+    configureServer(server: {
+      middlewares: {
+        use: (
+          handler: (
+            req: { url?: string; method?: string } & import("node:http").IncomingMessage,
+            res: import("node:http").ServerResponse,
+            next: () => void,
+          ) => void,
+        ) => void;
+      };
+    }) {
+      server.middlewares.use((req, res, next) => {
+        const pathname = req.url?.split("?")[0];
+
+        if (pathname === "/api/hunt/health") {
+          void handleHuntHealthProxy(req, res);
+          return;
+        }
+
+        if (pathname === "/api/hunt/forward") {
+          void handleHuntForwardProxy(req, res);
+          return;
+        }
+
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd());
 
@@ -41,6 +75,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
+      darkMeshHuntDevProxy(),
       react(),
       tailwindcss(),
       ...(useHTTPS ? [basicSsl()] : []),

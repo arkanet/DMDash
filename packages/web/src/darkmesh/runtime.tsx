@@ -8,8 +8,10 @@ import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { type Protobuf, type Types } from "@meshtastic/core";
 import { useEffect } from "react";
+import { forwardHuntPayload } from "./huntApi.ts";
 import { defaultBeaconConfig, defaultHuntConfig, useDarkMeshStore } from "./store.ts";
 import {
+  buildHuntPayload,
   buildDistressMessage,
   computeNextRunAt,
   getNodeLongName,
@@ -53,22 +55,11 @@ async function forwardHuntPacket<T>(
 
     // perform remote forward when requested
     if ((mode === "remote" || mode === "both") && huntConfig.endpoint && huntConfig.token) {
-      const endpoint = huntConfig.endpoint.replace(/\/+$/g, "");
-      const url = `${endpoint}/api/hunt`;
-      const body = { deviceId, hunterId, packet };
-
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${huntConfig.token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!resp.ok) {
-        throw new Error(`Hunt forward failed: ${resp.status}`);
-      }
+      await forwardHuntPayload(
+        huntConfig.endpoint,
+        huntConfig.token,
+        buildHuntPayload(hunterId, packet),
+      );
 
       // mark forwarded for telemetry/UI
       useDarkMeshStore.getState().markHuntForwarded(deviceId);

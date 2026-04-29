@@ -21,6 +21,7 @@ import {
   type BeaconConfig,
   type HuntConfig,
 } from "./store.ts";
+import { validateHuntEndpoint } from "./huntApi.ts";
 import PowerNotificationPanel from "@components/PageComponents/PowerNotification/PowerNotificationPanel.tsx";
 import NotificationsPanel from "@components/PageComponents/Notifications/NotificationsPanel.tsx";
 import TraceroutePanel from "./TraceroutePanel";
@@ -224,17 +225,7 @@ const DarkMeshDashboardPage = () => {
     // If mode includes remote, perform health check against configured endpoint; otherwise enable local mode
     try {
       if (huntDraft.mode === "remote" || huntDraft.mode === "both") {
-        const response = await fetch(`${huntDraft.endpoint.replace(/\/+$/g, "")}/api/health`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${huntDraft.token}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Endpoint returned ${response.status}`);
-        }
+        await validateHuntEndpoint(huntDraft.endpoint, huntDraft.token);
 
         upsertHuntConfig(deviceId, {
           ...huntDraft,
