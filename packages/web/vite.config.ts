@@ -34,6 +34,96 @@ try {
 const CONTENT_SECURITY_POLICY =
   "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn-cookieyes.com; style-src 'self' 'unsafe-inline' data: https://rsms.me https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' data: https://rsms.me https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self';";
 
+const VENDOR_CHUNK_GROUPS = [
+  {
+    name: "router",
+    packages: [
+      "@tanstack/react-router",
+      "@tanstack/router-devtools",
+      "@tanstack/react-router-devtools",
+    ],
+  },
+  {
+    name: "radix",
+    packages: ["@radix-ui/"],
+  },
+  {
+    name: "i18n",
+    packages: [
+      "i18next",
+      "react-i18next",
+      "i18next-browser-languagedetector",
+      "i18next-http-backend",
+    ],
+  },
+  {
+    name: "forms",
+    packages: ["react-hook-form", "@hookform/resolvers", "zod"],
+  },
+  {
+    name: "state",
+    packages: ["zustand", "immer", "idb-keyval"],
+  },
+  {
+    name: "meshtastic-core",
+    packages: ["@bufbuild/protobuf", "@meshtastic/core", "@noble/curves"],
+  },
+  {
+    name: "meshtastic-transports",
+    packages: [
+      "@meshtastic/transport-http",
+      "@meshtastic/transport-web-bluetooth",
+      "@meshtastic/transport-web-serial",
+    ],
+  },
+  {
+    name: "charts",
+    packages: ["recharts"],
+  },
+  {
+    name: "emoji",
+    packages: ["emoji-picker-react"],
+  },
+  {
+    name: "icons",
+    packages: ["lucide-react"],
+  },
+] as const;
+
+function resolveVendorChunk(id: string): string | undefined {
+  const isNodeModule = id.includes("node_modules");
+  const isWorkspacePackage = id.includes("/packages/");
+
+  if (!isNodeModule && !isWorkspacePackage) {
+    return undefined;
+  }
+
+  if (id.includes("maplibre-gl")) return "maplibre";
+  if (id.includes("react-map-gl")) return "react-map-gl";
+  if (/node_modules\/(react|react-dom)\//.test(id)) return "react-vendor";
+  if (id.includes("@turf") || id.includes("/turf/")) return "turf";
+
+  if (id.includes("/packages/core/") || id.includes("/packages/protobufs/")) {
+    return "meshtastic-core";
+  }
+
+  if (
+    id.includes("/packages/transport-http/") ||
+    id.includes("/packages/transport-web-bluetooth/") ||
+    id.includes("/packages/transport-web-serial/")
+  ) {
+    return "meshtastic-transports";
+  }
+
+  for (const group of VENDOR_CHUNK_GROUPS) {
+    if (group.packages.some((pkg) => id.includes(`/node_modules/${pkg}`))) {
+      return group.name;
+    }
+  }
+
+  return undefined;
+}
+
 function darkMeshHuntDevProxy() {
   return {
     name: "darkmesh-hunt-dev-proxy",
@@ -108,10 +198,10 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes("maplibre-gl")) return "maplibre";
-            if (id.includes("react-map-gl")) return "react-map-gl";
-            if (/node_modules\/(react|react-dom)/.test(id)) return "react-vendor";
-            if (id.includes("@turf") || id.includes("turf")) return "turf";
+            const chunkName = resolveVendorChunk(id);
+            if (chunkName) {
+              return chunkName;
+            }
             // Let Rollup handle other node_modules to avoid circular chunking.
             return undefined;
           },
