@@ -32,6 +32,10 @@ import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useIgnoreNode } from "@core/hooks/useIgnoreNode.ts";
 import { toast } from "@core/hooks/useToast.ts";
 import {
+  getDirectMessageNavigationBlockDescription,
+  shouldBlockDirectMessageNavigation,
+} from "@core/utils/directMessageKeyExchange.ts";
+import {
   requestEnvironmentMetrics,
   requestNeighborInfo,
   startVisualTraceroute,
@@ -139,6 +143,21 @@ export const NodeDetailsDialog = ({
   const neighborInfo = getNeighborInfo(currentNode?.num ?? effectiveNodeNum);
 
   function handleDirectMessage() {
+    const nodeError = nodeDB.getNodeError(currentNode.num);
+    const navigationBlockDescription = getDirectMessageNavigationBlockDescription(
+      currentNode,
+      nodeError,
+    );
+
+    if (shouldBlockDirectMessageNavigation(currentNode, nodeError) && navigationBlockDescription) {
+      toast({
+        title: "Unable to open direct message",
+        description: navigationBlockDescription,
+        variant: "destructive",
+      });
+      return;
+    }
+
     navigate({ to: `/messages/direct/${currentNode.num}` });
     setDialogOpen("nodeDetails", false);
   }

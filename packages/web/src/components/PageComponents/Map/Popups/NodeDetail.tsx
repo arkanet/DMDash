@@ -26,6 +26,10 @@ import { Subtle } from "@components/UI/Typography/Subtle.tsx";
 import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { toast } from "@core/hooks/useToast.ts";
 import {
+  getDirectMessageNavigationBlockDescription,
+  shouldBlockDirectMessageNavigation,
+} from "@core/utils/directMessageKeyExchange.ts";
+import {
   requestEnvironmentMetrics,
   requestNeighborInfo,
   startVisualTraceroute,
@@ -141,6 +145,18 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
   const roleLabel = roleLabelRaw ? formatEnumLabel(roleLabelRaw) : undefined;
 
   function handleDirectMessage() {
+    const nodeError = nodeDB.getNodeError(node.num);
+    const navigationBlockDescription = getDirectMessageNavigationBlockDescription(node, nodeError);
+
+    if (shouldBlockDirectMessageNavigation(node, nodeError) && navigationBlockDescription) {
+      toast({
+        title: "Unable to open direct message",
+        description: navigationBlockDescription,
+        variant: "destructive",
+      });
+      return;
+    }
+
     navigate({ to: `/messages/direct/${node.num}` });
   }
 
@@ -601,10 +617,10 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                   <div className="font-semibold text-slate-700 dark:text-slate-200">
                     {publicKey
                       ? t("nodeDetail.publicKey", "Public Key")
-                      : t("nodeDetail.noPublicKey.label", "No public key")}
+                      : t("nodeDetail.noPublicKey.label", "No Public Key")}
                   </div>
                   <Mono className="mt-1 block break-all text-[0.75rem]">
-                    {publicKey ?? t("nodeDetail.noPublicKey", "No public key available")}
+                    {publicKey ?? t("nodeDetail.noPublicKey.label", "No Public Key")}
                   </Mono>
                 </div>
               )}

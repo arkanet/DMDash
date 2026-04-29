@@ -21,6 +21,12 @@ import {
 } from "@core/stores";
 import { getConversationId } from "@core/stores/messageStore";
 import { useDeviceContext } from "@core/hooks/useDeviceContext";
+import {
+  getDirectMessageNavigationBlockDescription,
+  getDirectMessageKeyExchangeDescription,
+  getDirectMessageKeyExchangeStatus,
+  shouldBlockDirectMessageNavigation,
+} from "@core/utils/directMessageKeyExchange.ts";
 import { cn } from "@core/utils/cn.ts";
 import { randId } from "@core/utils/randId.ts";
 import { Protobuf, Types, Constants } from "@meshtastic/core";
@@ -54,7 +60,7 @@ function SelectMessageChat() {
 
 export const MessagesPage = () => {
   const { channels, getUnreadCount, resetUnread, connection } = useDevice();
-  const { getNodes, getNode, getMyNode, hasNodeError } = useNodeDB();
+  const { getNodes, getNode, getMyNode, hasNodeError, getNodeError } = useNodeDB();
 
   const { setMessageState } = useMessages();
   const { deviceId } = useDeviceContext();
@@ -114,6 +120,15 @@ export const MessagesPage = () => {
 
   const isDirect = chatType === MessageType.Direct;
   const isBroadcast = chatType === MessageType.Broadcast;
+  const directMessageNodeError = isDirect ? getNodeError(numericChatId) : undefined;
+  const directMessageKeyExchangeStatus = getDirectMessageKeyExchangeStatus(
+    isDirect ? otherNode : undefined,
+    directMessageNodeError,
+  );
+  const directMessageHasPublicKey = directMessageKeyExchangeStatus === "ready";
+  const directMessageBlockDescription = directMessageHasPublicKey
+    ? undefined
+    : getDirectMessageKeyExchangeDescription(directMessageKeyExchangeStatus);
 
   // Subscribe to the message MAP (stable reference) and derive an array via useMemo.
   const selectedMessageMap = useMessageStore((s) => {
@@ -188,11 +203,43 @@ export const MessagesPage = () => {
       });
   }, [deferredSearch, getNodes, getUnreadCount]);
 
+  const handleDirectChatClick = useCallback(
+    (node: Protobuf.Mesh.NodeInfo) => {
+      const nodeError = getNodeError(node.num);
+      const navigationBlockDescription = getDirectMessageNavigationBlockDescription(
+        node,
+        nodeError,
+      );
+
+      if (shouldBlockDirectMessageNavigation(node, nodeError) && navigationBlockDescription) {
+        toast({
+          title: "Unable to open direct message",
+          description: navigationBlockDescription,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      navigateToChat(MessageType.Direct, node.num.toString());
+      resetUnread(node.num);
+    },
+    [getNodeError, navigateToChat, resetUnread, toast],
+  );
+
   const sendText = useCallback(
     async (message: string, opts?: { compress?: boolean }) => {
       if (isDirect && myNodeNum === undefined) {
         toast({
           title: "Unable to resolve the local node for this direct chat",
+        });
+        return;
+      }
+
+      if (isDirect && !directMessageHasPublicKey) {
+        toast({
+          title: "Direct messages require a public key",
+          description: directMessageBlockDescription,
+          variant: "destructive",
         });
         return;
       }
@@ -287,6 +334,8 @@ export const MessagesPage = () => {
     [
       chatType,
       connection,
+      directMessageBlockDescription,
+      directMessageHasPublicKey,
       isDirect,
       myNodeNum,
       numericChatId,
@@ -386,10 +435,7 @@ export const MessagesPage = () => {
             })()}
             count={node.unreadCount > 0 ? node.unreadCount : undefined}
             active={numericChatId === node.num && chatType === MessageType.Direct}
-            onClick={() => {
-              navigateToChat(MessageType.Direct, node.num.toString());
-              resetUnread(node.num);
-            }}
+            onClick={() => handleDirectChatClick(node)}
           >
             <Avatar
               nodeNum={node.num}
@@ -430,15 +476,17 @@ export const MessagesPage = () => {
           ? [
               {
                 key: "encryption",
-                icon: otherNode.user?.publicKey?.length ? LockIcon : LockOpenIcon,
-                iconClasses: otherNode.user?.publicKey?.length
-                  ? "text-green-600"
-                  : "text-yellow-300",
+                icon: directMessageHasPublicKey ? LockIcon : LockOpenIcon,
+                iconClasses: directMessageHasPublicKey ? "text-green-600" : "text-yellow-300",
                 onClick() {
                   toast({
-                    title: otherNode.user?.publicKey?.length
-                      ? t("toast.messages.pkiEncryption.title")
-                      : t("toast.messages.pskEncryption.title"),
+                    title: directMessageHasPublicKey
+                      ? "This node has a public key for direct messages"
+                      : "Direct messages require a public key",
+                    description: directMessageHasPublicKey
+                      ? undefined
+                      : directMessageBlockDescription,
+                    variant: directMessageHasPublicKey ? "default" : "destructive",
                   });
                 },
               },

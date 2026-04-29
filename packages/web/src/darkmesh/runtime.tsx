@@ -1,5 +1,9 @@
 import { useToast } from "@core/hooks/useToast.ts";
 import { useNotifications } from "@core/hooks/useNotifications.ts";
+import {
+  getDirectMessageKeyExchangeDescription,
+  getDirectMessageKeyExchangeStatus,
+} from "@core/utils/directMessageKeyExchange.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { type Protobuf, type Types } from "@meshtastic/core";
@@ -81,7 +85,7 @@ async function forwardHuntPacket<T>(
 
 export function DarkMeshRuntime() {
   const { connection, traceroutes: deviceTraceroutes } = useDevice();
-  const { getMyNode, getNode, getNodes } = useNodeDB();
+  const { getMyNode, getNode, getNodes, getNodeError } = useNodeDB();
   const selectedDeviceId = useAppStore((state) => state.selectedDeviceId);
   const { toast } = useToast();
   const { notify } = useNotifications();
@@ -367,6 +371,16 @@ export function DarkMeshRuntime() {
         for (const schedule of dueSchedules) {
           try {
             const sendTarget = resolveDestination(schedule.kind, schedule.destination);
+            if (schedule.kind === "direct") {
+              const keyExchangeStatus = getDirectMessageKeyExchangeStatus(
+                getNode(schedule.destination),
+                getNodeError(schedule.destination),
+              );
+
+              if (keyExchangeStatus !== "ready") {
+                throw new Error(getDirectMessageKeyExchangeDescription(keyExchangeStatus));
+              }
+            }
             await connection.sendText(
               schedule.text,
               sendTarget.destination,
@@ -430,6 +444,16 @@ export function DarkMeshRuntime() {
             });
 
             const sendTarget = resolveDestination(beaconConfig.kind, beaconConfig.destination);
+            if (beaconConfig.kind === "direct") {
+              const keyExchangeStatus = getDirectMessageKeyExchangeStatus(
+                getNode(beaconConfig.destination),
+                getNodeError(beaconConfig.destination),
+              );
+
+              if (keyExchangeStatus !== "ready") {
+                throw new Error(getDirectMessageKeyExchangeDescription(keyExchangeStatus));
+              }
+            }
             await connection.sendText(message, sendTarget.destination, true, sendTarget.channel);
             useDarkMeshStore.getState().markBeaconSent(selectedDeviceId);
             try {
