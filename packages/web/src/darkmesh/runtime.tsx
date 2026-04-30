@@ -15,6 +15,7 @@ import {
   buildDistressMessage,
   computeNextRunAt,
   getNodeLongName,
+  normalizeHuntTraceroutePacket,
   resolveDestination,
   resolveRelayCandidate,
 } from "./utils.ts";
@@ -22,6 +23,7 @@ import {
 async function forwardHuntPacket<T>(
   deviceId: number,
   hunterId: string,
+  localNodeNum: number,
   huntConfig: typeof defaultHuntConfig,
   packet: Types.PacketMetadata<T>,
 ) {
@@ -34,15 +36,25 @@ async function forwardHuntPacket<T>(
   try {
     // lazy-import traceroute store to avoid circular deps
     const { default: useTracerouteStore } = await import("@core/stores/tracerouteStore");
+    const isTraceroutePacket =
+      packet.data &&
+      typeof packet.data === "object" &&
+      "route" in (packet.data as Record<string, unknown>);
+    const huntPacket = isTraceroutePacket
+      ? (normalizeHuntTraceroutePacket(
+          packet as unknown as Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
+          localNodeNum,
+        ) as unknown as Types.PacketMetadata<T>)
+      : packet;
 
     // persist locally when requested
-    if (mode === "local" || mode === "both") {
+    if (isTraceroutePacket && (mode === "local" || mode === "both")) {
       try {
         useTracerouteStore
           .getState()
           .addTraceroute(
             deviceId,
-            packet as unknown as Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
+            huntPacket as unknown as Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
             { source: "hunt" },
           );
         // update UI state for local persistence
@@ -58,7 +70,7 @@ async function forwardHuntPacket<T>(
       await forwardHuntPayload(
         huntConfig.endpoint,
         huntConfig.token,
-        buildHuntPayload(hunterId, packet),
+        buildHuntPayload(hunterId, huntPacket),
       );
 
       // mark forwarded for telemetry/UI
@@ -235,8 +247,15 @@ export function DarkMeshRuntime() {
       const myNode = getMyNode();
       const huntConfig =
         useDarkMeshStore.getState().huntByDevice[selectedDeviceId] ?? defaultHuntConfig;
+      const huntMode =
+        (huntConfig && (huntConfig as { mode?: typeof defaultHuntConfig.mode }).mode) || "local";
+      const needsRemoteConfig = huntMode === "remote" || huntMode === "both";
 
-      if (!myNode?.user?.id || !huntConfig.enabled || !huntConfig.endpoint || !huntConfig.token) {
+      if (
+        !myNode?.user?.id ||
+        !huntConfig.enabled ||
+        (needsRemoteConfig && (!huntConfig.endpoint || !huntConfig.token))
+      ) {
         return;
       }
 
@@ -310,16 +329,20 @@ export function DarkMeshRuntime() {
       } catch {
         // defensive: ignore telemetry parse errors
       }
-      void forwardHuntPacket(selectedDeviceId, myNode.user.id, huntConfig, packet).catch(
-        (error) => {
-          useDarkMeshStore
-            .getState()
-            .setHuntError(
-              selectedDeviceId,
-              error instanceof Error ? error.message : "Unknown hunt forwarding error",
-            );
-        },
-      );
+      void forwardHuntPacket(
+        selectedDeviceId,
+        myNode.user.id,
+        myNode.num,
+        huntConfig,
+        packet,
+      ).catch((error) => {
+        useDarkMeshStore
+          .getState()
+          .setHuntError(
+            selectedDeviceId,
+            error instanceof Error ? error.message : "Unknown hunt forwarding error",
+          );
+      });
     };
 
     connection.events.onMeshPacket.subscribe(handleGatewayPacket);

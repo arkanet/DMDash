@@ -347,6 +347,20 @@ export function buildHuntPayload<T>(hunterId: string, packet: Types.PacketMetada
   );
 }
 
+export function normalizeHuntTraceroutePacket(
+  packet: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
+  localNodeNum: number,
+): Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> {
+  if (!Number.isFinite(localNodeNum) || localNodeNum <= 0) {
+    return packet;
+  }
+
+  return {
+    ...packet,
+    to: localNodeNum,
+  };
+}
+
 export function resolveRelayCandidate(
   relayNodeId: number,
   nodes: Protobuf.Mesh.NodeInfo[],

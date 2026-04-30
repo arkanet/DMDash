@@ -20,12 +20,12 @@
   "sideEffects": false,
   "scripts": {
     "gen": "buf generate",
-    "clean": "rimraf dist",
+    "clean": "rimraf packages/ts/dist",
     "build": "pnpm run clean && pnpm run gen"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@bufbuild/protoc-gen-es": "^1.9.0",
+    "@bufbuild/buf": "^1.68.4",
+    "@bufbuild/protoc-gen-es": "^2.12.0",
     "rimraf": "^6.0.0"
   }
 }
