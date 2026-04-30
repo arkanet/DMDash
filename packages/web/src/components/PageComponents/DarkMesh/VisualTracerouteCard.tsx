@@ -197,10 +197,17 @@ export function VisualTracerouteCard({
       };
     };
 
-    const forwardPath = [traceroute.to, ...traceroute.data.route, traceroute.from];
-    const backwardPath = [traceroute.from, ...traceroute.data.routeBack, traceroute.to];
-    const snrTowards = (traceroute.data.snrTowards ?? []).map((snr) => snr / 4);
-    const snrBack = (traceroute.data.snrBack ?? []).map((snr) => snr / 4);
+    const route = Array.isArray(traceroute.data.route) ? traceroute.data.route : [];
+    const routeBack = Array.isArray(traceroute.data.routeBack) ? traceroute.data.routeBack : [];
+    const forwardPath = [traceroute.to, ...route, traceroute.from];
+    const backwardPath = [traceroute.from, ...routeBack, traceroute.to];
+
+    const snrTowardsArr = Array.isArray(traceroute.data.snrTowards)
+      ? traceroute.data.snrTowards
+      : [];
+    const snrBackArr = Array.isArray(traceroute.data.snrBack) ? traceroute.data.snrBack : [];
+    const snrTowards = snrTowardsArr.map((snr) => snr / 4);
+    const snrBack = snrBackArr.map((snr) => snr / 4);
 
     return {
       title: `${toLabelParts(traceroute.to).display} -> ${toLabelParts(traceroute.from).display}`,
@@ -210,7 +217,7 @@ export function VisualTracerouteCard({
         snr: index > 0 ? snrTowards[index - 1] : undefined,
       })),
       backward:
-        traceroute.data.routeBack.length > 0
+        routeBack.length > 0
           ? backwardPath.map((nodeNum, index) => ({
               id: `backward-${nodeNum}-${index}`,
               ...toLabelParts(nodeNum),
