@@ -3,6 +3,9 @@
     "title": "Свързване с устройство Meshtastic",
     "description": "Добавете връзка с устройството чрез HTTP, Bluetooth или сериен порт. Запазените ви връзки ще бъдат запазени във вашия браузър."
   },
+  "button": {
+    "backToApp": "Back to app"
+  },
   "connectionType_ble": "BLE",
   "connectionType_serial": "Серийна",
   "connectionType_network": "Мрежа",

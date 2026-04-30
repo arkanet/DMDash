@@ -3,6 +3,9 @@
     "title": "Connect to a Meshtastic device",
     "description": "Add a device connection via HTTP, Bluetooth, or Serial. Your saved connections will be saved in your browser."
   },
+  "button": {
+    "backToApp": "Back to app"
+  },
   "connectionType_ble": "BLE",
   "connectionType_serial": "Soros port",
   "connectionType_network": "Hálózat",

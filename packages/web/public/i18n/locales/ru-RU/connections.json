@@ -3,6 +3,9 @@
     "title": "Подключение к устройству Meshtastic",
     "description": "Добавьте подключение по HTTP, Bluetooth или COM-порту. Сохранённые подключения будут храниться в вашем браузере."
   },
+  "button": {
+    "backToApp": "Back to app"
+  },
   "connectionType_ble": "BLE",
   "connectionType_serial": "COM-порт",
   "connectionType_network": "Сеть",

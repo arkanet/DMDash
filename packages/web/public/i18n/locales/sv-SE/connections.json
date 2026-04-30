@@ -3,6 +3,9 @@
     "title": "Anslut till en Meshtastic-enhet",
     "description": "Lägg till en enhetsanslutning via HTTP, Bluetooth eller seriell kommunikation. Dina sparade anslutningar sparas i din webbläsare."
   },
+  "button": {
+    "backToApp": "Back to app"
+  },
   "connectionType_ble": "BLE",
   "connectionType_serial": "Seriell kommunikation",
   "connectionType_network": "Nätverk",

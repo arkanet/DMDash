@@ -3,6 +3,9 @@
     "title": "Mit einem Meshtastic Gerät verbinden",
     "description": "Fügen Sie eine Geräteverbindung über HTTP, Bluetooth oder serielle Schnittstelle hinzu. Ihre gespeicherten Verbindungen werden in Ihrem Browser gespeichert."
   },
+  "button": {
+    "backToApp": "Back to app"
+  },
   "connectionType_ble": "BLE",
   "connectionType_serial": "Seriell",
   "connectionType_network": "Netzwerk",
