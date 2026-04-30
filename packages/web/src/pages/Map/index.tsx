@@ -690,14 +690,21 @@ const MapPage: React.FC = () => {
       return undefined;
     }
 
+    const route = Array.isArray(selectedTraceRoute.data?.route)
+      ? selectedTraceRoute.data.route
+      : [];
+    const routeBack = Array.isArray(selectedTraceRoute.data?.routeBack)
+      ? selectedTraceRoute.data.routeBack
+      : [];
+
     const forwardNodes = [
       sourceNode,
-      ...selectedTraceRoute.data.route.map((nodeNum) => getNode(nodeNum)),
+      ...route.map((nodeNum) => getNode(nodeNum)),
       destinationNode,
     ].filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node));
     const backwardNodes = [
       destinationNode,
-      ...selectedTraceRoute.data.routeBack.map((nodeNum) => getNode(nodeNum)),
+      ...routeBack.map((nodeNum) => getNode(nodeNum)),
       sourceNode,
     ].filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node));
     const forwardCoordinates = buildTraceCoordinates(forwardNodes);
