@@ -25,6 +25,7 @@ import { Heading } from "@components/UI/Typography/Heading.tsx";
 import { Subtle } from "@components/UI/Typography/Subtle.tsx";
 import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { toast } from "@core/hooks/useToast.ts";
+import { ToastAction } from "@components/UI/Toast.tsx";
 import {
   getDirectMessageNavigationBlockDescription,
   shouldBlockDirectMessageNavigation,
@@ -62,19 +63,28 @@ import {
   Star,
   UsersIcon,
   Info,
+  Edit,
 } from "lucide-react";
 import { useState } from "react";
 import { logger } from "@core/utils/logger";
 import { useTranslation } from "react-i18next";
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
 import { hasPos } from "@core/utils/geo.ts";
+import { cn } from "@core/utils/cn.ts";
 
 export interface NodeDetailProps {
   node: ProtobufType.Mesh.NodeInfo;
   onSelectNode?: (nodeNum: number) => void;
+  onHighlightNeighbors?: (nodeNum: number | undefined) => void;
+  neighborHighlighted?: boolean;
 }
 
-export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
+export const NodeDetail = ({
+  node,
+  onSelectNode,
+  onHighlightNeighbors,
+  neighborHighlighted,
+}: NodeDetailProps) => {
   const navigate = useNavigate();
   const { t } = useTranslation("nodes");
   const { connection, hardware, id: deviceId, getNeighborInfo, setDialogOpen } = useDevice();
@@ -150,11 +160,45 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
     const navigationBlockDescription = getDirectMessageNavigationBlockDescription(node, nodeError);
 
     if (shouldBlockDirectMessageNavigation(node, nodeError) && navigationBlockDescription) {
-      toast({
+      // Provide CTA to request the public key (node info) from this node
+      let toastRef: ReturnType<typeof toast> | undefined;
+      toastRef = toast({
         title: "Unable to open direct message",
         description: navigationBlockDescription,
         variant: "destructive",
+        action: (
+          <ToastAction
+            onClick={async () => {
+              try {
+                toastRef?.dismiss();
+                toast({ title: t("nodeDetail.requestingPublicKey", "Requesting public key...") });
+
+                if (!connection) throw new Error("No active connection to device");
+
+                if (typeof connection.sendPacket === "function") {
+                  await connection.sendPacket(
+                    new Uint8Array(),
+                    Protobuf.Portnums.PortNum.NODEINFO_APP,
+                    node.num,
+                  );
+                } else if (typeof connection.getMetadata === "function") {
+                  await connection.getMetadata(node.num);
+                } else {
+                  throw new Error("NodeInfo request is not available on the current connection");
+                }
+
+                toast({ title: t("nodeDetail.requestSent", "Request sent") });
+              } catch (err) {
+                logger.warn?.("public key request failed", err);
+                toast({ title: t("nodeDetail.requestFailed", "Failed to request public key") });
+              }
+            }}
+          >
+            {t("nodeDetail.requestPublicKey", "Request public key")}
+          </ToastAction>
+        ),
       });
+
       return;
     }
 
@@ -325,25 +369,70 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
                 </TooltipPortal>
               </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={t("nodeDetail.neighbor", "Neighbor Info")}
-                    onClick={handleToggleNeighbor}
-                  >
-                    <UsersIcon size={14} className="cursor-pointer hover:text-blue-500" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipPortal>
-                  <TooltipContent
-                    side="top"
-                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
-                  >
-                    {t("nodeDetail.neighbor", "Neighbor Info")}
-                  </TooltipContent>
-                </TooltipPortal>
-              </Tooltip>
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={t("nodeDetail.neighbor", "Neighbor Info")}
+                      onClick={handleToggleNeighbor}
+                    >
+                      <UsersIcon size={14} className="cursor-pointer hover:text-blue-500" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipPortal>
+                    <TooltipContent
+                      side="top"
+                      className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                    >
+                      {t("nodeDetail.neighbor", "Neighbor Info")}
+                    </TooltipContent>
+                  </TooltipPortal>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={t("nodeDetail.highlightNeighbors", "Highlight Neighbors")}
+                      onClick={async () => {
+                        try {
+                          const existing = getNeighborInfo(node.num);
+                          if (!existing || !existing.neighbors || existing.neighbors.length === 0) {
+                            if (!connection) throw new Error("No connection");
+                            await requestNeighborInfo(connection, node.num);
+                          }
+                          onHighlightNeighbors?.(node.num);
+                        } catch (err) {
+                          logger.warn?.("highlight neighbors failed", err);
+                          toast({
+                            title: t(
+                              "nodeDetail.neighbor.highlightError",
+                              "Failed to highlight neighbors",
+                            ),
+                          });
+                        }
+                      }}
+                    >
+                      <Edit
+                        size={14}
+                        className={cn(
+                          "cursor-pointer hover:text-blue-500",
+                          neighborHighlighted ? "text-blue-600" : "",
+                        )}
+                      />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipPortal>
+                    <TooltipContent
+                      side="top"
+                      className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                    >
+                      {t("nodeDetail.highlightNeighbors", "Highlight Neighbors")}
+                    </TooltipContent>
+                  </TooltipPortal>
+                </Tooltip>
+              </div>
 
               <Tooltip>
                 <TooltipTrigger asChild>

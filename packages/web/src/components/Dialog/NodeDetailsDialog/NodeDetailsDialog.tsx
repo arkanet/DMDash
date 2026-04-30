@@ -31,6 +31,7 @@ import {
 import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useIgnoreNode } from "@core/hooks/useIgnoreNode.ts";
 import { toast } from "@core/hooks/useToast.ts";
+import { ToastAction } from "@components/UI/Toast.tsx";
 import {
   getDirectMessageNavigationBlockDescription,
   shouldBlockDirectMessageNavigation,
@@ -152,11 +153,34 @@ export const NodeDetailsDialog = ({
     );
 
     if (shouldBlockDirectMessageNavigation(currentNode, nodeError) && navigationBlockDescription) {
-      toast({
+      // Provide CTA to request the public key (node info) from this node
+      let toastRef: ReturnType<typeof toast> | undefined;
+      toastRef = toast({
         title: "Unable to open direct message",
         description: navigationBlockDescription,
         variant: "destructive",
+        action: (
+          <ToastAction
+            onClick={async () => {
+              try {
+                toastRef?.dismiss();
+                await handleRequestNodeInfo();
+              } catch (err) {
+                logger.warn?.("public key request failed", err);
+                toast({
+                  title: t("Request Node Info Error", {
+                    ns: "ui",
+                    defaultValue: "Failed to request node info",
+                  }),
+                });
+              }
+            }}
+          >
+            {t("dialog.requestPublicKey", "Request public key")}
+          </ToastAction>
+        ),
       });
+
       return;
     }
 

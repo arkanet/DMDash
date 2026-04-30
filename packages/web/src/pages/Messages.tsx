@@ -10,6 +10,7 @@ import { Input } from "@components/UI/Input.tsx";
 import { SidebarButton } from "@components/UI/Sidebar/SidebarButton.tsx";
 import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
+import { ToastAction } from "@components/UI/Toast.tsx";
 import {
   MessageState,
   MessageType,
@@ -236,10 +237,43 @@ export const MessagesPage = () => {
       }
 
       if (isDirect && !directMessageHasPublicKey) {
-        toast({
+        // Offer a CTA to request the public key from the remote node instead of a plain block message
+        let toastRef: ReturnType<typeof toast> | undefined;
+        toastRef = toast({
           title: "Direct messages require a public key",
           description: directMessageBlockDescription,
           variant: "destructive",
+          action: (
+            <ToastAction
+              onClick={async () => {
+                try {
+                  toastRef?.dismiss();
+                  toast({ title: "Requesting public key..." });
+
+                  if (!connection) throw new Error("No active connection to device");
+
+                  if (typeof connection.sendPacket === "function") {
+                    await connection.sendPacket(
+                      new Uint8Array(),
+                      Protobuf.Portnums.PortNum.NODEINFO_APP,
+                      numericChatId,
+                    );
+                  } else if (typeof connection.getMetadata === "function") {
+                    await connection.getMetadata(numericChatId);
+                  } else {
+                    throw new Error("NodeInfo request not available on this connection");
+                  }
+
+                  toast({ title: "Request sent" });
+                } catch (err) {
+                  console.warn("public key request failed", err);
+                  toast({ title: "Failed to request public key" });
+                }
+              }}
+            >
+              Request public key
+            </ToastAction>
+          ),
         });
         return;
       }
@@ -479,14 +513,51 @@ export const MessagesPage = () => {
                 icon: directMessageHasPublicKey ? LockIcon : LockOpenIcon,
                 iconClasses: directMessageHasPublicKey ? "text-green-600" : "text-yellow-300",
                 onClick() {
-                  toast({
-                    title: directMessageHasPublicKey
-                      ? "This node has a public key for direct messages"
-                      : "Direct messages require a public key",
-                    description: directMessageHasPublicKey
-                      ? undefined
-                      : directMessageBlockDescription,
-                    variant: directMessageHasPublicKey ? "default" : "destructive",
+                  if (directMessageHasPublicKey) {
+                    toast({
+                      title: "This node has a public key for direct messages",
+                      variant: "default",
+                    });
+                    return;
+                  }
+
+                  // Offer a CTA to request the public key from the remote node
+                  let toastRef: ReturnType<typeof toast> | undefined;
+                  toastRef = toast({
+                    title: "Direct messages require a public key",
+                    description: directMessageBlockDescription,
+                    variant: "destructive",
+                    action: (
+                      <ToastAction
+                        onClick={async () => {
+                          try {
+                            toastRef?.dismiss();
+                            toast({ title: "Requesting public key..." });
+
+                            if (!connection) throw new Error("No active connection to device");
+
+                            if (typeof connection.sendPacket === "function") {
+                              await connection.sendPacket(
+                                new Uint8Array(),
+                                Protobuf.Portnums.PortNum.NODEINFO_APP,
+                                otherNode!.num,
+                              );
+                            } else if (typeof connection.getMetadata === "function") {
+                              await connection.getMetadata(otherNode!.num);
+                            } else {
+                              throw new Error("NodeInfo request not available on this connection");
+                            }
+
+                            toast({ title: "Request sent" });
+                          } catch (err) {
+                            console.warn("public key request failed", err);
+                            toast({ title: "Failed to request public key" });
+                          }
+                        }}
+                      >
+                        Request public key
+                      </ToastAction>
+                    ),
                   });
                 },
               },
