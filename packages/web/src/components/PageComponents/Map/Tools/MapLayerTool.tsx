@@ -165,6 +165,21 @@ export function MapLayerTool({
           </div>
         ))}
         <div>
+          <Checkbox
+            checked={visibilityState.remoteNeighbors || visibilityState.directNeighbors}
+            onChange={() =>
+              setVisibilityState({
+                ...visibilityState,
+                remoteNeighbors: !visibilityState.remoteNeighbors,
+                directNeighbors: !visibilityState.directNeighbors,
+              })
+            }
+            className={cn("flex items-center gap-2")}
+          >
+            <span className="dark:text-slate-200">Neighbor Links</span>
+          </Checkbox>
+        </div>
+        <div>
           <div>
             <Checkbox
               checked={visibilityState.traceroutes}

@@ -14,7 +14,7 @@ import {
 } from "@components/PageComponents/Map/Layers/HeatmapLayer.tsx";
 import { NodesLayer } from "@components/PageComponents/Map/Layers/NodesLayer.tsx";
 import { PrecisionLayer } from "@components/PageComponents/Map/Layers/PrecisionLayer.tsx";
-import { SNRTooltip } from "@components/PageComponents/Map/Layers/SNRLayer.tsx";
+import { SNRLayer, SNRTooltip } from "@components/PageComponents/Map/Layers/SNRLayer.tsx";
 import { WaypointLayer } from "@components/PageComponents/Map/Layers/WaypointLayer.tsx";
 import type { PopupState } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
 import { PageLayout } from "@components/PageLayout.tsx";
@@ -58,7 +58,7 @@ function pathDistanceKm(coords: [number, number][]): number {
 
 // Main page component
 const MapPage: React.FC = () => {
-  const [pinnedPopupNode, setPinnedPopupNode] = useState<number | undefined>(undefined);
+  const [, setPinnedPopupNode] = useState<number | undefined>(undefined);
   const [popupState, setPopupState] = useState<PopupState | undefined>(undefined);
 
   // basic hooks used throughout the page
@@ -121,156 +121,55 @@ const MapPage: React.FC = () => {
     return;
   }, []);
   // Selected node links: draw links related to the currently opened (or pinned) node
+  const [highlightedNeighborNode, setHighlightedNeighborNode] = useState<number | undefined>(
+    undefined,
+  );
+
   const selectedNodeLinks = useMemo(() => {
-    const selectedId =
-      pinnedPopupNode ?? (popupState?.type === "node" ? popupState.num : undefined);
-    if (!selectedId) return undefined;
-    if (!selectedId) return undefined;
+    const nodeNum = highlightedNeighborNode;
+    if (!nodeNum) return undefined;
+
+    const neighborInfo = device.getNeighborInfo(nodeNum);
+    if (!neighborInfo || !Array.isArray(neighborInfo.neighbors)) return undefined;
 
     const features: Array<Record<string, unknown>> = [];
-    const seen = new Set<string>();
     const missing = new Set<number>();
 
-    // include traceroutes from device memory and persisted store
-    const storeEntries = useTracerouteStore.getState().getTraceroutes();
+    const nodeA = getNode(nodeNum);
+    if (!nodeA) missing.add(nodeNum);
 
-    // device.traceroutes is a Map<from, routes[]>
-    for (const routesArr of device.traceroutes.values()) {
-      for (const tr of routesArr) {
-        const forward = [tr.to, ...(tr.data.route ?? []), tr.from];
-        for (let i = 0; i < forward.length - 1; i++) {
-          const a = Number(forward[i]);
-          const b = Number(forward[i + 1]);
-          if (a !== selectedId && b !== selectedId) continue;
-
-          const key = `${Math.min(a, b)}-${Math.max(a, b)}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-
-          const nodeA = getNode(a);
-          const nodeB = getNode(b);
-          if (!nodeA || !nodeB) {
-            if (!nodeA) missing.add(a);
-            if (!nodeB) missing.add(b);
-            continue;
-          }
-          if (!hasPos(nodeA.position) || !hasPos(nodeB.position)) {
-            if (!hasPos(nodeA.position)) missing.add(a);
-            if (!hasPos(nodeB.position)) missing.add(b);
-            continue;
-          }
-
-          const [lngA, latA] = toLngLat(nodeA.position);
-          const [lngB, latB] = toLngLat(nodeB.position);
-          features.push({
-            type: "Feature",
-            properties: {
-              from: a,
-              to: b,
-              tracerouteFrom: tr.from,
-              tracerouteTo: tr.to,
-              name: getNodeLongName(nodeA) ?? null,
-              shortName: getNodeShortName(nodeA) ?? null,
-              lengthKm: distanceKm(
-                { latitude: latA, longitude: lngA },
-                { latitude: latB, longitude: lngB },
-              ),
-            },
-            geometry: {
-              type: "LineString",
-              coordinates: [toLngLat(nodeA.position), toLngLat(nodeB.position)],
-            },
-          });
-        }
-
-        const back = [tr.from, ...(tr.data.routeBack ?? []), tr.to];
-        for (let i = 0; i < back.length - 1; i++) {
-          const a = Number(back[i]);
-          const b = Number(back[i + 1]);
-          if (a !== selectedId && b !== selectedId) continue;
-
-          const key = `${Math.min(a, b)}-${Math.max(a, b)}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-
-          const nodeA = getNode(a);
-          const nodeB = getNode(b);
-          if (!nodeA || !nodeB) {
-            if (!nodeA) missing.add(a);
-            if (!nodeB) missing.add(b);
-            continue;
-          }
-          if (!hasPos(nodeA.position) || !hasPos(nodeB.position)) {
-            if (!hasPos(nodeA.position)) missing.add(a);
-            if (!hasPos(nodeB.position)) missing.add(b);
-            continue;
-          }
-
-          const [lngA2, latA2] = toLngLat(nodeA.position);
-          const [lngB2, latB2] = toLngLat(nodeB.position);
-          features.push({
-            type: "Feature",
-            properties: {
-              from: a,
-              to: b,
-              tracerouteFrom: tr.from,
-              tracerouteTo: tr.to,
-              name: getNodeLongName(nodeA) ?? null,
-              shortName: getNodeShortName(nodeA) ?? null,
-              lengthKm: distanceKm(
-                { latitude: latA2, longitude: lngA2 },
-                { latitude: latB2, longitude: lngB2 },
-              ),
-            },
-            geometry: {
-              type: "LineString",
-              coordinates: [toLngLat(nodeA.position), toLngLat(nodeB.position)],
-            },
-          });
-        }
+    for (const nb of neighborInfo.neighbors) {
+      const b = Number(nb.nodeId);
+      const nodeB = getNode(b);
+      if (!nodeA || !nodeB) {
+        if (!nodeA) missing.add(nodeNum);
+        if (!nodeB) missing.add(b);
+        continue;
       }
-    }
-
-    // include persisted traceroutes' derivedLinks
-    for (const persisted of storeEntries) {
-      const links = persisted.derivedLinks ?? [];
-      for (const l of links) {
-        const a = Number(l.from);
-        const b = Number(l.to);
-        if (a !== selectedId && b !== selectedId) continue;
-
-        const key = `${Math.min(a, b)}-${Math.max(a, b)}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        const nodeA = getNode(a);
-        const nodeB = getNode(b);
-        if (!nodeA || !nodeB) {
-          if (!nodeA) missing.add(a);
-          if (!nodeB) missing.add(b);
-          continue;
-        }
-        if (!hasPos(nodeA.position) || !hasPos(nodeB.position)) {
-          if (!hasPos(nodeA.position)) missing.add(a);
-          if (!hasPos(nodeB.position)) missing.add(b);
-          continue;
-        }
-
-        features.push({
-          type: "Feature",
-          properties: {
-            from: a,
-            to: b,
-            snrForward: l.snrForward,
-            snrBackward: l.snrBackward,
-            direction: l.direction,
-          },
-          geometry: {
-            type: "LineString",
-            coordinates: [toLngLat(nodeA.position), toLngLat(nodeB.position)],
-          },
-        });
+      if (!hasPos(nodeA.position) || !hasPos(nodeB.position)) {
+        if (!hasPos(nodeA.position)) missing.add(nodeNum);
+        if (!hasPos(nodeB.position)) missing.add(b);
+        continue;
       }
+
+      const [lngA, latA] = toLngLat(nodeA.position);
+      const [lngB, latB] = toLngLat(nodeB.position);
+      features.push({
+        type: "Feature",
+        properties: {
+          from: nodeNum,
+          to: b,
+          snr: nb.snr,
+          lengthKm: distanceKm(
+            { latitude: latA, longitude: lngA },
+            { latitude: latB, longitude: lngB },
+          ),
+        },
+        geometry: {
+          type: "LineString",
+          coordinates: [toLngLat(nodeA.position), toLngLat(nodeB.position)],
+        },
+      });
     }
 
     if (features.length === 0 && missing.size === 0) return undefined;
@@ -280,7 +179,7 @@ const MapPage: React.FC = () => {
       features,
       missing: Array.from(missing),
     } as unknown as GeoJSON.FeatureCollection;
-  }, [pinnedPopupNode, popupState, device.traceroutes, getNode]);
+  }, [highlightedNeighborNode, device, getNode]);
 
   // All traceroute links
   const allTracerouteLinks = useMemo(() => {
@@ -891,6 +790,10 @@ const MapPage: React.FC = () => {
             ? "opacity-20 grayscale saturate-0"
             : undefined
         }
+        onHighlightNeighbors={(num) =>
+          setHighlightedNeighborNode((prev) => (prev === num ? undefined : num))
+        }
+        highlightedNeighborNode={highlightedNeighborNode}
       />
     ),
     [
@@ -901,6 +804,7 @@ const MapPage: React.FC = () => {
       popupState,
       tracerouteOverlay,
       visibilityState.nodeMarkers,
+      highlightedNeighborNode,
     ],
   );
 
@@ -1115,12 +1019,21 @@ const MapPage: React.FC = () => {
               "darkmesh-traceroute-backward",
               "darkmesh-selected-node-links",
               "darkmesh-all-traceroute-links",
+              "darkmesh-neighbor-links",
             ]}
           >
             {heatmapLayerElement}
             {markerElements}
             {precisionCirclesElement}
             {waypointLayerElement}
+            {(visibilityState.remoteNeighbors || visibilityState.directNeighbors) && (
+              <SNRLayer
+                id="darkmesh-neighbor-links"
+                filteredNodes={filteredNodes}
+                myNode={myNode}
+                visibilityState={visibilityState}
+              />
+            )}
             {tracerouteOverlay && (
               <Source
                 id="darkmesh-traceroute-overlay"

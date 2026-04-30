@@ -31,6 +31,8 @@ export interface NodeMarkerProps {
   setPopupState: (state: PopupState | undefined) => void;
   isVisible: boolean;
   getNodeMarkerClassName?: (node: Protobuf.Mesh.NodeInfo) => string | undefined;
+  onHighlightNeighbors?: (nodeNum: number | undefined) => void;
+  highlightedNeighborNode?: number | undefined;
 }
 
 export const NodesLayer = ({
@@ -43,6 +45,8 @@ export const NodesLayer = ({
   setPopupState,
   isVisible,
   getNodeMarkerClassName,
+  onHighlightNeighbors,
+  highlightedNeighborNode,
 }: NodeMarkerProps): React.ReactNode[] => {
   const { t } = useTranslation("map");
 
@@ -148,6 +152,8 @@ export const NodesLayer = ({
         <NodeDetail
           node={selectedNode}
           onSelectNode={(num: number) => setPopupState({ type: "node", num, offset: [0, 0] })}
+          onHighlightNeighbors={onHighlightNeighbors}
+          neighborHighlighted={selectedNode.num === highlightedNeighborNode}
         />
       </PopupWrapper>,
     );
