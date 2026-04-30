@@ -42,6 +42,7 @@ import {
 } from "@core/services/darkmesh/nodeActions.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
+import { positionPoint } from "@core/utils/geo.ts";
 import { create } from "@bufbuild/protobuf";
 import { Protobuf } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
@@ -139,6 +140,7 @@ export const NodeDetailsDialog = ({
   }
 
   const currentNode = nodeForRender;
+  const currentPositionPoint = positionPoint(currentNode?.position);
   const computedShortName = getNodeShortName(currentNode) ?? t("unknown.shortName");
   const neighborInfo = getNeighborInfo(currentNode?.num ?? effectiveNodeNum);
 
@@ -823,20 +825,17 @@ export const NodeDetailsDialog = ({
                   {currentNode.position ? (
                     <table className="table-auto w-full">
                       <tbody>
-                        {currentNode.position.latitudeI && currentNode.position.longitudeI && (
+                        {currentPositionPoint && (
                           <tr>
                             <td>{t("locationResponse.coordinates")}</td>
                             <td>
                               <a
                                 className="text-blue-500 dark:text-blue-400"
-                                href={`https://www.openstreetmap.org/?mlat=${
-                                  currentNode.position.latitudeI / 1e7
-                                }&mlon=${currentNode.position.longitudeI / 1e7}&layers=N`}
+                                href={`https://www.openstreetmap.org/?mlat=${currentPositionPoint.latitude}&mlon=${currentPositionPoint.longitude}&layers=N`}
                                 target="_blank"
                                 rel="noreferrer"
                               >
-                                {currentNode.position.latitudeI / 1e7},{" "}
-                                {currentNode.position.longitudeI / 1e7}
+                                {currentPositionPoint.latitude}, {currentPositionPoint.longitude}
                               </a>
                             </td>
                           </tr>

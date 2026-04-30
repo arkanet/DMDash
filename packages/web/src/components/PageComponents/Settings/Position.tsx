@@ -9,6 +9,7 @@ import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { type FlagName, usePositionFlags } from "@core/hooks/usePositionFlags.ts";
 import { useNodeDB } from "@core/stores";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
+import { positionPoint } from "@core/utils/geo.ts";
 import { Protobuf } from "@meshtastic/core";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,12 +34,13 @@ export const Position = ({ onFormInit }: PositionConfigProps) => {
   const displayUnits = getEffectiveConfig("display")?.units;
 
   const formValues = useMemo(() => {
+    const currentPositionPoint = positionPoint(currentPosition);
     return {
       ...config.position,
       ...effectiveConfig,
       // Include current position coordinates if available
-      latitude: currentPosition?.latitudeI ? currentPosition.latitudeI / 1e7 : undefined,
-      longitude: currentPosition?.longitudeI ? currentPosition.longitudeI / 1e7 : undefined,
+      latitude: currentPositionPoint?.latitude,
+      longitude: currentPositionPoint?.longitude,
       altitude: currentPosition?.altitude ?? 0,
     } as PositionValidation;
   }, [config.position, effectiveConfig, currentPosition]);

@@ -67,6 +67,7 @@ import { useState } from "react";
 import { logger } from "@core/utils/logger";
 import { useTranslation } from "react-i18next";
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
+import { hasPos } from "@core/utils/geo.ts";
 
 export interface NodeDetailProps {
   node: ProtobufType.Mesh.NodeInfo;
@@ -657,11 +658,7 @@ export const NodeDetail = ({ node, onSelectNode }: NodeDetailProps) => {
 
                     // If node already has GPS, select immediately
                     const target = nodeDB.getNode(num);
-                    if (
-                      target?.position &&
-                      target.position.latitudeI &&
-                      target.position.longitudeI
-                    ) {
+                    if (hasPos(target?.position)) {
                       onSelectNode?.(num);
                       return;
                     }

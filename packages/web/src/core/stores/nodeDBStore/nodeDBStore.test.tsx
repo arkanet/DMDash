@@ -119,7 +119,12 @@ describe("NodeDB store", () => {
 
     // addPosition updates same node
     db.addPosition({ from: 77, data: { lat: 1, lon: 2 } } as any);
-    expect(db.getNode(77)?.position).toEqual({ lat: 1, lon: 2 });
+    expect(db.getNode(77)?.position).toEqual({
+      lat: 1,
+      lon: 2,
+      latitudeI: 10000000,
+      longitudeI: 20000000,
+    });
     expect(db.getNode(77)?.num).toBe(77);
   });
 

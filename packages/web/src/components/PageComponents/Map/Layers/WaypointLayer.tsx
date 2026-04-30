@@ -16,7 +16,7 @@ export interface WaypointLayerProps {
   setPopupState: (state: PopupState | undefined) => void;
 }
 
-import { toLngLat } from "@core/utils/geo.ts";
+import { hasPos, toLngLat } from "@core/utils/geo.ts";
 
 export const WaypointLayer = ({
   mapRef,
@@ -32,7 +32,7 @@ export const WaypointLayer = ({
     (waypoint: WaypointWithMetadata, e: { originalEvent: MouseEvent }) => {
       e.originalEvent?.stopPropagation();
       setPopupState({ type: "waypoint", waypoint });
-      if (waypoint.longitudeI && waypoint.latitudeI) {
+      if (hasPos(waypoint)) {
         focusLngLat(
           toLngLat({
             longitudeI: waypoint.longitudeI,
@@ -50,6 +50,10 @@ export const WaypointLayer = ({
   }
 
   for (const waypoint of waypoints) {
+    if (!hasPos(waypoint)) {
+      continue;
+    }
+
     const [lng, lat] = toLngLat({
       latitudeI: waypoint.latitudeI,
       longitudeI: waypoint.longitudeI,
@@ -68,7 +72,7 @@ export const WaypointLayer = ({
     );
   }
 
-  if (popupState?.type === "waypoint") {
+  if (popupState?.type === "waypoint" && hasPos(popupState.waypoint)) {
     const [lng, lat] = toLngLat({
       latitudeI: popupState.waypoint.latitudeI,
       longitudeI: popupState.waypoint.longitudeI,

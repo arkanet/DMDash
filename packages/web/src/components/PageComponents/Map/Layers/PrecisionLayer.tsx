@@ -1,5 +1,5 @@
 import { getColorFromNodeNum, isLightColor } from "@app/core/utils/color";
-import { precisionBitsToMeters, toLngLat } from "@core/utils/geo.ts";
+import { hasPos, precisionBitsToMeters, toLngLat } from "@core/utils/geo.ts";
 import type { Protobuf } from "@meshtastic/core";
 import { circle } from "@turf/turf";
 import type { Feature, FeatureCollection, Polygon } from "geojson";
@@ -36,7 +36,11 @@ export function generatePrecisionCircles(
   >();
 
   for (const node of filteredNodes) {
-    if (node.position?.precisionBits === undefined || node.position.precisionBits === 0) {
+    if (
+      !hasPos(node.position) ||
+      node.position?.precisionBits === undefined ||
+      node.position.precisionBits === 0
+    ) {
       continue;
     }
     const [lng, lat] = toLngLat(node.position);

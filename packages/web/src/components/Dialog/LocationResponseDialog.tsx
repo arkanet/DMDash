@@ -2,6 +2,7 @@ import { useNodeDB } from "@core/stores";
 import type { Protobuf, Types } from "@meshtastic/core";
 import { useTranslation } from "react-i18next";
 import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils";
+import { positionPoint } from "@core/utils/geo.ts";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import {
   Dialog,
@@ -33,12 +34,8 @@ export const LocationResponseDialog = ({
   const shortName = getNodeShortName(from) ?? t("unknown.shortName");
 
   const position = location?.data;
-
-  const hasCoordinates =
-    position &&
-    typeof position.latitudeI === "number" &&
-    typeof position.longitudeI === "number" &&
-    typeof position.altitude === "number";
+  const point = positionPoint(position);
+  const hasCoordinates = Boolean(point);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -60,20 +57,22 @@ export const LocationResponseDialog = ({
                   {t("locationResponse.coordinates")}
                   <a
                     className="text-blue-500 dark:text-blue-400"
-                    href={`https://www.openstreetmap.org/?mlat=${
-                      position.latitudeI ?? 0 / 1e7
-                    }&mlon=${position.longitudeI ?? 0 / 1e7}&layers=N`}
+                    href={`https://www.openstreetmap.org/?mlat=${point?.latitude ?? 0}&mlon=${
+                      point?.longitude ?? 0
+                    }&layers=N`}
                     target="_blank"
                     rel="noreferrer"
                   >
                     {" "}
-                    {position.latitudeI ?? 0 / 1e7}, {position.longitudeI ?? 0 / 1e7}
+                    {point?.latitude}, {point?.longitude}
                   </a>
                 </p>
-                <p>
-                  {t("locationResponse.altitude")} {position.altitude}
-                  {(position.altitude ?? 0) < 1 ? t("unit.meter.one") : t("unit.meter.plural")}
-                </p>
+                {typeof position?.altitude === "number" && (
+                  <p>
+                    {t("locationResponse.altitude")} {position.altitude}
+                    {position.altitude < 1 ? t("unit.meter.one") : t("unit.meter.plural")}
+                  </p>
+                )}
               </span>
             </div>
           ) : (

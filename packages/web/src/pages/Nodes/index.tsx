@@ -13,8 +13,8 @@ import { Input } from "@components/UI/Input.tsx";
 import useLang from "@core/hooks/useLang.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import { Protobuf, type Types } from "@meshtastic/core";
-import { getNodeShortName, getNodeLongName, distanceKm } from "@app/darkmesh/utils.ts";
-import { hasPos, toLngLat } from "@core/utils/geo.ts";
+import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
+import { distanceBetweenPositions, hasPos } from "@core/utils/geo.ts";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { LockIcon, LockOpenIcon } from "lucide-react";
 import { type JSX, useCallback, useDeferredValue, useEffect, useState } from "react";
@@ -180,12 +180,9 @@ const NodesPage = (): JSX.Element => {
     }
 
     // compute distance relative to local node when possible
-    const distanceVal: number | undefined =
+    const distanceVal =
       myNode && hasPos(myNode.position) && hasPos(node.position)
-        ? distanceKm(
-            { latitude: toLngLat(myNode.position)[1], longitude: toLngLat(myNode.position)[0] },
-            { latitude: toLngLat(node.position)[1], longitude: toLngLat(node.position)[0] },
-          )
+        ? distanceBetweenPositions(myNode.position, node.position)
         : undefined;
 
     return {

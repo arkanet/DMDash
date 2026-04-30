@@ -124,7 +124,7 @@ export const NodesLayer = ({
     }
   }
 
-  if (selectedNode) {
+  if (selectedNode && hasPos(selectedNode.position)) {
     rendered.push(
       <SourcePrecisionCircles
         key={`precision-circles-selected-${selectedNode.num}`}

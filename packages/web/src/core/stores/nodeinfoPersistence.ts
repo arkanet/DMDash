@@ -1,5 +1,6 @@
 import { get, set, del } from "idb-keyval";
 import { Protobuf } from "@meshtastic/core";
+import { normalizePosition } from "@core/utils/geo.ts";
 
 const PREFIX = "nodeinfo";
 const INDEX_KEY = (dbId: number) => `${PREFIX}:index:${dbId}`;
@@ -11,7 +12,10 @@ function keyFor(dbId: number, nodeNum: number) {
 export async function putNode(dbId: number, node: Protobuf.Mesh.NodeInfo) {
   // store as plain JS object for compatibility (avoids protobuf binary edge-cases in tests)
   try {
-    await set(keyFor(dbId, node.num), JSON.parse(JSON.stringify(node)));
+    const normalized = node.position
+      ? { ...node, position: normalizePosition(node.position) }
+      : node;
+    await set(keyFor(dbId, node.num), JSON.parse(JSON.stringify(normalized)));
     // update index
     try {
       const idx = (await get(INDEX_KEY(dbId))) as number[] | undefined;
@@ -40,7 +44,8 @@ export async function getNode(
   const val = await get(keyFor(dbId, nodeNum));
   if (!val) return undefined;
   try {
-    return val as unknown as Protobuf.Mesh.NodeInfo;
+    const node = val as unknown as Protobuf.Mesh.NodeInfo;
+    return node.position ? { ...node, position: normalizePosition(node.position) } : node;
   } catch (_e) {
     console.error("nodeinfoPersistence: failed to revive node", _e);
     return undefined;
@@ -56,7 +61,12 @@ export async function getAllNodes(dbId: number): Promise<Protobuf.Mesh.NodeInfo[
     await Promise.all(
       idx.map(async (n) => {
         const val = await get(keyFor(dbId, n));
-        if (val) results.push(val as unknown as Protobuf.Mesh.NodeInfo);
+        if (val) {
+          const node = val as unknown as Protobuf.Mesh.NodeInfo;
+          results.push(
+            node.position ? { ...node, position: normalizePosition(node.position) } : node,
+          );
+        }
       }),
     );
 

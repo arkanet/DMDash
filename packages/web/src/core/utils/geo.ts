@@ -3,27 +3,106 @@ import { bbox, lineString } from "@turf/turf";
 export type LngLat = [number, number];
 export type Mercator = [number, number];
 export type Bounds = [[number, number], [number, number]];
+export type GeoPoint = { latitude: number; longitude: number };
 
 const INT_DEG = 1e7;
 const EARTH_RADIUS = 6378137;
 
-export const toLngLat = (position?: { latitudeI?: number; longitudeI?: number }): LngLat => [
-  (position?.longitudeI ?? 0) / INT_DEG,
-  (position?.latitudeI ?? 0) / INT_DEG,
-];
+export type PositionLike = {
+  latitudeI?: number;
+  longitudeI?: number;
+  lat?: number | string;
+  lon?: number | string;
+};
 
-export const hasPos = (position?: { latitudeI?: number; longitudeI?: number }) =>
-  Number.isFinite(position?.latitudeI) &&
-  Number.isFinite(position?.longitudeI) &&
-  !(position?.latitudeI === 0 && position?.longitudeI === 0);
+const parseCoordinate = (value: number | string | undefined): number | undefined => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value.replace(/,/g, "."));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
+};
+
+export const positionPoint = (position?: PositionLike): GeoPoint | undefined => {
+  if (!position) {
+    return undefined;
+  }
+
+  const latitude = parseCoordinate(position.lat);
+  const longitude = parseCoordinate(position.lon);
+  if (latitude !== undefined && longitude !== undefined) {
+    return { latitude, longitude };
+  }
+
+  if (
+    Number.isFinite(position.latitudeI) &&
+    Number.isFinite(position.longitudeI) &&
+    !(position.latitudeI === 0 && position.longitudeI === 0)
+  ) {
+    return {
+      latitude: (position.latitudeI ?? 0) / INT_DEG,
+      longitude: (position.longitudeI ?? 0) / INT_DEG,
+    };
+  }
+
+  return undefined;
+};
+
+export const normalizePosition = <T extends PositionLike | undefined>(position: T): T => {
+  if (!position) {
+    return position;
+  }
+
+  const normalized = { ...position } as PositionLike;
+  const point = positionPoint(position);
+
+  if (point) {
+    normalized.lat = point.latitude;
+    normalized.lon = point.longitude;
+    normalized.latitudeI = Math.round(point.latitude * INT_DEG);
+    normalized.longitudeI = Math.round(point.longitude * INT_DEG);
+  }
+
+  return normalized as T;
+};
+
+export const toLngLat = (position?: PositionLike): LngLat => {
+  const point = positionPoint(position);
+  return [point?.longitude ?? 0, point?.latitude ?? 0];
+};
+
+export const hasPos = (position?: PositionLike) => positionPoint(position) !== undefined;
+
+export const distanceBetweenPositions = (
+  from?: PositionLike,
+  to?: PositionLike,
+): number | undefined => {
+  const fromPoint = positionPoint(from);
+  const toPoint = positionPoint(to);
+
+  if (!fromPoint || !toPoint) {
+    return undefined;
+  }
+
+  return (
+    distanceMeters(
+      [fromPoint.longitude, fromPoint.latitude],
+      [toPoint.longitude, toPoint.latitude],
+    ) / 1000
+  );
+};
 
 export const boundsFromLngLat = (coords: LngLat[]): Bounds | undefined => {
   if (coords.length === 0) {
     return undefined;
   }
 
-  const turfCoords = coords.map(([lng, lat]) => [lat, lng]);
-  const [minLat, minLng, maxLat, maxLng] = bbox(lineString(turfCoords));
+  const [minLng, minLat, maxLng, maxLat] = bbox(lineString(coords));
 
   return [
     [minLng, minLat],

@@ -4,66 +4,7 @@ import { validateIncomingNode } from "@core/stores/nodeDBStore/nodeValidation";
 import { createStorage } from "@core/stores/utils/indexDB.ts";
 import * as nodeinfoPersistence from "@core/stores/nodeinfoPersistence";
 import { Protobuf, type Types } from "@meshtastic/core";
-import { distanceKm } from "@app/darkmesh/utils.ts";
-
-type PositionWithLatLon = Protobuf.Mesh.Position & { lat?: number | string; lon?: number | string };
-
-const normalizePosition = (p?: Protobuf.Mesh.Position) => {
-  if (!p) return p;
-  const out = { ...p } as unknown as PositionWithLatLon;
-
-  // If protobuf integer representation exists, derive lat/lon
-  if (typeof p.latitudeI === "number" && typeof p.longitudeI === "number") {
-    out.lat = p.latitudeI / 1e7;
-    out.lon = p.longitudeI / 1e7;
-  }
-
-  // If lat/lon exist but are strings (possibly with comma decimal), coerce to numbers
-  if (out.lat !== undefined && typeof out.lat === "string") {
-    const norm = String(out.lat).replace(/,/g, ".");
-    const parsed = Number.parseFloat(norm);
-    out.lat = Number.isNaN(parsed) ? out.lat : parsed;
-  }
-  if (out.lon !== undefined && typeof out.lon === "string") {
-    const norm = String(out.lon).replace(/,/g, ".");
-    const parsed = Number.parseFloat(norm);
-    out.lon = Number.isNaN(parsed) ? out.lon : parsed;
-  }
-
-  return out as Protobuf.Mesh.Position;
-};
-
-const positionPoint = (position?: Protobuf.Mesh.Position) => {
-  if (!position) return undefined;
-  const normalized = normalizePosition(position) as PositionWithLatLon | undefined;
-  const latitude = Number(normalized?.lat);
-  const longitude = Number(normalized?.lon);
-
-  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-    return { latitude, longitude };
-  }
-
-  if (
-    typeof position.latitudeI === "number" &&
-    typeof position.longitudeI === "number" &&
-    position.latitudeI !== 0 &&
-    position.longitudeI !== 0
-  ) {
-    return { latitude: position.latitudeI / 1e7, longitude: position.longitudeI / 1e7 };
-  }
-
-  return undefined;
-};
-
-const distanceBetweenPositions = (
-  from?: Protobuf.Mesh.Position,
-  to?: Protobuf.Mesh.Position,
-): number | undefined => {
-  const fromPoint = positionPoint(from);
-  const toPoint = positionPoint(to);
-  if (!fromPoint || !toPoint) return undefined;
-  return distanceKm(fromPoint, toPoint);
-};
+import { distanceBetweenPositions, normalizePosition } from "@core/utils/geo.ts";
 
 type NodeInfoWithRx = Protobuf.Mesh.NodeInfo & { rxRssi?: number };
 type NodeInfoWithExtras = Protobuf.Mesh.NodeInfo & { distanceKm?: number };
