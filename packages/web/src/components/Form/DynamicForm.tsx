@@ -74,7 +74,7 @@ export function useSyncFormValues<T extends FieldValues>(
   methods: Pick<UseFormReturn<T, T, T>, "reset" | "formState">,
   values?: T,
 ) {
-  const lastSyncedValuesRef = useRef<string>();
+  const lastSyncedValuesRef = useRef<string | undefined>(undefined);
   const valuesKey = values === undefined ? undefined : serializeFormValues(values);
   const {
     reset,

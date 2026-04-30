@@ -18,7 +18,7 @@ function formatError(e: unknown): string {
 }
 
 type ConnectionLike = {
-  traceRoute?: (nodeNum: number) => Promise<unknown>;
+  traceRoute?: (nodeNum: number, priority?: Protobuf.Mesh.MeshPacket_Priority) => Promise<unknown>;
   requestEnvironmentTelemetry?: (nodeNum: number) => Promise<unknown>;
   requestNeighborInfo?: (nodeNum: number) => Promise<unknown>;
   sendPacket?: (
@@ -43,13 +43,27 @@ export async function startVisualTraceroute(
       throw new Error("Traceroute is not available on the current connection");
     }
 
-    // `connection.traceRoute` returns the packet id for the sent traceroute
-    // (see MeshDevice.sendPacket implementation). Capture it so we can match
-    // incoming traceroute responses by request id.
-    const requestId = (await connection.traceRoute(nodeNum)) as number | undefined;
+    const priority = darkMeshState.tracePriorityByDevice?.[deviceId]
+      ? Protobuf.Mesh.MeshPacket_Priority.MAX
+      : Protobuf.Mesh.MeshPacket_Priority.UNSET;
+
+    // `connection.traceRoute` returns the outgoing mesh packet id immediately,
+    // matching the Android flow that records request timing before radio ACK.
+    const requestId = (await connection.traceRoute(nodeNum, priority)) as number | undefined;
     if (typeof requestId === "number") {
       darkMeshState.setPendingTraceRouteRequest(deviceId, requestId);
     }
+
+    window.setTimeout(() => {
+      const state = useDarkMeshStore.getState();
+      if (
+        state.pendingTraceRouteTargetByDevice[deviceId] === nodeNum &&
+        state.pendingTraceRouteRequestByDevice[deviceId] === requestId
+      ) {
+        state.setPendingTraceRouteTarget(deviceId, undefined);
+        state.setPendingTraceRouteRequest(deviceId, undefined);
+      }
+    }, 90_000);
   } catch (error) {
     darkMeshState.setPendingTraceRouteTarget(deviceId, undefined);
     darkMeshState.setPendingTraceRouteRequest(deviceId, undefined);

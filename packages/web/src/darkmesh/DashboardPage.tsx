@@ -25,6 +25,7 @@ import { validateHuntEndpoint } from "./huntApi.ts";
 import PowerNotificationPanel from "@components/PageComponents/PowerNotification/PowerNotificationPanel.tsx";
 import NotificationsPanel from "@components/PageComponents/Notifications/NotificationsPanel.tsx";
 import TraceroutePanel from "./TraceroutePanel";
+import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import {
   buildDmdbContents,
   createNodeInfoFromSharedContact,
@@ -147,7 +148,7 @@ const DarkMeshDashboardPage = () => {
         .filter((node) => Boolean(node.user))
         .sort((left, right) => (right.lastHeard ?? 0) - (left.lastHeard ?? 0))
         .map((node) => ({
-          label: getNodeLongName(node) ?? undefined,
+          label: getNodeLongName(node) ?? `!${numberToHexUnpadded(node.num).toUpperCase()}`,
           value: encodeDestinationValue("direct", node.num),
         })),
     [nodes],

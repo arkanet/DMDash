@@ -75,6 +75,7 @@ const MapPage: React.FC = () => {
   );
   const clearSelectedTraceRoute = useDarkMeshStore((s) => s.setSelectedTraceRoute);
   const setPendingTraceRouteTarget = useDarkMeshStore((s) => s.setPendingTraceRouteTarget);
+  const setPendingTraceRouteRequest = useDarkMeshStore((s) => s.setPendingTraceRouteRequest);
 
   const { nodeFilter, defaultFilterValues, isFilterDirty } = useFilterNode();
   const [filterState, setFilterState] = useState<FilterState>(defaultFilterValues);
@@ -798,7 +799,8 @@ const MapPage: React.FC = () => {
   const clearVisualTraceroute = useCallback(() => {
     clearSelectedTraceRoute(undefined);
     setPendingTraceRouteTarget(deviceId, undefined);
-  }, [clearSelectedTraceRoute, deviceId, setPendingTraceRouteTarget]);
+    setPendingTraceRouteRequest(deviceId, undefined);
+  }, [clearSelectedTraceRoute, deviceId, setPendingTraceRouteRequest, setPendingTraceRouteTarget]);
 
   const selectNodeFromCard = useCallback(
     (nodeNum: number) => {
@@ -898,7 +900,7 @@ const MapPage: React.FC = () => {
   const pendingTraceRouteNode = pendingTraceRouteTarget
     ? getNode(pendingTraceRouteTarget)
     : undefined;
-  const showTraceroutePanel = Boolean(tracerouteOverlay) || pendingTraceRouteTarget !== undefined;
+  const showTraceroutePanel = Boolean(selectedTraceRoute) || pendingTraceRouteTarget !== undefined;
 
   // clicked link state (tooltip appears on click)
   const [clickedLink, setClickedLink] = useState<
@@ -1058,6 +1060,14 @@ const MapPage: React.FC = () => {
               <VisualTracerouteCard
                 traceroute={tracerouteOverlay.trace}
                 totalDistance={tracerouteOverlay.totalDistance}
+                onClear={clearVisualTraceroute}
+                onSelectNode={selectNodeFromCard}
+                className="h-full shadow-none"
+              />
+            ) : selectedTraceRoute ? (
+              <VisualTracerouteCard
+                traceroute={selectedTraceRoute}
+                totalDistance={0}
                 onClear={clearVisualTraceroute}
                 onSelectNode={selectNodeFromCard}
                 className="h-full shadow-none"

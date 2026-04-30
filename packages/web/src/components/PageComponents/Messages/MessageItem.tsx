@@ -173,8 +173,8 @@ export const MessageItem = ({
     [MESSAGE_STATUS_MAP, UNKNOWN_STATUS],
   );
 
-  const messageUser: Protobuf.Mesh.NodeInfo | null | undefined = useMemo(() => {
-    return message.from != null ? getNode(message.from) : null;
+  const messageUser: Protobuf.Mesh.NodeInfo | undefined = useMemo(() => {
+    return message.from != null ? getNode(message.from) : undefined;
   }, [getNode, message.from]);
 
   const { displayName, isFavorite, nodeNum } = useMemo(() => {

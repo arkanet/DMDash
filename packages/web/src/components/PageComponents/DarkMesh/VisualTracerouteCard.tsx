@@ -185,13 +185,6 @@ export function VisualTracerouteCard({
   const { getNode } = useNodeDB();
 
   const sections = useMemo(() => {
-    const originNode = getNode(traceroute.to);
-    const destinationNode = getNode(traceroute.from);
-
-    if (!originNode || !destinationNode) {
-      return undefined;
-    }
-
     const toLabelParts = (nodeNum: number) => {
       const node = getNode(nodeNum);
       const shortName = node?.user?.shortName?.trim();
@@ -227,10 +220,6 @@ export function VisualTracerouteCard({
     };
   }, [getNode, traceroute]);
 
-  if (!sections) {
-    return null;
-  }
-
   return (
     <div
       className={cn(
@@ -244,7 +233,9 @@ export function VisualTracerouteCard({
         <TracePriorityToggle />
       </div>
       <div className="mt-2 text-[0.75rem] text-zinc-400">
-        Total route distance: {totalDistance.toFixed(2)} km
+        {totalDistance > 0
+          ? `Total route distance: ${totalDistance.toFixed(2)} km`
+          : "Route received; map distance unavailable until route nodes have GPS positions"}
       </div>
 
       <div className="mt-4 flex-1 space-y-4 overflow-y-auto pr-1">

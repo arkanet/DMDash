@@ -223,7 +223,6 @@ const NodesPage = (): JSX.Element => {
               <div className="underline font-medium">{longName}</div>
               <div className="text-xs text-text-secondary mt-0.5">
                 {(node.user as unknown as { nameHex?: string })?.nameHex ??
-                  node.nameHex ??
                   `!${numberToHexUnpadded(node.num).toUpperCase()}`}
               </div>
             </button>

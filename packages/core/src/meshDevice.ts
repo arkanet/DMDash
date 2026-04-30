@@ -609,7 +609,7 @@ export class MeshDevice {
     const resetNodes = create(Protobuf.Admin.AdminMessageSchema, {
       payloadVariant: {
         case: "nodedbReset",
-        value: true,
+        value: 1,
       },
     });
 
@@ -800,16 +800,51 @@ export class MeshDevice {
   /**
    * Sends a trace route packet to the designated node
    */
-  public async traceRoute(destination: number): Promise<number> {
+  public async traceRoute(
+    destination: number,
+    priority: Protobuf.Mesh.MeshPacket_Priority = Protobuf.Mesh.MeshPacket_Priority.UNSET,
+  ): Promise<number> {
     const routeDiscovery = create(Protobuf.Mesh.RouteDiscoverySchema, {
       route: [],
     });
+    const id = this.generateRandId();
 
-    return await this.sendPacket(
-      toBinary(Protobuf.Mesh.RouteDiscoverySchema, routeDiscovery),
-      Protobuf.Portnums.PortNum.TRACEROUTE_APP,
-      destination,
-    );
+    const meshPacket = create(Protobuf.Mesh.MeshPacketSchema, {
+      payloadVariant: {
+        case: "decoded",
+        value: {
+          payload: toBinary(Protobuf.Mesh.RouteDiscoverySchema, routeDiscovery),
+          portnum: Protobuf.Portnums.PortNum.TRACEROUTE_APP,
+          wantResponse: true,
+          dest: 0,
+          requestId: 0,
+          source: 0,
+        },
+      },
+      from: this.myNodeInfo.myNodeNum,
+      to: destination,
+      id,
+      wantAck: true,
+      channel: ChannelNumber.Primary,
+      priority,
+    });
+
+    const toRadioMessage = create(Protobuf.Mesh.ToRadioSchema, {
+      payloadVariant: {
+        case: "packet",
+        value: meshPacket,
+      },
+    });
+
+    void this.sendRaw(toBinary(Protobuf.Mesh.ToRadioSchema, toRadioMessage), id).catch((error) => {
+      this.log.warn(
+        Emitter[Emitter.SendPacket],
+        `⚠️ Trace route packet ${id} did not receive an ACK`,
+        error,
+      );
+    });
+
+    return id;
   }
 
   /**

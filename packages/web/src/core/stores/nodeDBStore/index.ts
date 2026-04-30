@@ -6,9 +6,11 @@ import * as nodeinfoPersistence from "@core/stores/nodeinfoPersistence";
 import { Protobuf, type Types } from "@meshtastic/core";
 import { distanceKm } from "@app/darkmesh/utils.ts";
 
+type PositionWithLatLon = Protobuf.Mesh.Position & { lat?: number | string; lon?: number | string };
+
 const normalizePosition = (p?: Protobuf.Mesh.Position) => {
   if (!p) return p;
-  const out = { ...p } as unknown as Protobuf.Mesh.Position & { lat?: number; lon?: number };
+  const out = { ...p } as unknown as PositionWithLatLon;
 
   // If protobuf integer representation exists, derive lat/lon
   if (typeof p.latitudeI === "number" && typeof p.longitudeI === "number") {
@@ -30,6 +32,39 @@ const normalizePosition = (p?: Protobuf.Mesh.Position) => {
 
   return out as Protobuf.Mesh.Position;
 };
+
+const positionPoint = (position?: Protobuf.Mesh.Position) => {
+  if (!position) return undefined;
+  const normalized = normalizePosition(position) as PositionWithLatLon | undefined;
+  const latitude = Number(normalized?.lat);
+  const longitude = Number(normalized?.lon);
+
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    return { latitude, longitude };
+  }
+
+  if (
+    typeof position.latitudeI === "number" &&
+    typeof position.longitudeI === "number" &&
+    position.latitudeI !== 0 &&
+    position.longitudeI !== 0
+  ) {
+    return { latitude: position.latitudeI / 1e7, longitude: position.longitudeI / 1e7 };
+  }
+
+  return undefined;
+};
+
+const distanceBetweenPositions = (
+  from?: Protobuf.Mesh.Position,
+  to?: Protobuf.Mesh.Position,
+): number | undefined => {
+  const fromPoint = positionPoint(from);
+  const toPoint = positionPoint(to);
+  if (!fromPoint || !toPoint) return undefined;
+  return distanceKm(fromPoint, toPoint);
+};
+
 type NodeInfoWithRx = Protobuf.Mesh.NodeInfo & { rxRssi?: number };
 type NodeInfoWithExtras = Protobuf.Mesh.NodeInfo & { distanceKm?: number };
 import { produce } from "immer";
@@ -177,13 +212,10 @@ function nodeDBFactory(
           // Compute server-side distanceKm if both myNode and this node have positions
           const myNode = nodeDB.myNodeNum ? nodeDB.nodeMap.get(nodeDB.myNodeNum) : undefined;
           if (myNode?.position && merged.position) {
-            try {
-              const d = distanceKm(
-                { latitude: myNode.position.lat, longitude: myNode.position.lon },
-                { latitude: merged.position.lat, longitude: merged.position.lon },
-              );
+            const d = distanceBetweenPositions(myNode.position, merged.position);
+            if (d !== undefined) {
               (merged as NodeInfoWithExtras).distanceKm = Math.round(d * 100) / 100;
-            } catch {
+            } else {
               delete (merged as NodeInfoWithExtras).distanceKm;
             }
           } else {
@@ -199,13 +231,10 @@ function nodeDBFactory(
             const recomputed = new Map<number, Protobuf.Mesh.NodeInfo>(nodeDB.nodeMap);
             for (const [nNum, nNode] of recomputed) {
               if (nNode.position) {
-                try {
-                  const d = distanceKm(
-                    { latitude: myPos.lat, longitude: myPos.lon },
-                    { latitude: nNode.position.lat, longitude: nNode.position.lon },
-                  );
+                const d = distanceBetweenPositions(myPos, nNode.position);
+                if (d !== undefined) {
                   (nNode as NodeInfoWithExtras).distanceKm = Math.round(d * 100) / 100;
-                } catch {
+                } else {
                   delete (nNode as NodeInfoWithExtras).distanceKm;
                 }
               } else {
@@ -507,13 +536,10 @@ function nodeDBFactory(
             const myNode = nodeDB.myNodeNum ? nodeDB.nodeMap.get(nodeDB.myNodeNum) : undefined;
             const computed = next as NodeInfoWithExtras;
             if (myNode?.position && computed.position) {
-              try {
-                const d = distanceKm(
-                  { latitude: myNode.position.lat, longitude: myNode.position.lon },
-                  { latitude: computed.position.lat, longitude: computed.position.lon },
-                );
+              const d = distanceBetweenPositions(myNode.position, computed.position);
+              if (d !== undefined) {
                 computed.distanceKm = Math.round(d * 100) / 100;
-              } catch {
+              } else {
                 delete computed.distanceKm;
               }
             } else {
@@ -548,13 +574,10 @@ function nodeDBFactory(
             const computedNew = next as NodeInfoWithExtras;
             const myNode2 = nodeDB.myNodeNum ? nodeDB.nodeMap.get(nodeDB.myNodeNum) : undefined;
             if (myNode2?.position && computedNew.position) {
-              try {
-                const d = distanceKm(
-                  { latitude: myNode2.position.lat, longitude: myNode2.position.lon },
-                  { latitude: computedNew.position.lat, longitude: computedNew.position.lon },
-                );
+              const d = distanceBetweenPositions(myNode2.position, computedNew.position);
+              if (d !== undefined) {
                 computedNew.distanceKm = Math.round(d * 100) / 100;
-              } catch {
+              } else {
                 delete computedNew.distanceKm;
               }
             } else {
@@ -634,16 +657,10 @@ function nodeDBFactory(
           const computedTelemetry = next as NodeInfoWithExtras;
           const myNode = nodeDB.myNodeNum ? nodeDB.nodeMap.get(nodeDB.myNodeNum) : undefined;
           if (myNode?.position && computedTelemetry.position) {
-            try {
-              const d = distanceKm(
-                { latitude: myNode.position.lat, longitude: myNode.position.lon },
-                {
-                  latitude: computedTelemetry.position.lat,
-                  longitude: computedTelemetry.position.lon,
-                },
-              );
+            const d = distanceBetweenPositions(myNode.position, computedTelemetry.position);
+            if (d !== undefined) {
               computedTelemetry.distanceKm = Math.round(d * 100) / 100;
-            } catch {
+            } else {
               delete computedTelemetry.distanceKm;
             }
           } else {
@@ -709,13 +726,10 @@ function nodeDBFactory(
           const computedUser = next as NodeInfoWithExtras;
           const myNode = nodeDB.myNodeNum ? nodeDB.nodeMap.get(nodeDB.myNodeNum) : undefined;
           if (myNode?.position && computedUser.position) {
-            try {
-              const d = distanceKm(
-                { latitude: myNode.position.lat, longitude: myNode.position.lon },
-                { latitude: computedUser.position.lat, longitude: computedUser.position.lon },
-              );
+            const d = distanceBetweenPositions(myNode.position, computedUser.position);
+            if (d !== undefined) {
               computedUser.distanceKm = Math.round(d * 100) / 100;
-            } catch {
+            } else {
               delete computedUser.distanceKm;
             }
           } else {
@@ -780,13 +794,10 @@ function nodeDBFactory(
           const computedPos = next as NodeInfoWithExtras;
           const myNode = nodeDB.myNodeNum ? nodeDB.nodeMap.get(nodeDB.myNodeNum) : undefined;
           if (myNode?.position && computedPos.position) {
-            try {
-              const d = distanceKm(
-                { latitude: myNode.position.lat, longitude: myNode.position.lon },
-                { latitude: computedPos.position.lat, longitude: computedPos.position.lon },
-              );
+            const d = distanceBetweenPositions(myNode.position, computedPos.position);
+            if (d !== undefined) {
               computedPos.distanceKm = Math.round(d * 100) / 100;
-            } catch {
+            } else {
               delete computedPos.distanceKm;
             }
           } else {
@@ -804,13 +815,10 @@ function nodeDBFactory(
             const recomputed = new Map<number, Protobuf.Mesh.NodeInfo>(nodeDB.nodeMap);
             for (const [nNum, nNode] of recomputed) {
               if (nNode.position) {
-                try {
-                  const d = distanceKm(
-                    { latitude: myPos.lat, longitude: myPos.lon },
-                    { latitude: nNode.position.lat, longitude: nNode.position.lon },
-                  );
+                const d = distanceBetweenPositions(myPos, nNode.position);
+                if (d !== undefined) {
                   (nNode as NodeInfoWithExtras).distanceKm = Math.round(d * 100) / 100;
-                } catch {
+                } else {
                   delete (nNode as NodeInfoWithExtras).distanceKm;
                 }
               } else {
@@ -882,16 +890,10 @@ function nodeDBFactory(
                   const computedNext = next as NodeInfoWithExtras;
                   const myNode = mergedNodes.get(newDB.myNodeNum ?? -1);
                   if (myNode?.position && computedNext.position) {
-                    try {
-                      const d = distanceKm(
-                        { latitude: myNode.position.lat, longitude: myNode.position.lon },
-                        {
-                          latitude: computedNext.position.lat,
-                          longitude: computedNext.position.lon,
-                        },
-                      );
+                    const d = distanceBetweenPositions(myNode.position, computedNext.position);
+                    if (d !== undefined) {
                       computedNext.distanceKm = Math.round(d * 100) / 100;
-                    } catch {
+                    } else {
                       delete computedNext.distanceKm;
                     }
                   } else {
@@ -919,13 +921,10 @@ function nodeDBFactory(
                 const recomputed = new Map<number, Protobuf.Mesh.NodeInfo>(newDB.nodeMap);
                 for (const [nNum, nNode] of recomputed) {
                   if (nNode.position) {
-                    try {
-                      const d = distanceKm(
-                        { latitude: myNodeAfter.position.lat, longitude: myNodeAfter.position.lon },
-                        { latitude: nNode.position.lat, longitude: nNode.position.lon },
-                      );
+                    const d = distanceBetweenPositions(myNodeAfter.position, nNode.position);
+                    if (d !== undefined) {
                       (nNode as NodeInfoWithExtras).distanceKm = Math.round(d * 100) / 100;
-                    } catch {
+                    } else {
                       delete (nNode as NodeInfoWithExtras).distanceKm;
                     }
                   } else {
