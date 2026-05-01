@@ -1,4 +1,4 @@
-import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
+import { create, fromBinary, toBinary, toJsonString } from "@bufbuild/protobuf";
 import * as Protobuf from "@meshtastic/protobufs";
 import { Logger } from "tslog";
 
@@ -955,6 +955,11 @@ export class MeshDevice {
       hopLimit: meshPacket.hopLimit,
       compressed: dataPacket.portnum === Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP,
     };
+    const buildMeshPacketJson = () =>
+      toJsonString(Protobuf.Mesh.MeshPacketSchema, meshPacket, {
+        alwaysEmitImplicit: true,
+        prettySpaces: 2,
+      });
 
     this.log.trace(
       Emitter[Emitter.HandleMeshPacket],
@@ -982,6 +987,7 @@ export class MeshDevice {
       case Protobuf.Portnums.PortNum.POSITION_APP: {
         this.events.onPositionPacket.dispatch({
           ...packetMetadata,
+          meshPacketJson: buildMeshPacketJson(),
           data: fromBinary(Protobuf.Mesh.PositionSchema, dataPacket.payload),
         });
         break;
@@ -1163,6 +1169,7 @@ export class MeshDevice {
       case Protobuf.Portnums.PortNum.TELEMETRY_APP: {
         this.events.onTelemetryPacket.dispatch({
           ...packetMetadata,
+          meshPacketJson: buildMeshPacketJson(),
           data: fromBinary(Protobuf.Telemetry.TelemetrySchema, dataPacket.payload),
         });
         break;
@@ -1187,6 +1194,7 @@ export class MeshDevice {
       case Protobuf.Portnums.PortNum.TRACEROUTE_APP: {
         this.events.onTraceRoutePacket.dispatch({
           ...packetMetadata,
+          meshPacketJson: buildMeshPacketJson(),
           data: fromBinary(Protobuf.Mesh.RouteDiscoverySchema, dataPacket.payload),
         });
         break;

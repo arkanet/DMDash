@@ -69,6 +69,7 @@ export interface PacketMetadata<T> {
   hopStart?: number;
   hopLimit?: number;
   compressed?: boolean;
+  meshPacketJson?: string;
   data: T;
 }
 

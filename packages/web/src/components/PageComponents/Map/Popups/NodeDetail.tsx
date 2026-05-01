@@ -168,6 +168,7 @@ export const NodeDetail = ({
         variant: "destructive",
         action: (
           <ToastAction
+            altText={t("nodeDetail.requestPublicKey", "Request public key")}
             onClick={async () => {
               try {
                 toastRef?.dismiss();

@@ -1,6 +1,9 @@
+import { create, toBinary, toJsonString } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import {
   buildDmdbContents,
+  getHuntBackgroundIntervalMs,
+  getHuntTracerouteCandidates,
   buildHuntPayload,
   normalizeHuntTraceroutePacket,
   parseDmdbContents,
@@ -46,6 +49,27 @@ describe("DMDB export/import helpers", () => {
 });
 
 describe("Hunt traceroute helpers", () => {
+  it("maps hunt background modes to the Android scan intervals", () => {
+    expect(getHuntBackgroundIntervalMs("fast")).toBe(31_000);
+    expect(getHuntBackgroundIntervalMs("medium")).toBe(61_000);
+    expect(getHuntBackgroundIntervalMs("slow")).toBe(121_000);
+    expect(getHuntBackgroundIntervalMs("super_slow")).toBe(300_000);
+    expect(getHuntBackgroundIntervalMs(undefined)).toBe(45_000);
+  });
+
+  it("orders hunt traceroute candidates by recency and excludes the local node", () => {
+    const nodes = [
+      { num: 0x1, lastHeard: 10 },
+      { num: 0x2, lastHeard: 50 },
+      { num: 0x3, lastHeard: 20 },
+      { num: 0x4, lastHeard: 0 },
+    ] satisfies Array<Pick<Protobuf.Mesh.NodeInfo, "num" | "lastHeard">>;
+
+    expect(getHuntTracerouteCandidates(nodes, 0x2).map((node) => node.num)).toEqual([
+      0x3, 0x1, 0x4,
+    ]);
+  });
+
   it("uses the connected local node as traceroute origin for hunt forwarding", () => {
     const localNodeNum = 0x12345678;
     const packet = {
@@ -71,6 +95,26 @@ describe("Hunt traceroute helpers", () => {
   });
 
   it("serializes the normalized origin in hunt payloads", () => {
+    const routeDiscovery = create(Protobuf.Mesh.RouteDiscoverySchema, {
+      route: [0x11111111],
+      routeBack: [],
+      snrTowards: [12],
+      snrBack: [],
+    });
+    const meshPacket = create(Protobuf.Mesh.MeshPacketSchema, {
+      id: 7,
+      rxTime: 1_777_550_400,
+      from: 0x9abcdef0,
+      to: 0xffffff,
+      channel: 0,
+      payloadVariant: {
+        case: "decoded",
+        value: create(Protobuf.Mesh.DataSchema, {
+          portnum: Protobuf.Portnums.PortNum.TRACEROUTE_APP,
+          payload: toBinary(Protobuf.Mesh.RouteDiscoverySchema, routeDiscovery),
+        }),
+      },
+    });
     const packet = {
       id: 7,
       rxTime: new Date("2026-04-30T12:00:00.000Z"),
@@ -78,12 +122,11 @@ describe("Hunt traceroute helpers", () => {
       from: 0x9abcdef0,
       to: 0xffffff,
       channel: 0,
-      data: {
-        route: [0x11111111],
-        routeBack: [],
-        snrTowards: [12],
-        snrBack: [],
-      },
+      meshPacketJson: toJsonString(Protobuf.Mesh.MeshPacketSchema, meshPacket, {
+        alwaysEmitImplicit: true,
+        prettySpaces: 2,
+      }),
+      data: routeDiscovery,
     } as Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>;
 
     const payload = JSON.parse(
@@ -91,6 +134,8 @@ describe("Hunt traceroute helpers", () => {
     );
 
     expect(payload.idHunter).toBe("!12345678");
-    expect(payload.packet.to).toBe(0x12345678);
+    expect(payload.packet.to).toBe(0xffffff);
+    expect(payload.packet.decoded.portnum).toBe("TRACEROUTE_APP");
+    expect(payload.packet.data).toBeUndefined();
   });
 });

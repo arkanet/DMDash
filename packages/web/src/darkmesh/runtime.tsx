@@ -6,7 +6,7 @@ import {
 } from "@core/utils/directMessageKeyExchange.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
-import { type Protobuf, type Types } from "@meshtastic/core";
+import { Protobuf, type Types } from "@meshtastic/core";
 import { useEffect } from "react";
 import { forwardHuntPayload } from "./huntApi.ts";
 import { defaultBeaconConfig, defaultHuntConfig, useDarkMeshStore } from "./store.ts";
@@ -14,11 +14,16 @@ import {
   buildHuntPayload,
   buildDistressMessage,
   computeNextRunAt,
+  getHuntBackgroundIntervalMs,
+  getHuntTracerouteCandidates,
+  getNodeDisplayName,
   getNodeLongName,
   normalizeHuntTraceroutePacket,
   resolveDestination,
   resolveRelayCandidate,
 } from "./utils.ts";
+
+const HUNT_SAFE_THROTTLE_MS = 15_000;
 
 async function forwardHuntPacket<T>(
   deviceId: number,
@@ -40,7 +45,7 @@ async function forwardHuntPacket<T>(
       packet.data &&
       typeof packet.data === "object" &&
       "route" in (packet.data as Record<string, unknown>);
-    const huntPacket = isTraceroutePacket
+    const localHuntPacket = isTraceroutePacket
       ? (normalizeHuntTraceroutePacket(
           packet as unknown as Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
           localNodeNum,
@@ -54,7 +59,7 @@ async function forwardHuntPacket<T>(
           .getState()
           .addTraceroute(
             deviceId,
-            huntPacket as unknown as Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
+            localHuntPacket as unknown as Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
             { source: "hunt" },
           );
         // update UI state for local persistence
@@ -70,7 +75,7 @@ async function forwardHuntPacket<T>(
       await forwardHuntPayload(
         huntConfig.endpoint,
         huntConfig.token,
-        buildHuntPayload(hunterId, huntPacket),
+        buildHuntPayload(hunterId, packet),
       );
 
       // mark forwarded for telemetry/UI
@@ -90,6 +95,21 @@ export function DarkMeshRuntime() {
   const { connection, traceroutes: deviceTraceroutes } = useDevice();
   const { getMyNode, getNode, getNodes, getNodeError } = useNodeDB();
   const selectedDeviceId = useAppStore((state) => state.selectedDeviceId);
+  const huntEnabled = useDarkMeshStore((state) =>
+    selectedDeviceId === undefined
+      ? false
+      : (state.huntByDevice[selectedDeviceId] ?? defaultHuntConfig).enabled,
+  );
+  const huntBackgroundMode = useDarkMeshStore((state) =>
+    selectedDeviceId === undefined
+      ? defaultHuntConfig.backgroundMode
+      : (state.huntByDevice[selectedDeviceId] ?? defaultHuntConfig).backgroundMode,
+  );
+  const huntTracePriority = useDarkMeshStore((state) =>
+    selectedDeviceId === undefined
+      ? false
+      : ((state.tracePriorityByDevice ?? {})[selectedDeviceId] ?? false),
+  );
   const { toast } = useToast();
   const { notify } = useNotifications();
 
@@ -359,6 +379,105 @@ export function DarkMeshRuntime() {
       connection.events.onTraceRoutePacket.unsubscribe(handleHuntPacket);
     };
   }, [connection, getMyNode, getNode, getNodes, selectedDeviceId]);
+
+  useEffect(() => {
+    if (!connection || selectedDeviceId === undefined || !huntEnabled) {
+      return;
+    }
+
+    if (typeof connection.traceRoute !== "function") {
+      useDarkMeshStore
+        .getState()
+        .setHuntError(selectedDeviceId, "Traceroute is not available on the current connection");
+      return;
+    }
+
+    let cancelled = false;
+    let timeoutId: number | undefined;
+    let candidateRound: Protobuf.Mesh.NodeInfo[] = [];
+    let candidateIndex = 0;
+
+    const scheduleNext = (delayMs: number) => {
+      timeoutId = window.setTimeout(() => {
+        void runNextTraceroute();
+      }, delayMs);
+    };
+
+    const runNextTraceroute = async () => {
+      if (cancelled) {
+        return;
+      }
+
+      const myNode = getMyNode();
+      if (!myNode?.num) {
+        useDarkMeshStore
+          .getState()
+          .setHuntStatus(selectedDeviceId, "Waiting for local node before hunt scan");
+        scheduleNext(HUNT_SAFE_THROTTLE_MS);
+        return;
+      }
+
+      if (candidateIndex >= candidateRound.length) {
+        candidateRound = getHuntTracerouteCandidates(getNodes(undefined, true), myNode.num);
+        candidateIndex = 0;
+      }
+
+      const targetNode = candidateRound[candidateIndex];
+      if (!targetNode) {
+        useDarkMeshStore
+          .getState()
+          .setHuntStatus(selectedDeviceId, "No nodes available for hunt traceroute");
+        scheduleNext(getHuntBackgroundIntervalMs(huntBackgroundMode));
+        return;
+      }
+
+      candidateIndex += 1;
+
+      const priority = huntTracePriority
+        ? Protobuf.Mesh.MeshPacket_Priority.MAX
+        : Protobuf.Mesh.MeshPacket_Priority.UNSET;
+      const targetName =
+        getNodeLongName(targetNode) ?? getNodeDisplayName(targetNode, targetNode.num);
+
+      try {
+        const requestId = await connection.traceRoute(targetNode.num, priority);
+        const requestSuffix = typeof requestId === "number" ? ` (#${requestId})` : "";
+        useDarkMeshStore
+          .getState()
+          .setHuntStatus(
+            selectedDeviceId,
+            `Hunt traceroute requested for ${targetName}${requestSuffix}`,
+          );
+        scheduleNext(getHuntBackgroundIntervalMs(huntBackgroundMode));
+      } catch (error) {
+        useDarkMeshStore
+          .getState()
+          .setHuntError(
+            selectedDeviceId,
+            error instanceof Error ? error.message : "Unknown hunt traceroute error",
+          );
+        scheduleNext(HUNT_SAFE_THROTTLE_MS);
+      }
+    };
+
+    useDarkMeshStore.getState().setHuntStatus(selectedDeviceId, "Background hunt scan active");
+    scheduleNext(0);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [
+    connection,
+    getMyNode,
+    getNodes,
+    huntBackgroundMode,
+    huntEnabled,
+    huntTracePriority,
+    selectedDeviceId,
+  ]);
 
   useEffect(() => {
     if (!connection || selectedDeviceId === undefined) {

@@ -245,6 +245,7 @@ export const MessagesPage = () => {
           variant: "destructive",
           action: (
             <ToastAction
+              altText="Request public key"
               onClick={async () => {
                 try {
                   toastRef?.dismiss();
@@ -529,6 +530,7 @@ export const MessagesPage = () => {
                     variant: "destructive",
                     action: (
                       <ToastAction
+                        altText="Request public key"
                         onClick={async () => {
                           try {
                             toastRef?.dismiss();

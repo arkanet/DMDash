@@ -29,6 +29,11 @@ const CONTACT_SHARE_PATH = "/v/";
 const BASE64_URL_PREFIX = "https://meshtastic.org/v/#";
 const PLUS_CODE_ALPHABET = "23456789CFGHJMPQRVWX";
 const PAIR_RESOLUTIONS = [20, 1, 0.05, 0.0025, 0.000125];
+const HUNT_BACKGROUND_INTERVAL_FAST_MS = 31_000;
+const HUNT_BACKGROUND_INTERVAL_MEDIUM_MS = 61_000;
+const HUNT_BACKGROUND_INTERVAL_SLOW_MS = 121_000;
+const HUNT_BACKGROUND_INTERVAL_SUPER_SLOW_MS = 300_000;
+const HUNT_BACKGROUND_INTERVAL_FALLBACK_MS = 45_000;
 
 export function getNodeDisplayName(
   node?: Pick<Protobuf.Mesh.NodeInfo, "num" | "user">,
@@ -333,13 +338,43 @@ export function normalizeHuntEndpoint(endpoint: string): string {
   return endpoint.trim().replace(/\/+$/g, "");
 }
 
+export function getHuntBackgroundIntervalMs(
+  mode: "fast" | "medium" | "slow" | "super_slow" | undefined,
+): number {
+  switch (mode) {
+    case "fast":
+      return HUNT_BACKGROUND_INTERVAL_FAST_MS;
+    case "medium":
+      return HUNT_BACKGROUND_INTERVAL_MEDIUM_MS;
+    case "slow":
+      return HUNT_BACKGROUND_INTERVAL_SLOW_MS;
+    case "super_slow":
+      return HUNT_BACKGROUND_INTERVAL_SUPER_SLOW_MS;
+    default:
+      return HUNT_BACKGROUND_INTERVAL_FALLBACK_MS;
+  }
+}
+
+export function getHuntTracerouteCandidates<
+  T extends Pick<Protobuf.Mesh.NodeInfo, "num" | "lastHeard">,
+>(nodes: readonly T[], myNodeNum?: number): T[] {
+  return [...nodes]
+    .filter((node) => Number.isFinite(node.num) && node.num > 0)
+    .filter((node) => (myNodeNum ? node.num !== myNodeNum : true))
+    .sort((left, right) => (right.lastHeard ?? 0) - (left.lastHeard ?? 0));
+}
+
 export function buildHuntPayload<T>(hunterId: string, packet: Types.PacketMetadata<T>): string {
-  return JSON.stringify(
-    {
-      packet: {
+  const androidPacket = packet.meshPacketJson
+    ? JSON.parse(packet.meshPacketJson)
+    : {
         ...packet,
         rxTime: packet.rxTime instanceof Date ? packet.rxTime.toISOString() : packet.rxTime,
-      },
+      };
+
+  return JSON.stringify(
+    {
+      packet: androidPacket,
       idHunter: hunterId,
     },
     null,
