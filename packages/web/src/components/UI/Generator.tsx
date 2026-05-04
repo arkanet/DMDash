@@ -16,7 +16,10 @@ export interface ActionButton {
   className?: string;
 }
 
-export interface GeneratorProps extends React.BaseHTMLAttributes<HTMLElement> {
+export interface GeneratorProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "type" | "value" | "onChange" | "disabled"
+> {
   type: "text" | "password";
   devicePSKBitCount?: number;
   value: string;
@@ -26,6 +29,7 @@ export interface GeneratorProps extends React.BaseHTMLAttributes<HTMLElement> {
   bits?: { text: string; value: string; key: string }[];
   selectChange: (event: string) => void;
   inputChange: React.ChangeEventHandler<HTMLInputElement>;
+  inputRef?: React.Ref<HTMLInputElement>;
   showPasswordToggle?: boolean;
   showCopyButton?: boolean;
   disabled?: boolean;
@@ -41,6 +45,7 @@ const Generator = ({
   bits,
   selectChange,
   inputChange,
+  inputRef,
   disabled,
   showPasswordToggle,
   showCopyButton,
@@ -81,9 +86,11 @@ const Generator = ({
         variant={variant}
         value={value}
         onChange={inputChange}
+        ref={inputRef}
         disabled={disabled}
         showCopyButton={showCopyButton}
         showPasswordToggle={showPasswordToggle}
+        {...props}
       />
       <Select
         value={devicePSKBitCount?.toString()}
@@ -110,7 +117,6 @@ const Generator = ({
             disabled={disabled}
             variant={variant}
             className={className}
-            {...props}
           >
             {text}
           </Button>

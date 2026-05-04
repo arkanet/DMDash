@@ -38,27 +38,34 @@ export function PasswordGenerator<T extends FieldValues>({
     <Controller
       name={field.name}
       control={control}
-      render={({ field: controllerField }) => (
-        <Generator
-          type={field.hide && !isVisible ? "password" : "text"}
-          id={field.id}
-          devicePSKBitCount={field.devicePSKBitCount}
-          bits={field.bits}
-          inputChange={(e) => {
-            const value = e.target.value;
-            field.inputChange?.(e); // call any external handler
-            controllerField.onChange(value); // ensure RHF receives just the value
-          }}
-          selectChange={field.selectChange ?? (() => {})}
-          variant={invalid ? "invalid" : isDirty ? "dirty" : "default"}
-          actionButtons={field.actionButtons}
-          showPasswordToggle={field.showPasswordToggle}
-          showCopyButton={field.showCopyButton}
-          {...field.properties}
-          {...controllerField}
-          disabled={disabled}
-        />
-      )}
+      render={({ field: controllerField }) => {
+        const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+          const value = e.target.value;
+          field.inputChange?.(e);
+          controllerField.onChange(value);
+        };
+
+        return (
+          <Generator
+            type={field.hide && !isVisible ? "password" : "text"}
+            id={field.id}
+            name={controllerField.name}
+            onBlur={controllerField.onBlur}
+            inputRef={controllerField.ref}
+            devicePSKBitCount={field.devicePSKBitCount}
+            bits={field.bits}
+            inputChange={handleInputChange}
+            selectChange={field.selectChange ?? (() => {})}
+            variant={invalid ? "invalid" : isDirty ? "dirty" : "default"}
+            actionButtons={field.actionButtons}
+            showPasswordToggle={field.showPasswordToggle}
+            showCopyButton={field.showCopyButton}
+            {...field.properties}
+            disabled={disabled}
+            value={controllerField.value}
+          />
+        );
+      }}
     />
   );
 }
