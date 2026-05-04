@@ -100,10 +100,13 @@ const REMOTE_MODULE_TAB_REQUESTS: Partial<
   telemetry: Protobuf.Admin.AdminMessage_ModuleConfigType.TELEMETRY_CONFIG,
   cannedMessage: Protobuf.Admin.AdminMessage_ModuleConfigType.CANNEDMSG_CONFIG,
   audio: Protobuf.Admin.AdminMessage_ModuleConfigType.AUDIO_CONFIG,
+  remoteHardware: Protobuf.Admin.AdminMessage_ModuleConfigType.REMOTEHARDWARE_CONFIG,
   neighborInfo: Protobuf.Admin.AdminMessage_ModuleConfigType.NEIGHBORINFO_CONFIG,
   ambientLighting: Protobuf.Admin.AdminMessage_ModuleConfigType.AMBIENTLIGHTING_CONFIG,
   detectionSensor: Protobuf.Admin.AdminMessage_ModuleConfigType.DETECTIONSENSOR_CONFIG,
   paxcounter: Protobuf.Admin.AdminMessage_ModuleConfigType.PAXCOUNTER_CONFIG,
+  statusmessage: Protobuf.Admin.AdminMessage_ModuleConfigType.STATUSMESSAGE_CONFIG,
+  trafficManagement: Protobuf.Admin.AdminMessage_ModuleConfigType.TRAFFICMANAGEMENT_CONFIG,
 };
 
 const applyConfigMessage = (
@@ -173,6 +176,9 @@ const applyModuleConfigMessage = (
     case "audio":
       next.audio = config.payloadVariant.value;
       break;
+    case "remoteHardware":
+      next.remoteHardware = config.payloadVariant.value;
+      break;
     case "neighborInfo":
       next.neighborInfo = config.payloadVariant.value;
       break;
@@ -184,6 +190,12 @@ const applyModuleConfigMessage = (
       break;
     case "paxcounter":
       next.paxcounter = config.payloadVariant.value;
+      break;
+    case "statusmessage":
+      next.statusmessage = config.payloadVariant.value;
+      break;
+    case "trafficManagement":
+      next.trafficManagement = config.payloadVariant.value;
       break;
   }
 
