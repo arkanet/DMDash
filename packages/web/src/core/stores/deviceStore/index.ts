@@ -330,6 +330,10 @@ function deviceFactory(
                 device.moduleConfig.audio = config.payloadVariant.value;
                 break;
               }
+              case "remoteHardware": {
+                device.moduleConfig.remoteHardware = config.payloadVariant.value;
+                break;
+              }
               case "neighborInfo": {
                 device.moduleConfig.neighborInfo = config.payloadVariant.value;
                 break;
@@ -344,6 +348,14 @@ function deviceFactory(
               }
               case "paxcounter": {
                 device.moduleConfig.paxcounter = config.payloadVariant.value;
+                break;
+              }
+              case "statusmessage": {
+                device.moduleConfig.statusmessage = config.payloadVariant.value;
+                break;
+              }
+              case "trafficManagement": {
+                device.moduleConfig.trafficManagement = config.payloadVariant.value;
                 break;
               }
             }

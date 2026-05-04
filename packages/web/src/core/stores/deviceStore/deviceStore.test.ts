@@ -196,6 +196,63 @@ describe("DeviceStore – change registry API", () => {
     expect(device.hasModuleConfigChange("mqtt")).toBe(false);
   });
 
+  it("setModuleConfig stores the newer module variants used by Module Config tabs", async () => {
+    const { useDeviceStore } = await freshStore(false);
+    const state = useDeviceStore.getState();
+    const device = state.addDevice(8);
+
+    device.setModuleConfig(
+      create(Protobuf.ModuleConfig.ModuleConfigSchema, {
+        payloadVariant: {
+          case: "remoteHardware",
+          value: create(Protobuf.ModuleConfig.ModuleConfig_RemoteHardwareConfigSchema, {
+            enabled: true,
+          }),
+        },
+      }),
+    );
+
+    device.setModuleConfig(
+      create(Protobuf.ModuleConfig.ModuleConfigSchema, {
+        payloadVariant: {
+          case: "statusmessage",
+          value: create(Protobuf.ModuleConfig.ModuleConfig_StatusMessageConfigSchema, {
+            nodeStatus: "hello mesh",
+          }),
+        },
+      }),
+    );
+
+    device.setModuleConfig(
+      create(Protobuf.ModuleConfig.ModuleConfigSchema, {
+        payloadVariant: {
+          case: "trafficManagement",
+          value: create(Protobuf.ModuleConfig.ModuleConfig_TrafficManagementConfigSchema, {
+            enabled: true,
+            positionDedupEnabled: true,
+            positionPrecisionBits: 12,
+            positionMinIntervalSecs: 60,
+            nodeinfoDirectResponse: true,
+            nodeinfoDirectResponseMaxHops: 3,
+            rateLimitEnabled: true,
+            rateLimitWindowSecs: 30,
+            rateLimitMaxPackets: 10,
+            dropUnknownEnabled: false,
+            unknownPacketThreshold: 5,
+            exhaustHopTelemetry: false,
+            exhaustHopPosition: false,
+            routerPreserveHops: true,
+          }),
+        },
+      }),
+    );
+
+    expect(device.getEffectiveModuleConfig("remoteHardware")?.enabled).toBe(true);
+    expect(device.getEffectiveModuleConfig("statusmessage")?.nodeStatus).toBe("hello mesh");
+    expect(device.getEffectiveModuleConfig("trafficManagement")?.enabled).toBe(true);
+    expect(device.getEffectiveModuleConfig("trafficManagement")?.positionPrecisionBits).toBe(12);
+  });
+
   it("channel change tracking add/update/remove/get", async () => {
     const { useDeviceStore } = await freshStore(false);
     const state = useDeviceStore.getState();
