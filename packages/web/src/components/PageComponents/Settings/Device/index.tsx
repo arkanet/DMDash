@@ -4,35 +4,123 @@ import { useUnsafeRolesDialog } from "@components/Dialog/UnsafeRolesDialog/useUn
 import { DynamicForm, type DynamicFormFormInit } from "@components/Form/DynamicForm.tsx";
 import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
+import {
+  getRoleAwareRebroadcastModeOptions,
+  getRoleDefaultRebroadcastMode,
+  normalizeDeviceConfigForRole,
+} from "@core/utils/deviceRebroadcastMode.ts";
 import { Protobuf } from "@meshtastic/core";
+import { useEffect, useMemo, useState } from "react";
+import type { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
 interface DeviceConfigProps {
   onFormInit: DynamicFormFormInit<DeviceValidation>;
 }
+
+const FALLBACK_DEVICE_CONFIG: DeviceValidation = {
+  role: Protobuf.Config.Config_DeviceConfig_Role.CLIENT,
+  serialEnabled: false,
+  buttonGpio: 0,
+  buzzerGpio: 0,
+  rebroadcastMode: Protobuf.Config.Config_DeviceConfig_RebroadcastMode.ALL,
+  nodeInfoBroadcastSecs: 900,
+  doubleTapAsButtonPress: false,
+  isManaged: false,
+  disableTripleClick: false,
+  ledHeartbeatDisabled: false,
+  tzdef: "",
+};
+
 export const Device = ({ onFormInit }: DeviceConfigProps) => {
   useWaitForConfig({ configCase: "device" });
 
   const { config, setChange, getEffectiveConfig, removeChange } = useConfigTarget();
   const { t } = useTranslation("config");
   const { validateRoleSelection } = useUnsafeRolesDialog();
+  const [formMethods, setFormMethods] = useState<UseFormReturn<DeviceValidation> | null>(null);
+  const baseDeviceConfig = config.device ?? FALLBACK_DEVICE_CONFIG;
+  const effectiveDeviceConfig = getEffectiveConfig("device") ?? baseDeviceConfig;
+  const defaultDeviceConfig = useMemo(
+    () => normalizeDeviceConfigForRole(baseDeviceConfig),
+    [baseDeviceConfig],
+  );
+  const formValues = useMemo(
+    () => normalizeDeviceConfigForRole(effectiveDeviceConfig),
+    [effectiveDeviceConfig],
+  );
+  const [liveRole, setLiveRole] = useState(formValues.role);
+
+  useEffect(() => {
+    setLiveRole(formValues.role);
+  }, [formValues.role]);
+
+  useEffect(() => {
+    if (!formMethods) {
+      return;
+    }
+
+    const subscription = formMethods.watch((_value, { name }) => {
+      const nextValues = formMethods.getValues();
+
+      if (name === "role") {
+        const nextMode = getRoleDefaultRebroadcastMode(nextValues.role);
+
+        if (nextValues.rebroadcastMode !== nextMode) {
+          formMethods.setValue("rebroadcastMode", nextMode, {
+            shouldDirty: true,
+            shouldTouch: true,
+            shouldValidate: true,
+          });
+          nextValues.rebroadcastMode = nextMode;
+        }
+      }
+
+      const normalizedValues = normalizeDeviceConfigForRole(nextValues);
+
+      if (normalizedValues.rebroadcastMode !== nextValues.rebroadcastMode) {
+        formMethods.setValue("rebroadcastMode", normalizedValues.rebroadcastMode, {
+          shouldDirty: true,
+          shouldTouch: true,
+          shouldValidate: true,
+        });
+        nextValues.rebroadcastMode = normalizedValues.rebroadcastMode;
+      }
+
+      setLiveRole(normalizedValues.role);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [formMethods]);
+
+  const handleFormInit = (methods: UseFormReturn<DeviceValidation>) => {
+    setFormMethods(methods);
+    onFormInit(methods);
+  };
+
+  const rebroadcastModeOptions = useMemo(
+    () => getRoleAwareRebroadcastModeOptions(liveRole),
+    [liveRole],
+  );
 
   const onSubmit = (data: DeviceValidation) => {
-    if (deepCompareConfig(config.device, data, true)) {
+    const normalizedData = normalizeDeviceConfigForRole(data);
+
+    if (deepCompareConfig(config.device, normalizedData, true)) {
       removeChange({ type: "config", variant: "device" });
       return;
     }
 
-    setChange({ type: "config", variant: "device" }, data, config.device);
+    setChange({ type: "config", variant: "device" }, normalizedData, config.device);
   };
 
   return (
     <DynamicForm<DeviceValidation>
       onSubmit={onSubmit}
-      onFormInit={onFormInit}
+      onFormInit={handleFormInit}
       validationSchema={DeviceValidationSchema}
-      defaultValues={config.device}
-      values={getEffectiveConfig("device")}
+      defaultValues={defaultDeviceConfig}
+      values={formValues}
       fieldGroups={[
         {
           label: t("device.title"),
@@ -67,7 +155,7 @@ export const Device = ({ onFormInit }: DeviceConfigProps) => {
               label: t("device.rebroadcastMode.label"),
               description: t("device.rebroadcastMode.description"),
               properties: {
-                enumValue: Protobuf.Config.Config_DeviceConfig_RebroadcastMode,
+                enumValue: rebroadcastModeOptions,
                 formatEnumName: true,
               },
             },
@@ -100,7 +188,7 @@ export const Device = ({ onFormInit }: DeviceConfigProps) => {
               properties: {
                 fieldLength: {
                   max: 64,
-                  currentValueLength: getEffectiveConfig("device")?.tzdef?.length,
+                  currentValueLength: effectiveDeviceConfig.tzdef?.length,
                   showCharacterCount: true,
                 },
               },
