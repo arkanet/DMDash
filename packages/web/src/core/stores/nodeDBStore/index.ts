@@ -3,11 +3,16 @@ import { featureFlags } from "@core/services/featureFlags";
 import { validateIncomingNode } from "@core/stores/nodeDBStore/nodeValidation";
 import { createStorage } from "@core/stores/utils/indexDB.ts";
 import * as nodeinfoPersistence from "@core/stores/nodeinfoPersistence";
+import { normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
 import { Protobuf, type Types } from "@meshtastic/core";
 import { distanceBetweenPositions, normalizePosition } from "@core/utils/geo.ts";
 
 type NodeInfoWithRx = Protobuf.Mesh.NodeInfo & { rxRssi?: number };
-type NodeInfoWithExtras = Protobuf.Mesh.NodeInfo & { distanceKm?: number };
+type NodeInfoWithExtras = Protobuf.Mesh.NodeInfo & {
+  distanceKm?: number;
+  nodeStatus?: string;
+  lastReadNodeStatus?: string;
+};
 import { produce } from "immer";
 import { create as createStore, type StateCreator } from "zustand";
 import { type PersistOptions, persist, subscribeWithSelector } from "zustand/middleware";
@@ -43,6 +48,8 @@ export interface NodeDB extends NodeDBData {
   addTelemetry: (telemetry: Types.PacketMetadata<Protobuf.Telemetry.Telemetry>) => void;
   addUser: (user: Types.PacketMetadata<Protobuf.Mesh.User>) => void;
   addPosition: (position: Types.PacketMetadata<Protobuf.Mesh.Position>) => void;
+  updateNodeStatus: (nodeNum: number, status?: string) => void;
+  markNodeStatusRead: (nodeNum: number) => void;
   updateFavorite: (nodeNum: number, isFavorite: boolean) => void;
   updateIgnore: (nodeNum: number, isIgnored: boolean) => void;
   setNodeNum: (nodeNum: number) => void;
@@ -785,6 +792,92 @@ function nodeDBFactory(
         }
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after addPosition", e);
+      }
+    },
+
+    updateNodeStatus: (nodeNum, status) => {
+      const normalizedStatus = normalizeNodeStatus(status);
+
+      set(
+        produce<PrivateNodeDBState>((draft) => {
+          const nodeDB = draft.nodeDBs.get(id);
+          if (!nodeDB) {
+            throw new Error(`No nodeDB found (id: ${id})`);
+          }
+
+          const current =
+            nodeDB.nodeMap.get(nodeNum) ??
+            create(Protobuf.Mesh.NodeInfoSchema, {
+              num: nodeNum,
+              lastHeard: Math.floor(Date.now() / 1000),
+            });
+
+          const updatedNode = { ...current } as NodeInfoWithExtras;
+
+          if (normalizedStatus) {
+            updatedNode.nodeStatus = normalizedStatus;
+          } else {
+            delete updatedNode.nodeStatus;
+            delete updatedNode.lastReadNodeStatus;
+          }
+
+          nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(nodeNum, updatedNode);
+        }),
+      );
+
+      try {
+        const persisted = get().nodeDBs.get(id)?.nodeMap.get(nodeNum);
+        if (persisted) {
+          nodeinfoPersistence
+            .putNode(id, persisted)
+            .catch((_e) => console.warn("nodeinfoPersistence.putNode failed", _e));
+        }
+      } catch (e) {
+        console.warn("nodeinfoPersistence: failed to persist node after updateNodeStatus", e);
+      }
+    },
+
+    markNodeStatusRead: (nodeNum) => {
+      const current = get().nodeDBs.get(id)?.nodeMap.get(nodeNum) as NodeInfoWithExtras | undefined;
+      const normalizedStatus = normalizeNodeStatus(current?.nodeStatus);
+      if (!normalizedStatus) {
+        return;
+      }
+
+      if (normalizeNodeStatus(current?.lastReadNodeStatus) === normalizedStatus) {
+        return;
+      }
+
+      set(
+        produce<PrivateNodeDBState>((draft) => {
+          const nodeDB = draft.nodeDBs.get(id);
+          if (!nodeDB) {
+            throw new Error(`No nodeDB found (id: ${id})`);
+          }
+
+          const node = nodeDB.nodeMap.get(nodeNum) as NodeInfoWithExtras | undefined;
+          if (!node) {
+            return;
+          }
+
+          const updatedNode = {
+            ...node,
+            lastReadNodeStatus: normalizedStatus,
+          } as NodeInfoWithExtras;
+
+          nodeDB.nodeMap = new Map(nodeDB.nodeMap).set(nodeNum, updatedNode);
+        }),
+      );
+
+      try {
+        const persisted = get().nodeDBs.get(id)?.nodeMap.get(nodeNum);
+        if (persisted) {
+          nodeinfoPersistence
+            .putNode(id, persisted)
+            .catch((_e) => console.warn("nodeinfoPersistence.putNode failed", _e));
+        }
+      } catch (e) {
+        console.warn("nodeinfoPersistence: failed to persist node after markNodeStatusRead", e);
       }
     },
 

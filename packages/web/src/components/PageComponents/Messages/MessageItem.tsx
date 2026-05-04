@@ -21,6 +21,7 @@ import {
 } from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import { cn } from "@core/utils/cn.ts";
+import { normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
 import { Protobuf } from "@meshtastic/core";
 import type { LucideIcon } from "lucide-react";
 import { AlertCircle, CheckCircle2, CircleEllipsis, FileArchive } from "lucide-react";
@@ -177,7 +178,7 @@ export const MessageItem = ({
     return message.from != null ? getNode(message.from) : undefined;
   }, [getNode, message.from]);
 
-  const { displayName, isFavorite, nodeNum } = useMemo(() => {
+  const { displayName, isFavorite, nodeNum, nodeStatus } = useMemo(() => {
     const userIdHex = message.from.toString(16).toUpperCase().padStart(2, "0");
     const last4 = userIdHex.slice(-4);
     const fallbackName = t("fallbackName", { last4 });
@@ -185,11 +186,15 @@ export const MessageItem = ({
     const derivedShortName = messageUser?.user?.shortName || fallbackName;
     const derivedDisplayName = longName || derivedShortName;
     const isFavorite = messageUser?.num !== myNodeNum && messageUser?.isFavorite;
+    const nodeStatus = normalizeNodeStatus(
+      (messageUser as (Protobuf.Mesh.NodeInfo & { nodeStatus?: string }) | undefined)?.nodeStatus,
+    );
     return {
       displayName: derivedDisplayName,
       shortName: derivedShortName,
       isFavorite: isFavorite,
       nodeNum: message.from,
+      nodeStatus,
     };
   }, [messageUser, message.from, t, myNodeNum]);
 
@@ -425,14 +430,25 @@ export const MessageItem = ({
           aria-label={`Open node ${nodeNum} details`}
           className="p-0 m-0"
         >
-          <Avatar size="sm" nodeNum={nodeNum} className="pt-0.5" showFavorite={isFavorite} />
+          <Avatar
+            size="sm"
+            nodeNum={nodeNum}
+            className="pt-0.5"
+            showFavorite={isFavorite}
+            showStatusIndicator={false}
+          />
         </button>
 
         <div className="flex flex-col gap-0.5 min-w-0">
-          <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
             <span className="font-medium text-sm text-slate-900 dark:text-slate-100 truncate mr-1">
               {displayName}
             </span>
+            {nodeStatus && (
+              <span className="min-w-0 break-words text-sm font-normal italic text-slate-600 dark:text-slate-300">
+                {nodeStatus}
+              </span>
+            )}
             {messageDate && (
               <time dateTime={messageDate.toISOString()} className={dateTextStyle}>
                 <span aria-hidden="true">{formattedTime}</span>

@@ -37,6 +37,8 @@
         "package": "gzipper c -i html,js,css,png,ico,svg,json,webmanifest,txt dist dist/output && tar -cvf dist/build.tar -C ./dist/output/ ."
     },
     "dependencies": {
+        "@fortawesome/free-solid-svg-icons": "^7.2.0",
+        "@fortawesome/react-fontawesome": "^3.3.1",
         "@hookform/resolvers": "^5.2.2",
         "@meshtastic/core": "workspace:*",
         "@meshtastic/transport-http": "workspace:*",
@@ -90,13 +92,13 @@
         "react-i18next": "^16.0.0",
         "react-map-gl": "8.1.0",
         "react-qrcode-logo": "^4.0.0",
+        "recharts": "^2.6.0",
         "rfc4648": "^1.5.4",
         "vite": "^7.1.11",
         "vite-plugin-html": "^3.2.2",
         "vite-plugin-pwa": "^1.0.3",
         "zod": "^4.1.12",
-        "zustand": "5.0.8",
-        "recharts": "^2.6.0"
+        "zustand": "5.0.8"
     },
     "devDependencies": {
         "@tanstack/router-plugin": "^1.132.47",
@@ -117,13 +119,13 @@
         "happy-dom": "^20.0.2",
         "oxfmt": "^0.16.0",
         "oxlint": "^1.41.0",
+        "playwright": "^1.40.0",
         "tailwind-merge": "^3.3.1",
         "tailwindcss": "^4.1.14",
         "tailwindcss-animate": "^1.0.7",
         "tar": "^7.5.11",
         "testing-library": "^0.0.2",
         "typescript": "^5.9.3",
-        "vitest": "^3.2.4",
-        "playwright": "^1.40.0"
+        "vitest": "^3.2.4"
     }
 }

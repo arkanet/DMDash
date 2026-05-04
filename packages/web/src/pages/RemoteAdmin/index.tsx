@@ -748,6 +748,12 @@ const RemoteAdminPage = () => {
         }
         case "getModuleConfigResponse": {
           setModuleConfig(adminMessage.payloadVariant.value);
+          if (adminMessage.payloadVariant.value.payloadVariant.case === "statusmessage") {
+            nodeDB.updateNodeStatus(
+              nodeNum,
+              adminMessage.payloadVariant.value.payloadVariant.value.nodeStatus,
+            );
+          }
           const moduleTab = adminMessage.payloadVariant.value.payloadVariant.case as RemoteAdminTab;
           if (moduleTab) {
             markRemoteTabLoaded(moduleTab);

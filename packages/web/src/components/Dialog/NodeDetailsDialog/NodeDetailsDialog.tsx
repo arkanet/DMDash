@@ -65,6 +65,7 @@ import {
 import { Share2 } from "lucide-react";
 // removed duplicate DialogFooter import
 import { Input } from "@components/UI/Input.tsx";
+import { NodeStatusMessage } from "@components/NodeStatusMessage.tsx";
 import { Checkbox } from "@components/UI/Checkbox/index.tsx";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { QRCode } from "react-qrcode-logo";
@@ -80,6 +81,7 @@ import { logger } from "@core/utils/logger";
 import { useTranslation } from "react-i18next";
 // useDarkMeshStore not needed here after switching to node's rxRssi
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
+import { normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
 
 export interface NodeDetailsDialogProps {
   open: boolean;
@@ -133,6 +135,18 @@ export const NodeDetailsDialog = ({
     setIsFavoriteState(nodeForRender.isFavorite);
     setIsIgnoredState(nodeForRender.isIgnored);
   }, [nodeForRender]);
+
+  const nodeStatus = (
+    nodeForRender as (Protobuf.Mesh.NodeInfo & { nodeStatus?: string }) | undefined
+  )?.nodeStatus;
+
+  useEffect(() => {
+    if (!open || !nodeForRender || !normalizeNodeStatus(nodeStatus)) {
+      return;
+    }
+
+    nodeDB.markNodeStatusRead(nodeForRender.num);
+  }, [nodeForRender, nodeDB, nodeStatus, open]);
 
   // Ensure we have the node we intend to render. useEffect and hooks above
   // must stay before any early return, so check `nodeForRender` here.
@@ -757,6 +771,13 @@ export const NodeDetailsDialog = ({
                   />
                 </div>
               </div>
+
+              <NodeStatusMessage
+                status={nodeStatus}
+                title={t("nodeDetails.statusMessage", "Status Message")}
+                variant="dialog"
+                className="mt-3"
+              />
 
               {shareOpen && (
                 <div className="mt-4">

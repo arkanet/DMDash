@@ -128,6 +128,47 @@ describe("NodeDB store", () => {
     expect(db.getNode(77)?.num).toBe(77);
   });
 
+  it("tracks unread and read status message state across updates", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(1);
+
+    db.updateNodeStatus(88, "  Battery low  ");
+
+    const withStatus = db.getNode(88) as Protobuf.Mesh.NodeInfo & {
+      nodeStatus?: string;
+      lastReadNodeStatus?: string;
+    };
+    expect(withStatus.num).toBe(88);
+    expect(withStatus.nodeStatus).toBe("Battery low");
+    expect(withStatus.lastReadNodeStatus).toBeUndefined();
+
+    db.markNodeStatusRead(88);
+
+    const read = db.getNode(88) as Protobuf.Mesh.NodeInfo & {
+      nodeStatus?: string;
+      lastReadNodeStatus?: string;
+    };
+    expect(read.lastReadNodeStatus).toBe("Battery low");
+
+    db.updateNodeStatus(88, "Battery ok");
+
+    const updated = db.getNode(88) as Protobuf.Mesh.NodeInfo & {
+      nodeStatus?: string;
+      lastReadNodeStatus?: string;
+    };
+    expect(updated.nodeStatus).toBe("Battery ok");
+    expect(updated.lastReadNodeStatus).toBe("Battery low");
+
+    db.updateNodeStatus(88, "   ");
+
+    const cleared = db.getNode(88) as Protobuf.Mesh.NodeInfo & {
+      nodeStatus?: string;
+      lastReadNodeStatus?: string;
+    };
+    expect(cleared.nodeStatus).toBeUndefined();
+    expect(cleared.lastReadNodeStatus).toBeUndefined();
+  });
+
   it("errors map: setNodeError, getNodeError, hasNodeError, clearNodeError", async () => {
     const { useNodeDBStore } = await freshStore();
     const db = useNodeDBStore.getState().addNodeDB(1);

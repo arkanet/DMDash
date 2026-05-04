@@ -120,6 +120,14 @@ export const subscribeAll = (
   });
   connection.events.onModuleConfigPacket.subscribe((moduleConfig) => {
     device.setModuleConfig(moduleConfig);
+
+    if (moduleConfig.payloadVariant.case === "statusmessage") {
+      const targetNodeNum = myNodeNum || device.hardware.myNodeNum;
+
+      if (typeof targetNodeNum === "number" && targetNodeNum > 0) {
+        nodeDB.updateNodeStatus(targetNodeNum, moduleConfig.payloadVariant.value.nodeStatus);
+      }
+    }
   });
 
   connection.events.onMessagePacket.subscribe((messagePacket) => {

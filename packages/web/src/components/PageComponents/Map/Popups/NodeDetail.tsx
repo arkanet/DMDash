@@ -41,6 +41,7 @@ import { formatQuantity } from "@core/utils/string.ts";
 import type { Protobuf as ProtobufType } from "@meshtastic/core";
 import { Protobuf } from "@meshtastic/core";
 import NodeSignalChart from "@components/NodeSignalChart.tsx";
+import { NodeStatusMessage, normalizeNodeStatus } from "@components/NodeStatusMessage.tsx";
 import {
   Tooltip,
   TooltipContent,
@@ -65,7 +66,7 @@ import {
   Info,
   Edit,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { logger } from "@core/utils/logger";
 import { useTranslation } from "react-i18next";
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
@@ -154,6 +155,16 @@ export const NodeDetail = ({
   const roleLabelRaw = Protobuf.Config.Config_DeviceConfig_Role[node.user?.role ?? 0];
   const formatEnumLabel = (label: string) => label.replace(/_/g, " ");
   const roleLabel = roleLabelRaw ? formatEnumLabel(roleLabelRaw) : undefined;
+  const nodeStatus = (node as ProtobufType.Mesh.NodeInfo & { nodeStatus?: string }).nodeStatus;
+  const hasNodeStatus = Boolean(normalizeNodeStatus(nodeStatus));
+
+  useEffect(() => {
+    if (!hasNodeStatus) {
+      return;
+    }
+
+    nodeDB.markNodeStatusRead(node.num);
+  }, [hasNodeStatus, node.num, nodeDB, nodeStatus]);
 
   function handleDirectMessage() {
     const nodeError = nodeDB.getNodeError(node.num);
@@ -835,7 +846,15 @@ export const NodeDetail = ({
             )}
           </div>
 
-          <Separator className="my-2" />
+          {hasNodeStatus ? (
+            <NodeStatusMessage
+              status={nodeStatus}
+              title={t("nodeDetail.statusMessage", "Status Message")}
+              variant="popup"
+            />
+          ) : (
+            <Separator className="my-2" />
+          )}
 
           <div className="mt-2 flex text-sm">
             <div className="flex grow items-center">
