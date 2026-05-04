@@ -9,7 +9,7 @@ import { useTheme } from "@core/hooks/useTheme.ts";
 import { SidebarProvider, useAppStore, useDeviceStore } from "@core/stores";
 import { DarkMeshRuntime } from "@app/darkmesh/runtime.tsx";
 import { Connections } from "@pages/Connections/index.tsx";
-import { Outlet } from "@tanstack/react-router";
+import { Outlet, useLocation } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { ErrorBoundary } from "react-error-boundary";
 import { MapProvider } from "react-map-gl/maplibre";
@@ -19,8 +19,12 @@ export function App() {
 
   const { getDevice } = useDeviceStore();
   const { selectedDeviceId } = useAppStore();
+  const pathname = useLocation({
+    select: (location) => location.pathname,
+  });
 
   const device = getDevice(selectedDeviceId);
+  const isPublicGuideRoute = pathname === "/guide" || pathname.startsWith("/guide/");
 
   return (
     // <ThemeProvider defaultTheme="system" storageKey="theme">
@@ -50,6 +54,8 @@ export function App() {
                     <Outlet />
                   </MapProvider>
                 </div>
+              ) : isPublicGuideRoute ? (
+                <Outlet />
               ) : (
                 <>
                   <Connections />

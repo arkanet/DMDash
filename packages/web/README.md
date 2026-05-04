@@ -14,6 +14,20 @@ or served from a node
 
 **[Hosted version](https://client.meshtastic.org)**
 
+## DMDash Fork Notes
+
+This repository is used as the web runtime base for `DMDash`.
+
+The DMDash build also ships a static, end-user guide directly from the web package:
+
+- guide landing page: [public/guide/index.html](public/guide/index.html)
+- English guide: [public/guide/en/index.html](public/guide/en/index.html)
+- Italian guide: [public/guide/it/index.html](public/guide/it/index.html)
+
+When running the local dev server, open `/guide/index.html` on the same host to view the documentation.
+
+The current DMDash fork exposes browser-based connection flows for `HTTP(S)`, Web Bluetooth, and Web Serial, plus DarkMesh-specific dashboard, messaging, map, and Remote Admin additions documented in the repository root README files.
+
 ## Stats
 
 ![Alt](https://repobeats.axiom.co/api/embed/e5b062db986cb005d83e81724c00cb2b9cce8e4c.svg "Repobeats analytics image")

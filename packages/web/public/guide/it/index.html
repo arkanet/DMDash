@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Guida utente DMDash</title>
+    <link rel="icon" type="image/png" href="/darkmesh-logo.png" />
+    <link rel="icon" href="/darkmesh-logo.png" />
+    <link rel="apple-touch-icon" href="/darkmesh-logo.png" sizes="180x180" />
+    <link rel="stylesheet" href="../styles.css" />
+</head>
+
+<body>
+    <main class="shell">
+        <section class="hero">
+            <div class="brand">
+                <img src="/darkmesh-logo.png" alt="Logo DarkMesh" />
+                <div>
+                    <div class="eyebrow">Guida italiana</div>
+                    <h1>Come Usare DMDash</h1>
+                    <p>
+                        DMDash è una dashboard web orientata a DarkMesh costruita sopra il client web Meshtastic.
+                        Questa guida è pensata per chi vuole usare bene l'app nella pratica: collegare il nodo,
+                        messaggiare, leggere la mappa, gestire i settings e sfruttare davvero gli strumenti del
+                        dashboard DarkMesh.
+                    </p>
+                </div>
+            </div>
+
+            <div class="actions">
+                <a class="button" href="/connections">
+                    <strong>Apri Connessioni</strong>
+                    <span>Parti da qui se devi ancora collegare o autorizzare il nodo.</span>
+                </a>
+                <a class="button" href="/dashboard">
+                    <strong>Apri Dashboard</strong>
+                    <span>Qui trovi notifiche, schedulazioni, beacon distress, hunting e manutenzione rapida.</span>
+                </a>
+                <a class="button" href="../en/">
+                    <strong>Need English?</strong>
+                    <span>Passa alla versione inglese della guida.</span>
+                </a>
+            </div>
+        </section>
+
+        <nav class="toc">
+            <strong>Indice</strong>
+            <ol>
+                <li><a href="#prima-di-iniziare">Prima di iniziare</a></li>
+                <li><a href="#collegare-il-nodo">Collegare il nodo</a></li>
+                <li><a href="#capire-le-aree-principali">Capire le aree principali</a></li>
+                <li><a href="#usare-il-dashboard-darkmesh">Usare il dashboard DarkMesh</a></li>
+                <li><a href="#gestire-i-messaggi">Gestire i messaggi</a></li>
+                <li><a href="#leggere-mappa-e-dettagli-nodo">Leggere mappa e dettagli nodo</a></li>
+                <li><a href="#configurare-il-device">Configurare il device</a></li>
+                <li><a href="#usare-remote-admin">Usare Remote Admin</a></li>
+                <li><a href="#workflow-status-message">Workflow Status Message</a></li>
+                <li><a href="#limiti-e-problemi-comuni">Limiti e problemi comuni</a></li>
+            </ol>
+        </nav>
+
+        <div class="stack">
+            <section class="panel" id="prima-di-iniziare">
+                <h2>Prima di iniziare</h2>
+                <ul>
+                    <li>DMDash gira nel browser, quindi alcune automazioni funzionano solo mentre la tab resta aperta e
+                        connessa.</li>
+                    <li>Bluetooth e Serial richiedono un browser con supporto Web Bluetooth o Web Serial. Chrome ed Edge
+                        sono le scelte più sicure.</li>
+                    <li>HTTP(S) è spesso il trasporto più semplice se il nodo o il gateway espone già un endpoint
+                        raggiungibile.</li>
+                    <li>Non tutti i nodi mostrano gli stessi tab: DMDash nasconde le sezioni che il firmware o il ruolo
+                        del nodo non supportano.</li>
+                </ul>
+                <div class="callout">
+                    <strong>Percorso consigliato:</strong> collega prima il nodo, controlla che compaia nella sidebar e
+                    poi passa a Dashboard, Messaggi, Mappa e Settings.
+                </div>
+            </section>
+
+            <section class="panel" id="collegare-il-nodo">
+                <h2>Collegare il nodo</h2>
+                <h3>Opzione 1: HTTP(S)</h3>
+                <p>
+                    Sceglila quando il nodo o il gateway è già raggiungibile in rete. DMDash include un test connessione
+                    prima del salvataggio.
+                </p>
+                <h3>Opzione 2: Bluetooth</h3>
+                <p>
+                    Utile quando il nodo è vicino e il browser supporta Web Bluetooth. Il browser ti chiederà di
+                    selezionare il device.
+                </p>
+                <h3>Opzione 3: Serial</h3>
+                <p>
+                    Utile quando il nodo è collegato via USB e il browser supporta Web Serial.
+                </p>
+                <div class="note">
+                    <strong>Se HTTP(S) fallisce:</strong> se il nodo usa un certificato self-signed, apri una volta
+                    l'endpoint in una tab separata, accetta l'avviso del certificato e poi riprova il test da DMDash.
+                </div>
+            </section>
+
+            <section class="panel" id="capire-le-aree-principali">
+                <h2>Capire le aree principali</h2>
+                <div class="card-grid">
+                    <div class="mini">
+                        <strong>Dashboard</strong>
+                        <span>Workflow DarkMesh: notifiche, traceroute, messaggi schedulati, beacon distress, hunt
+                            forwarding, import/export, pruning.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Messaggi</strong>
+                        <span>Chat dirette e broadcast, reply, mention, reazioni, emoji picker, stato messaggio, status
+                            del nodo in linea.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Mappa</strong>
+                        <span>Marker live, filtri, popup nodo, metriche ambientali, lista neighbor e traceroute
+                            overlay.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Nodi</strong>
+                        <span>Tabella filtrabile, segnale, cifratura, preferiti e accesso rapido ai dettagli.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Settings</strong>
+                        <span>Configurazione locale divisa in Radio, Device e Module.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Remote Admin</strong>
+                        <span>Lettura e scrittura remota per nodi compatibili, sempre divisa in Radio, Device e
+                            Module.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" id="usare-il-dashboard-darkmesh">
+                <h2>Usare il dashboard DarkMesh</h2>
+                <h3>Notifiche</h3>
+                <p>
+                    Il dashboard raccoglie notifiche operative, incluse quelle di batteria bassa e gli eventi legati
+                    alle schedulazioni.
+                </p>
+                <h3>Storico traceroute</h3>
+                <p>
+                    I traceroute recenti sono raccolti in un'unica area per controllare rapidamente i percorsi senza
+                    leggere i pacchetti raw.
+                </p>
+                <h3>Messaggi schedulati</h3>
+                <p>
+                    DMDash supporta regole di invio ricorrente. Nella build attuale l'editor è inserito nel workflow del
+                    dashboard, dove puoi definire destinazione, ricorrenza e testo.
+                </p>
+                <h3>Beacon distress</h3>
+                <p>
+                    Puoi configurare un invio ripetuto in stile emergenza, broadcast o diretto, con semantica di
+                    posizione coerente con DarkMesh.
+                </p>
+                <h3>Hunt forwarding</h3>
+                <p>
+                    Il dashboard può validare e attivare le modalità di forwarding hunt locali o remote quando servono
+                    davvero.
+                </p>
+                <h3>Import, export e manutenzione</h3>
+                <p>
+                    Da qui puoi anche importare o esportare `.dmdb` e ripulire il NodeDB locale dai nodi stantii.
+                </p>
+            </section>
+
+            <section class="panel" id="gestire-i-messaggi">
+                <h2>Gestire i messaggi</h2>
+                <ul>
+                    <li>Sono supportate sia chat broadcast sia chat dirette.</li>
+                    <li>I reply si creano velocemente e il preview può riportarti al messaggio originale.</li>
+                    <li>Le mention vengono evidenziate e l'autocomplete esclude il nodo locale per evitare auto-mention.
+                    </li>
+                    <li>Reazioni emoji e stato consegna sono visibili direttamente nel thread.</li>
+                    <li>Gli avatar nei messaggi aprono il dialog dei dettagli nodo.</li>
+                    <li>Quando un nodo ha uno Status Message, il testo compare dopo il nome nodo e prima dell'orario del
+                        messaggio.</li>
+                </ul>
+            </section>
+
+            <section class="panel" id="leggere-mappa-e-dettagli-nodo">
+                <h2>Leggere mappa e dettagli nodo</h2>
+                <p>
+                    Mappa e lista nodi sono il modo più rapido per valutare salute e presenza dei nodi. Cliccando un
+                    marker o un avatar apri popup o dialog con dati utente, segnale, ambiente e neighbor.
+                </p>
+                <ul>
+                    <li>I preferiti sono marcati direttamente nell'avatar.</li>
+                    <li>Il badge Status Message compare sugli avatar quando il nodo pubblica uno status.</li>
+                    <li>Il badge pulsa finché non apri popup mappa o dialog dettagli nodo, poi resta fisso.</li>
+                    <li>Popup e dialog mostrano anche il testo completo dello Status Message quando esiste.</li>
+                </ul>
+            </section>
+
+            <section class="panel" id="configurare-il-device">
+                <h2>Configurare il device</h2>
+                <p>
+                    I settings locali sono divisi in tre aree, così non devi conoscere il layout interno dei protobuf.
+                </p>
+                <div class="card-grid">
+                    <div class="mini">
+                        <strong>Radio</strong>
+                        <span>LoRa, canali e sicurezza.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Device</strong>
+                        <span>User, device, position, power, network, display e Bluetooth.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Module</strong>
+                        <span>Telemetry, audio, canned messages, remote hardware, status message, traffic management e
+                            altri moduli dipendenti dal firmware.</span>
+                    </div>
+                </div>
+                <div class="note">
+                    I salvataggi sono raggruppati: puoi accumulare più modifiche e applicarle insieme con commit finale
+                    dei settings.
+                </div>
+            </section>
+
+            <section class="panel" id="usare-remote-admin">
+                <h2>Usare Remote Admin</h2>
+                <ol>
+                    <li>Apri un nodo da mappa o lista nodi.</li>
+                    <li>Scegli l'azione Remote Admin per quel nodo.</li>
+                    <li>Muoviti tra le sezioni Radio, Device e Module.</li>
+                    <li>Se una sottosezione è vuota, usa Refresh e attendi la risposta remota.</li>
+                </ol>
+                <p>
+                    Anche i tab Remote Admin sono sensibili al firmware, quindi le sezioni non supportate restano
+                    nascoste invece di mostrare form rotti o incompleti.
+                </p>
+            </section>
+
+            <section class="panel" id="workflow-status-message">
+                <h2>Workflow Status Message</h2>
+                <p>
+                    Lo Status Message adesso è un workflow completo, non solo un campo settings.
+                </p>
+                <ul>
+                    <li>Lo imposti da <strong>Settings &gt; Module &gt; Status Message</strong> oppure dal tab modulo
+                        equivalente in Remote Admin.</li>
+                    <li>Quando un nodo ha uno status, il testo compare nel popup mappa e nel dialog dettagli.</li>
+                    <li>Lo stesso testo compare anche nei thread messaggi dopo il nome nodo.</li>
+                    <li>Gli avatar mostrano un badge chart finché lo status non è stato letto, poi il badge resta fermo
+                        dopo
+                        apertura popup o dialog.</li>
+                </ul>
+            </section>
+
+            <section class="panel" id="limiti-e-problemi-comuni">
+                <h2>Limiti e problemi comuni</h2>
+                <h3>Mancano alcuni tab nei settings</h3>
+                <p>Di solito significa che il firmware corrente o il ruolo del nodo non li supporta.</p>
+                <h3>Bluetooth o Serial sono disabilitati</h3>
+                <p>Il browser probabilmente non ha il supporto Web API necessario o i permessi del contesto sicuro.</p>
+                <h3>Un'automazione non parte</h3>
+                <p>Tieni aperta la tab di DMDash e il device connesso. Le automazioni browser non sopravvivono come un
+                    servizio foreground Android.</p>
+                <h3>HTTP(S) non si collega</h3>
+                <p>Apri prima l'endpoint direttamente nel browser e accetta l'avviso del certificato se il nodo usa un
+                    certificato self-signed.</p>
+                <div class="callout">
+                    <strong>Buona pratica:</strong> considera DMDash una console operativa web molto ricca. Per workflow
+                    lunghi e unattended, ricorda sempre che la sessione browser fa parte del runtime.
+                </div>
+            </section>
+        </div>
+
+        <div class="footer">
+            Torna a <a href="/dashboard">Dashboard</a>, <a href="/messages/broadcast/0">Messaggi</a>, <a
+                href="/map">Mappa</a> o <a href="/settings/radio">Settings</a>.
+        </div>
+    </main>
+</body>
+
+</html>

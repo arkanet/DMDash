@@ -13,18 +13,36 @@ L'obiettivo di `DMDash` è fornire una dashboard web-first DarkMesh che:
 - porti i flussi utente specifici DarkMesh dall'app Android al browser
 - rimanga allineata al branch firmware DarkMesh `2.7.15-ghost`
 
-## Funzionalità DarkMesh attuali
+## Cosa puoi fare oggi
 
-Il livello DarkMesh aggiunge le seguenti funzionalità rispetto alla base Meshtastic web:
+La build attuale di DMDash espone queste funzionalità reali lato utente sopra la base Meshtastic web:
 
-- route dashboard DarkMesh e branding di progetto
-- messaggistica schedulata
-- beacon di emergenza (distress)
-- forwarding per hunting endpoint
-- euristiche di rilevamento gateway
-- rendering overlay traceroute sulla mappa
+- gestore connessioni con trasporti `HTTP(S)`, Web Bluetooth e Web Serial
+- dashboard DarkMesh con notifiche, storico traceroute, regole per messaggi schedulati, beacon distress, forwarding hunt e strumenti di manutenzione NodeDB
 - import/export `.dmdb` basato su `SharedContact` di Meshtastic
-- UX dei messaggi con supporto al reply tramite `replyId`
+- messaggi diretti e broadcast con reply, mention, reazioni, emoji picker, indicatori di compressione e avatar cliccabili
+- visualizzazione dello `Status Message` in chat e badge sugli avatar con stato non letto / letto
+- mappa con marker live, popup nodo, dialog dettagli, neighbor info, metriche ambientali e overlay traceroute
+- lista nodi con filtri, preferiti, visibilita del segnale, stato cifratura e accesso rapido ai dettagli
+- impostazioni locali `Radio`, `Device` e `Module` con visibilita tab dipendente dal firmware
+- Remote Admin per configurazioni `Radio`, `Device` e `Module` sui nodi remoti compatibili
+- copertura dei moduli come `Remote Hardware`, `Status Message` e `Traffic Management` quando il firmware li supporta
+
+La disponibilita effettiva di alcune funzioni dipende comunque da browser, trasporto scelto, firmware del nodo e ruolo del device.
+
+## Documentazione utente
+
+La guida per utenti meno tecnici e ora servita direttamente dal build web:
+
+- pagina iniziale guida: [packages/web/public/guide/index.html](packages/web/public/guide/index.html)
+- guida in inglese: [packages/web/public/guide/en/index.html](packages/web/public/guide/en/index.html)
+- guida in italiano: [packages/web/public/guide/it/index.html](packages/web/public/guide/it/index.html)
+
+Quando l'app web gira in locale, basta aprire `/guide/index.html` sullo stesso host, ad esempio:
+
+```text
+http://localhost:3000/guide/index.html
+```
 
 ### Anteprime delle funzionalità
 
@@ -148,11 +166,14 @@ Il repository espone diversi script di utilità nel `package.json` di root. Alcu
 
 Alcuni comportamenti dell'app Android DarkMesh dipendono da servizi foreground a lunga esecuzione. Nella dashboard web queste funzionalità operano mentre la tab del browser è aperta e connessa:
 
-- messaggi schedulati
+- messaggi schedulati e invii basati su regole
 - loop del beacon di distress
 - forwarding hunting
+- polling notifiche legato alla sessione browser attiva
 
 Questa è un'approssimazione intenzionale lato browser, non una rottura del protocollo.
+
+Anche alcune sezioni di Settings e Remote Admin possono comparire o sparire in base al firmware e al ruolo del nodo target.
 
 ## Stato verificato
 
@@ -190,23 +211,24 @@ Le immagini usate in questo README sono presenti in `assets/screenshots/`:
 - `assets/screenshots/NeighborNodes.png` — lista neighbor nel popup nodo
 - `assets/screenshots/VisualTraceroute.png` — overlay traceroute sulla mappa
 
-## Nuove funzionalità (Aprile 2026)
+## Screenshot disponibili
 
-Gli ultimi aggiornamenti includono miglioramenti di UX e compatibilità:
+Le immagini attualmente referenziate da questo README si trovano in `assets/screenshots/`:
 
-- Autocompletamento menzioni: il nodo locale viene automaticamente escluso dalle proposte quando corrisponde (evita auto-mention).
-- UX reply: il preview del messaggio reply è cliccabile — cliccando si scorre ed evidenzia il messaggio originale.
-- Evidenziazione messaggi: i messaggi che menzionano il nodo locale e i target di reply hanno uno sfondo evidenziato coerente con lo stile DarkMesh Android.
-- Avatar cliccabili: cliccando l'avatar si apre il pannello dettagli nodo.
-- Swipe-to-reply: gesto di swipe rapido per iniziare una risposta.
-- Affidabilità core: sistemata la correlazione `requestId` in `packages/core` per risolvere correttamente gli ACK di routing.
-- Accessibilità e fix lint: miglioramenti dell'accessibilità (picker reazioni con supporto tastiera), correzioni di typing e conformità a ESLint.
+- `assets/screenshots/Chat.png` — anteprima messaggi/chat
+- `assets/screenshots/EnvironmentalMetrics.png` — popup nodo / metriche
+- `assets/screenshots/Filters.png` — UI filtri mappa
+- `assets/screenshots/NeighborNodes.png` — lista neighbor nel popup nodo
+- `assets/screenshots/VisualTraceroute.png` — overlay traceroute sulla mappa
 
-- Notifiche batteria: aggiunto il pannello `PowerNotification` e i controlli di Notifiche nella dashboard con soglie configurabili (percentuale batteria, tensione), override per singolo nodo e meccanismo di cooldown per evitare spam; il runtime emette ora notifiche `low_battery` quando le condizioni sono soddisfatte.
-- Rinominato componente: `SchedulerPanel` è stato refactorizzato/rinominato in `PowerNotificationPanel` e spostato in `packages/web/src/components/PageComponents/PowerNotification` (import aggiornati).
+## Aggiornamenti UX recenti
 
-Screenshot (aggiungi l'immagine reale in `assets/screenshots/reply-highlight.png`):
+Gli ultimi aggiornamenti hanno aggiunto o stabilizzato queste aree:
 
-![Anteprima reply highlight](assets/screenshots/reply-highlight.png)
-
-Per aggiornare lo screenshot, sostituisci `assets/screenshots/reply-highlight.png` con un PNG esportato dall'app (es. 1280×720), quindi committa e pusha.
+- avatar messaggi cliccabili che aprono i dettagli nodo
+- preview reply che porta al messaggio originale
+- evidenziazione mention e miglioramenti al flusso reply
+- rendering dello status message in popup, dialog, header chat e avatar nodo
+- badge avatar per status message non letto / letto
+- copertura moduli per `Status Message`, `Traffic Management` e `Remote Hardware`
+- workflow notifiche batteria e power dal dashboard DarkMesh

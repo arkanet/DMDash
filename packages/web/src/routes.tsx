@@ -2,6 +2,7 @@ import { DialogManager } from "@components/Dialog/DialogManager.tsx";
 import type { useAppStore, useMessageStore } from "@core/stores";
 import DarkMeshDashboardPage from "@app/darkmesh/DashboardPage.tsx";
 import { Connections } from "@pages/Connections/index.tsx";
+import GuidePage from "@pages/Guide/index.tsx";
 import React from "react";
 const MapPage = React.lazy(() => import("@pages/Map/index.tsx"));
 import MessagesPage from "@pages/Messages.tsx";
@@ -189,6 +190,42 @@ const connectionsRoute = createRoute({
   component: Connections,
 });
 
+const guideRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/guide",
+  component: () => <GuidePage variant="landing" />,
+});
+
+const guideIndexHtmlRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/guide/index.html",
+  component: () => <GuidePage variant="landing" />,
+});
+
+const guideEnglishRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/guide/en",
+  component: () => <GuidePage variant="en" />,
+});
+
+const guideEnglishIndexHtmlRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/guide/en/index.html",
+  component: () => <GuidePage variant="en" />,
+});
+
+const guideItalianRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/guide/it",
+  component: () => <GuidePage variant="it" />,
+});
+
+const guideItalianIndexHtmlRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/guide/it/index.html",
+  component: () => <GuidePage variant="it" />,
+});
+
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
@@ -206,6 +243,12 @@ export const routeTree = rootRoute.addChildren([
   scheduledMessagesRoute,
   dialogWithParamsRoute,
   connectionsRoute,
+  guideRoute,
+  guideIndexHtmlRoute,
+  guideEnglishRoute,
+  guideEnglishIndexHtmlRoute,
+  guideItalianRoute,
+  guideItalianIndexHtmlRoute,
 ]);
 
 const router = createRouter({

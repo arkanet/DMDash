@@ -44,6 +44,7 @@ import { useTranslation } from "react-i18next";
 
 const DARKMESH_RETURN_LINKS = [
   { href: "https://darkmesh.neocities.org/", label: "DarkMesh" },
+  { href: "https://github.com/arkanet/DMDash", label: "DMDash GIT" },
   { href: "https://t.me/meshtastic_roma", label: "LoRaMesh Roma" },
   { href: "https://maps.loracity.it", label: "MAPS" },
   { href: "https://mesh.loracity.it/", label: "BLOG" },
@@ -157,7 +158,19 @@ export const Connections = () => {
 
         <Separator className="bg-white/10" />
 
-        <p className="max-w-3xl text-sm leading-6 text-zinc-300 md:text-base">
+        <div className="flex justify-center">
+          <a
+            href="/guide"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-[#7a2424] bg-[#551717] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-[#6c1d1d] hover:text-white"
+          >
+            GUIDE
+            <ExternalLink className="size-4" />
+          </a>
+        </div>
+
+        <p className="w-full text-sm leading-6 text-zinc-300 md:text-base">
           {t("page.description")}
         </p>
 

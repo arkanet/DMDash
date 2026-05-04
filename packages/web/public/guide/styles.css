@@ -1,0 +1,269 @@
+:root {
+    --bg: #090909;
+    --panel: rgba(20, 20, 20, 0.92);
+    --panel-soft: rgba(41, 15, 15, 0.88);
+    --text: #f5f5f5;
+    --muted: #c8c8c8;
+    --line: rgba(255, 255, 255, 0.12);
+    --accent: #a62e2e;
+    --accent-soft: #6d1f1f;
+    --accent-strong: #d65757;
+    --ok: #7dd3a6;
+    --warn: #ffd48a;
+    --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(circle at top, #611818 0%, #1f0d0d 33%, #090909 74%),
+        var(--bg);
+    line-height: 1.6;
+}
+
+a {
+    color: #ffd0d0;
+}
+
+a:hover {
+    color: white;
+}
+
+.shell {
+    width: min(1120px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 24px 0 56px;
+}
+
+.hero,
+.panel,
+.toc {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 28px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+}
+
+.hero {
+    padding: 28px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.brand img {
+    width: 82px;
+    height: 82px;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    background: rgba(0, 0, 0, 0.8);
+    padding: 8px;
+}
+
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent-strong);
+}
+
+.hero h1,
+.panel h2 {
+    margin: 0;
+    letter-spacing: 0.03em;
+}
+
+.hero p,
+.panel p,
+.panel li,
+.panel dd,
+.toc li {
+    color: var(--muted);
+}
+
+.actions,
+.link-grid,
+.card-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.actions {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin-top: 20px;
+}
+
+.link-grid,
+.card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.button,
+.card-link {
+    display: block;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(111, 30, 30, 0.95), rgba(43, 15, 15, 0.95));
+    padding: 16px 18px;
+    text-decoration: none;
+    color: var(--text);
+}
+
+.button strong,
+.card-link strong {
+    display: block;
+    margin-bottom: 4px;
+    color: white;
+}
+
+.button span,
+.card-link span {
+    color: #f2c9c9;
+}
+
+.toc {
+    margin-top: 24px;
+    padding: 20px 24px;
+}
+
+.toc ol {
+    margin: 12px 0 0;
+    padding-left: 20px;
+}
+
+.stack {
+    display: grid;
+    gap: 18px;
+    margin-top: 24px;
+}
+
+.panel {
+    padding: 24px;
+}
+
+.panel h2 {
+    font-size: 1.4rem;
+}
+
+.panel h3 {
+    margin: 18px 0 8px;
+    font-size: 1.02rem;
+    color: white;
+}
+
+.panel ul,
+.panel ol {
+    margin: 10px 0 0;
+    padding-left: 20px;
+}
+
+.card-grid .mini,
+.callout,
+.note,
+.step,
+.path {
+    border-radius: 20px;
+}
+
+.mini,
+.step {
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.callout {
+    margin-top: 16px;
+    padding: 16px 18px;
+    background: rgba(166, 46, 46, 0.12);
+    border: 1px solid rgba(214, 87, 87, 0.2);
+}
+
+.note {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: rgba(255, 212, 138, 0.08);
+    border: 1px solid rgba(255, 212, 138, 0.18);
+}
+
+.path {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.03);
+    color: white;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.92rem;
+}
+
+.kpis {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.kpis span {
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: white;
+    font-size: 0.88rem;
+}
+
+.footer {
+    margin-top: 24px;
+    padding: 18px 20px;
+    color: var(--muted);
+    text-align: center;
+}
+
+.ok {
+    color: var(--ok);
+}
+
+.warn {
+    color: var(--warn);
+}
+
+@media (max-width: 720px) {
+    .shell {
+        width: min(100% - 20px, 100%);
+        padding-top: 16px;
+    }
+
+    .hero,
+    .panel,
+    .toc {
+        border-radius: 22px;
+    }
+
+    .hero,
+    .panel {
+        padding: 20px;
+    }
+
+    .brand {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

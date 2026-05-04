@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DMDash User Guide (English)</title>
+    <link rel="icon" type="image/png" href="/darkmesh-logo.png" />
+    <link rel="icon" href="/darkmesh-logo.png" />
+    <link rel="apple-touch-icon" href="/darkmesh-logo.png" sizes="180x180" />
+    <link rel="stylesheet" href="../styles.css" />
+</head>
+
+<body>
+    <main class="shell">
+        <section class="hero">
+            <div class="brand">
+                <img src="/darkmesh-logo.png" alt="DarkMesh logo" />
+                <div>
+                    <div class="eyebrow">English guide</div>
+                    <h1>Use DMDash without guesswork</h1>
+                    <p>
+                        DMDash is a DarkMesh-oriented web dashboard built on top of the Meshtastic web client.
+                        This guide focuses on the workflows a normal operator actually needs: connecting hardware,
+                        sending messages, reading the map, managing settings, and using the DarkMesh dashboard tools.
+                    </p>
+                </div>
+            </div>
+
+            <div class="actions">
+                <a class="button" href="/connections">
+                    <strong>Open Connections</strong>
+                    <span>Start here if you still need to pair or reach your node.</span>
+                </a>
+                <a class="button" href="/dashboard">
+                    <strong>Open Dashboard</strong>
+                    <span>Go here for DarkMesh workflows such as notifications, schedules, distress, and hunting.</span>
+                </a>
+                <a class="button" href="../it/">
+                    <strong>Need Italian instead?</strong>
+                    <span>Switch to the Italian version of this guide.</span>
+                </a>
+            </div>
+        </section>
+
+        <nav class="toc">
+            <strong>Contents</strong>
+            <ol>
+                <li><a href="#before-you-start">Before you start</a></li>
+                <li><a href="#connect-your-node">Connect your node</a></li>
+                <li><a href="#understand-the-main-areas">Understand the main areas</a></li>
+                <li><a href="#use-the-darkmesh-dashboard">Use the DarkMesh dashboard</a></li>
+                <li><a href="#work-with-messages">Work with messages</a></li>
+                <li><a href="#read-the-map-and-node-details">Read the map and node details</a></li>
+                <li><a href="#configure-your-device">Configure your device</a></li>
+                <li><a href="#operate-remote-admin">Operate Remote Admin</a></li>
+                <li><a href="#status-message-workflow">Status Message workflow</a></li>
+                <li><a href="#limitations-and-troubleshooting">Limitations and troubleshooting</a></li>
+            </ol>
+        </nav>
+
+        <div class="stack">
+            <section class="panel" id="before-you-start">
+                <h2>Before you start</h2>
+                <ul>
+                    <li>DMDash is browser-based, so some automation features run only while the tab stays open and
+                        connected.</li>
+                    <li>Bluetooth and Serial require a browser that supports Web Bluetooth or Web Serial. Chrome and
+                        Edge are the safest choices.</li>
+                    <li>HTTP(S) is the simplest transport when your node or gateway already exposes a reachable web
+                        endpoint.</li>
+                    <li>Different devices can show different settings tabs because DMDash hides sections the target
+                        firmware or role does not support.</li>
+                </ul>
+                <div class="callout">
+                    <strong>Good default path:</strong> connect first, confirm the node appears in the sidebar, then
+                    move to Dashboard, Messages, Map, and Settings.
+                </div>
+            </section>
+
+            <section class="panel" id="connect-your-node">
+                <h2>Connect your node</h2>
+                <h3>Option 1: HTTP(S)</h3>
+                <p>
+                    Choose HTTP(S) when the node or gateway is already reachable on the network. DMDash includes a
+                    connection test before saving the entry.
+                </p>
+                <h3>Option 2: Bluetooth</h3>
+                <p>
+                    Use this when the node is nearby and your browser supports Web Bluetooth. The browser will ask you
+                    to pick the device.
+                </p>
+                <h3>Option 3: Serial</h3>
+                <p>
+                    Use this when the node is connected by USB and your browser supports Web Serial.
+                </p>
+                <div class="note">
+                    <strong>If HTTP(S) fails:</strong> when the endpoint uses a self-signed certificate, open it once in
+                    a separate tab, accept the certificate warning, and then test the connection again from DMDash.
+                </div>
+            </section>
+
+            <section class="panel" id="understand-the-main-areas">
+                <h2>Understand the main areas</h2>
+                <div class="card-grid">
+                    <div class="mini">
+                        <strong>Dashboard</strong>
+                        <span>DarkMesh-only workflows: notifications, traceroute history, scheduled sends, distress
+                            beacon, hunt forwarding, `.dmdb` import/export, pruning.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Messages</strong>
+                        <span>Direct and broadcast chat, replies, mentions, reactions, emoji picker, message status,
+                            inline node status text.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Map</strong>
+                        <span>Node markers, filters, popup cards, environment metrics, neighbor lists, and traceroute
+                            overlays.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Nodes</strong>
+                        <span>Sortable table, filters, signal view, encryption status, favorites, and one-click node
+                            details.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Settings</strong>
+                        <span>Local configuration split into Radio, Device, and Module sections.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Remote Admin</strong>
+                        <span>Remote read/write workflow for compatible nodes, again split into Radio, Device, and
+                            Module sections.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" id="use-the-darkmesh-dashboard">
+                <h2>Use the DarkMesh dashboard</h2>
+                <h3>Notifications</h3>
+                <p>
+                    The dashboard collects operational notifications, including low-battery events and schedule-related
+                    events.
+                </p>
+                <h3>Traceroute history</h3>
+                <p>
+                    Recent traceroutes are collected in one place so you can inspect path quality without opening the
+                    raw packet stream.
+                </p>
+                <h3>Scheduled messages</h3>
+                <p>
+                    DMDash supports recurring message rules. The current build exposes the rule editor in the dashboard
+                    workflow, where you can define destination, recurrence, and message text.
+                </p>
+                <h3>Distress beacon</h3>
+                <p>
+                    You can configure a repeated emergency-style broadcast or direct send, optionally including location
+                    semantics used by DarkMesh.
+                </p>
+                <h3>Hunt forwarding</h3>
+                <p>
+                    The dashboard can validate and enable remote or local hunt forwarding modes when your workflow
+                    requires them.
+                </p>
+                <h3>Import, export, and maintenance</h3>
+                <p>
+                    `.dmdb` import/export and pruning tools are available from the dashboard, making it easier to move
+                    contact sets or clean stale node data.
+                </p>
+            </section>
+
+            <section class="panel" id="work-with-messages">
+                <h2>Work with messages</h2>
+                <ul>
+                    <li>Broadcast chats and direct chats are both supported.</li>
+                    <li>Replies can be created quickly, and reply previews can jump back to the original message.</li>
+                    <li>Mentions are highlighted and autocomplete excludes the local node to avoid self-mentions.</li>
+                    <li>Emoji reactions and message delivery state are visible in the thread.</li>
+                    <li>Node avatars in the thread open the node details dialog.</li>
+                    <li>When a node has a Status Message, it appears after the node name and before the timestamp in the
+                        chat header line.</li>
+                </ul>
+            </section>
+
+            <section class="panel" id="read-the-map-and-node-details">
+                <h2>Read the map and node details</h2>
+                <p>
+                    The map and node list are the fastest way to inspect node health. Clicking a marker or avatar opens
+                    a popup or details dialog with user, signal, environment, and neighbor information.
+                </p>
+                <ul>
+                    <li>Favorites are marked directly in the avatar.</li>
+                    <li>Status Message badges appear on avatars when a node currently publishes one.</li>
+                    <li>The badge pulses until you open the map popup or the node details dialog, then it becomes
+                        steady.</li>
+                    <li>The popup and dialog also display the full Status Message text when it exists.</li>
+                </ul>
+            </section>
+
+            <section class="panel" id="configure-your-device">
+                <h2>Configure your device</h2>
+                <p>
+                    Local settings are split into three areas so you do not have to understand the internal protobuf
+                    layout.
+                </p>
+                <div class="card-grid">
+                    <div class="mini">
+                        <strong>Radio</strong>
+                        <span>LoRa, channels, and security-related sections.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Device</strong>
+                        <span>User, device, position, power, network, display, and Bluetooth sections.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Module</strong>
+                        <span>Telemetry, audio, canned messages, remote hardware, status message, traffic management,
+                            and other firmware-dependent modules.</span>
+                    </div>
+                </div>
+                <div class="note">
+                    Save operations are grouped. DMDash can collect multiple changes, then commit them together.
+                </div>
+            </section>
+
+            <section class="panel" id="operate-remote-admin">
+                <h2>Operate Remote Admin</h2>
+                <ol>
+                    <li>Open a node from the map or node list.</li>
+                    <li>Choose the Remote Admin action for that node.</li>
+                    <li>Move through the Radio, Device, and Module sections.</li>
+                    <li>If a subsection is empty, use Refresh and wait for the remote response.</li>
+                </ol>
+                <p>
+                    Remote Admin tabs are also firmware-aware, so unsupported subsections stay hidden instead of showing
+                    a broken form.
+                </p>
+            </section>
+
+            <section class="panel" id="status-message-workflow">
+                <h2>Status Message workflow</h2>
+                <p>
+                    Status Message is now a full workflow rather than just a settings field.
+                </p>
+                <ul>
+                    <li>Set it from <strong>Settings &gt; Module &gt; Status Message</strong> or from the equivalent
+                        Remote Admin module tab.</li>
+                    <li>When a node has a status, the text appears in the map popup and the node details dialog.</li>
+                    <li>The same text also appears in message threads after the node name.</li>
+                    <li>Avatars show a chart badge while the status is unread, then keep a steady badge after you open
+                        popup or dialog.</li>
+                </ul>
+            </section>
+
+            <section class="panel" id="limitations-and-troubleshooting">
+                <h2>Limitations and troubleshooting</h2>
+                <h3>Some settings tabs are missing</h3>
+                <p>This usually means the current firmware or node role does not support them.</p>
+                <h3>Bluetooth or Serial options are disabled</h3>
+                <p>Your browser probably lacks the required Web API support or secure-context permissions.</p>
+                <h3>Automation did not trigger</h3>
+                <p>Keep the DMDash tab open and the device connected. Browser-side automations do not survive like
+                    Android foreground services.</p>
+                <h3>HTTP(S) cannot connect</h3>
+                <p>Open the endpoint directly in the browser first and accept the certificate warning if the node uses a
+                    self-signed certificate.</p>
+                <div class="callout">
+                    <strong>Best practice:</strong> treat DMDash as a rich browser operator console. For long-lived
+                    unattended workflows, remember that the browser session is part of the runtime.
+                </div>
+            </section>
+        </div>
+
+        <div class="footer">
+            Return to <a href="/dashboard">Dashboard</a>, <a href="/messages/broadcast/0">Messages</a>, <a
+                href="/map">Map</a>, or <a href="/settings/radio">Settings</a>.
+        </div>
+    </main>
+</body>
+
+</html>

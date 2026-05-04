@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DMDash User Guide</title>
+    <link rel="icon" type="image/png" href="/darkmesh-logo.png" />
+    <link rel="icon" href="/darkmesh-logo.png" />
+    <link rel="apple-touch-icon" href="/darkmesh-logo.png" sizes="180x180" />
+    <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+    <main class="shell">
+        <section class="hero">
+            <div class="brand">
+                <img src="/darkmesh-logo.png" alt="DarkMesh logo" />
+                <div>
+                    <div class="eyebrow">DMDash Web Guide</div>
+                    <h1>DMDash user documentation</h1>
+                    <p>
+                        This guide is meant for people who want to use DMDash well without reading the source code
+                        first.
+                        It explains the real workflows currently exposed by the web app: connections, dashboard,
+                        messages, map, nodes, local settings, and Remote Admin.
+                    </p>
+                    <div class="kpis">
+                        <span>HTTP(S) / Bluetooth / Serial</span>
+                        <span>Dashboard + automations</span>
+                        <span>Messages + map + nodes</span>
+                        <span>Local settings + Remote Admin</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <a class="button" href="./en/">
+                    <strong>Open the English guide</strong>
+                    <span>Task-oriented walkthrough for daily use, troubleshooting, and advanced features.</span>
+                </a>
+                <a class="button" href="./it/">
+                    <strong>Apri la guida in italiano</strong>
+                    <span>Percorso completo per chi vuole usare DMDash in modo pratico senza entrare nei dettagli
+                        tecnici.</span>
+                </a>
+            </div>
+        </section>
+
+        <section class="stack">
+            <section class="panel">
+                <h2>Quick start</h2>
+                <div class="card-grid">
+                    <div class="mini">
+                        <strong>1. Connect a node</strong>
+                        <p>Use the Connections page to add an HTTP(S), Bluetooth, or Serial transport.</p>
+                        <span class="path">/connections</span>
+                    </div>
+                    <div class="mini">
+                        <strong>2. Open the main app</strong>
+                        <p>Once a device is connected, move between Dashboard, Messages, Map, Settings, and Nodes from
+                            the sidebar.</p>
+                    </div>
+                    <div class="mini">
+                        <strong>3. Keep the tab open for automations</strong>
+                        <p>Scheduled sends, distress beacons, hunt forwarding, and live notification loops work while
+                            the browser tab stays open and connected.</p>
+                    </div>
+                </div>
+                <div class="note">
+                    <strong>Important:</strong> Bluetooth and Serial require browser support. HTTP(S) connections can
+                    require you to accept a self-signed certificate first.
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>What the current build already covers</h2>
+                <div class="link-grid">
+                    <div class="mini">
+                        <strong>Dashboard</strong>
+                        <span>Notifications, traceroute history, scheduled message rules, distress beacon, hunt
+                            forwarding, import/export, pruning.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Messages</strong>
+                        <span>Broadcast and direct chats, replies, mentions, reactions, emoji picker, compression hints,
+                            inline node status.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Map and nodes</strong>
+                        <span>Live markers, node popups, details dialog, status badges, environment metrics, neighbor
+                            info, filters, favorites.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Settings and Remote Admin</strong>
+                        <span>Radio, device, and module configuration locally and remotely, with firmware-aware tab
+                            availability.</span>
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <div class="footer">
+            Built from the DMDash web package. Return to <a href="/connections">Connections</a> or <a
+                href="/map">Map</a> when you are ready.
+        </div>
+    </main>
+</body>
+
+</html>

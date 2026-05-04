@@ -13,18 +13,36 @@ The goal of `DMDash` is to provide a web-first DarkMesh dashboard that:
 - ports DarkMesh-specific user flows from the Android app into the browser
 - stays aligned with the DarkMesh firmware branch `2.7.15-ghost`
 
-## Current DarkMesh Features
+## What You Can Do Today
 
-The DarkMesh layer currently adds these features on top of the Meshtastic web base:
+The current DMDash build exposes these user-facing capabilities on top of the Meshtastic web base:
 
-- DarkMesh dashboard route and project branding
-- scheduled messaging
-- distress beaconing
-- hunting endpoint forwarding
-- gateway detection heuristics
-- traceroute overlay rendering on the map
+- connection manager with `HTTP(S)`, Web Bluetooth, and Web Serial transports
+- DarkMesh-branded dashboard with notifications, traceroute history, scheduled message rules, distress beacon controls, hunt forwarding, and NodeDB maintenance tools
 - `.dmdb` import/export based on Meshtastic `SharedContact`
-- reply-aware message UX using `replyId`
+- direct and broadcast messaging with replies, mentions, reactions, emoji picker, compression indicators, and clickable avatars
+- inline node `Status Message` display in chat plus avatar badges with unread/read visual state
+- map view with live markers, node popups, details dialog, neighbor info, environment metrics, and traceroute overlays
+- node list with filters, favorites, signal visibility, encryption status, and quick detail access
+- local `Radio`, `Device`, and `Module` settings with firmware-aware tab visibility
+- Remote Admin for `Radio`, `Device`, and `Module` configuration on compatible remote nodes
+- module settings coverage for features such as `Remote Hardware`, `Status Message`, and `Traffic Management` when supported by firmware
+
+Feature availability still depends on browser capabilities, transport type, node firmware, and device role.
+
+## User Documentation
+
+Non-technical, task-oriented documentation is now served directly by the web app build:
+
+- landing page: [packages/web/public/guide/index.html](packages/web/public/guide/index.html)
+- English guide: [packages/web/public/guide/en/index.html](packages/web/public/guide/en/index.html)
+- Italian guide: [packages/web/public/guide/it/index.html](packages/web/public/guide/it/index.html)
+
+When the web app is running locally, open `/guide/index.html` on the same host, for example:
+
+```text
+http://localhost:3000/guide/index.html
+```
 
 ### Feature previews
 
@@ -170,11 +188,14 @@ pnpm report:compatibility
 
 Some DarkMesh Android behaviors depend on long-running foreground services. In the web dashboard, these features operate while the browser tab is open and connected:
 
-- scheduled messages
+- scheduled messages and rule-based sends
 - distress beacon loop
 - hunting forwarding
+- live notification polling tied to the active browser session
 
 This is an intentional browser-side approximation, not a protocol break.
+
+Some settings and Remote Admin subsections are also firmware-gated, so different nodes can expose different tabs.
 
 ## Verified Status
 
@@ -202,17 +223,9 @@ It should be treated as:
 - a Meshtastic-compatible dashboard
 - a repository that follows upstreams intentionally rather than mixing all histories together
 
-## Screenshots
+## Screenshot Assets
 
-The following images show several main dashboard features. Image files are expected under `assets/screenshots/`.
-
-- **Messages (chat / emoji picker)**: `assets/screenshots/messages.png`
-- **Map (overview + node popup)**: `assets/screenshots/map.png`
-- **Map filters (role/metrics UI)**: `assets/screenshots/filters.png`
-- **Node popup (neighbor list / metrics)**: `assets/screenshots/node-popup.png`
-- **Traceroute overlay (traced route visual)**: `assets/screenshots/traceroute.png`
-
-The images used in this README are available in `assets/screenshots/`:
+The images currently referenced by this README live under `assets/screenshots/`:
 
 - `assets/screenshots/Chat.png` — messages / chat preview
 - `assets/screenshots/EnvironmentalMetrics.png` — node popup / metrics
@@ -220,23 +233,14 @@ The images used in this README are available in `assets/screenshots/`:
 - `assets/screenshots/NeighborNodes.png` — neighbor list in node popup
 - `assets/screenshots/VisualTraceroute.png` — traceroute overlay on the map
 
-## New features (April 2026)
+## Recent UX Additions
 
-Recent work added several UX and compatibility improvements:
+Recent work added or stabilized the following areas:
 
-- Mention autocomplete: local node is automatically excluded from suggestion results when matching (avoid self-mention).
-- Reply UX: reply preview is clickable — clicking a replied-to preview scrolls and highlights the original message.
-- Message highlighting: messages that mention the local node and reply targets are visually highlighted to match DarkMesh Android styling.
-- Clickable avatars: message avatars open the node details dialog when clicked.
-- Swipe-to-reply: quick swipe gesture on messages to start a reply.
-- Core reliability: fixed requestId correlation in `packages/core` so routing ACKs properly resolve queued packets.
-- Accessibility and lint fixes across web package (keyboard support for the reaction picker, typing improvements, and eslint compliance).
-
-- Battery notifications: added a PowerNotification panel and dashboard Notifications controls with configurable global thresholds (battery percent, voltage), per-node overrides and a cooldown to avoid notification spam; the runtime now emits `low_battery` notifications when thresholds are met.
-- Component rename: `SchedulerPanel` was refactored/renamed to `PowerNotificationPanel` and moved to `packages/web/src/components/PageComponents/PowerNotification` (imports updated accordingly).
-
-Screenshot (add the actual image at `assets/screenshots/reply-highlight.png`):
-
-![Reply highlight preview](assets/screenshots/reply-highlight.png)
-
-To update the screenshot, replace `assets/screenshots/reply-highlight.png` with a 1280×720 (or similar) PNG exported from the app, then commit and push.
+- clickable message avatars that open node details
+- reply previews that jump to the original message
+- mention highlighting and improved reply UX
+- status message rendering in popup, dialog, chat header, and node avatars
+- unread/read status message badge behavior for avatars
+- module coverage for `Status Message`, `Traffic Management`, and `Remote Hardware`
+- battery and power notification workflows from the DarkMesh dashboard
