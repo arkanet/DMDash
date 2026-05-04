@@ -17,6 +17,7 @@ export interface InputFieldProps<T> extends BaseFormBuilderProps<T> {
     inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search";
     pattern?: string;
     lang?: string;
+    normalizeDecimalSeparator?: boolean;
     className?: string;
     fieldLength?: {
       min?: number;
@@ -34,7 +35,7 @@ export function GenericInput<T extends FieldValues>({
   disabled,
   field,
 }: GenericFormElementProps<T, InputFieldProps<T>>) {
-  const { fieldLength, ...restProperties } = field.properties || {};
+  const { fieldLength, normalizeDecimalSeparator, ...restProperties } = field.properties || {};
 
   const {
     field: controllerField,
@@ -49,9 +50,19 @@ export function GenericInput<T extends FieldValues>({
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
+    const normalizedValue = normalizeDecimalSeparator
+      ? e.target.value.replaceAll(",", ".")
+      : e.target.value;
 
-    if (field.properties?.fieldLength?.max && newValue.length > field.properties.fieldLength.max) {
+    if (normalizedValue !== e.target.value) {
+      e.target.value = normalizedValue;
+      e.currentTarget.value = normalizedValue;
+    }
+
+    if (
+      field.properties?.fieldLength?.max &&
+      normalizedValue.length > field.properties.fieldLength.max
+    ) {
       return;
     }
 
@@ -60,17 +71,17 @@ export function GenericInput<T extends FieldValues>({
     }
 
     if (field.type === "number") {
-      if (newValue === "") {
+      if (normalizedValue === "") {
         controllerField.onChange("");
         return;
       }
 
-      const parsed = Number.parseFloat(newValue);
-      controllerField.onChange(Number.isNaN(parsed) ? newValue : parsed.toString());
+      const parsed = Number.parseFloat(normalizedValue);
+      controllerField.onChange(Number.isNaN(parsed) ? normalizedValue : parsed.toString());
       return;
     }
 
-    controllerField.onChange(newValue);
+    controllerField.onChange(normalizedValue);
   };
 
   const currentLength = controllerField.value ? String(controllerField.value).length : 0;

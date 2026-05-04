@@ -139,13 +139,16 @@ export const Position = ({ onFormInit }: PositionConfigProps) => {
             },
             // Position coordinate fields (only shown when fixedPosition is enabled)
             {
-              type: "number",
+              type: "text",
               name: "latitude",
               label: t("position.fixedPosition.latitude.label"),
               description: `${t("position.fixedPosition.latitude.description")} (Max 7 decimal precision)`,
               properties: {
-                step: 0.0000001,
                 suffix: "Degrees",
+                inputMode: "decimal",
+                lang: "en",
+                pattern: "^-?\\d+(\\.\\d{0,7})?$",
+                normalizeDecimalSeparator: true,
                 fieldLength: {
                   max: 10,
                 },
@@ -157,13 +160,16 @@ export const Position = ({ onFormInit }: PositionConfigProps) => {
               ],
             },
             {
-              type: "number",
+              type: "text",
               name: "longitude",
               label: t("position.fixedPosition.longitude.label"),
               description: `${t("position.fixedPosition.longitude.description")} (Max 7 decimal precision)`,
               properties: {
-                step: 0.0000001,
                 suffix: "Degrees",
+                inputMode: "decimal",
+                lang: "en",
+                pattern: "^-?\\d+(\\.\\d{0,7})?$",
+                normalizeDecimalSeparator: true,
                 fieldLength: {
                   max: 10,
                 },
