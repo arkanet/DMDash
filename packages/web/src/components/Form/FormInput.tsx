@@ -14,6 +14,9 @@ export interface InputFieldProps<T> extends BaseFormBuilderProps<T> {
     id?: string;
     suffix?: string;
     step?: number;
+    inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search";
+    pattern?: string;
+    lang?: string;
     className?: string;
     fieldLength?: {
       min?: number;
@@ -57,17 +60,13 @@ export function GenericInput<T extends FieldValues>({
     }
 
     if (field.type === "number") {
-      // normalize decimal separator: accept dot as decimal separator
-      const normalized = newValue.replace(/,/g, ".");
-
-      if (normalized === "") {
+      if (newValue === "") {
         controllerField.onChange("");
         return;
       }
 
-      const parsed = Number.parseFloat(normalized);
-      // if parseFloat fails, keep the raw normalized input so the user can continue editing
-      controllerField.onChange(Number.isNaN(parsed) ? normalized : parsed.toString());
+      const parsed = Number.parseFloat(newValue);
+      controllerField.onChange(Number.isNaN(parsed) ? newValue : parsed.toString());
       return;
     }
 
