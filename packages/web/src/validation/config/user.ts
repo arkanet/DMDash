@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 
 export const createUserValidationSchema = (t: TFunction<"config">) =>
   z.object({
+    nodeId: z.string().default(""),
     longName: z
       .string()
       .min(1, t("user.longName.validation.min"))
@@ -11,6 +12,7 @@ export const createUserValidationSchema = (t: TFunction<"config">) =>
       .string()
       .min(2, t("user.shortName.validation.min"))
       .max(4, t("user.shortName.validation.max")),
+    hardwareModel: z.string().default(""),
     isUnmessageable: z.boolean().default(false),
     isLicensed: z.boolean().default(false),
   });

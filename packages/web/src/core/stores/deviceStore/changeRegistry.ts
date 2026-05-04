@@ -20,10 +20,13 @@ export type ValidModuleConfigType =
   | "telemetry"
   | "cannedMessage"
   | "audio"
+  | "remoteHardware"
   | "neighborInfo"
   | "ambientLighting"
   | "detectionSensor"
-  | "paxcounter";
+  | "paxcounter"
+  | "statusmessage"
+  | "trafficManagement";
 
 // Admin message types that can be queued
 export type ValidAdminMessageType = "setFixedPosition" | "other";

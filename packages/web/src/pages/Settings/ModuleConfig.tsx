@@ -7,13 +7,21 @@ import { MQTT } from "@components/PageComponents/ModuleConfig/MQTT.tsx";
 import { NeighborInfo } from "@components/PageComponents/ModuleConfig/NeighborInfo.tsx";
 import { Paxcounter } from "@components/PageComponents/ModuleConfig/Paxcounter.tsx";
 import { RangeTest } from "@components/PageComponents/ModuleConfig/RangeTest.tsx";
+import { RemoteHardware } from "@components/PageComponents/ModuleConfig/RemoteHardware.tsx";
 import { Serial } from "@components/PageComponents/ModuleConfig/Serial.tsx";
+import { StatusMessage } from "@components/PageComponents/ModuleConfig/StatusMessage.tsx";
 import { StoreForward } from "@components/PageComponents/ModuleConfig/StoreForward.tsx";
 import { Telemetry } from "@components/PageComponents/ModuleConfig/Telemetry.tsx";
+import { TrafficManagement } from "@components/PageComponents/ModuleConfig/TrafficManagement.tsx";
 import { Spinner } from "@components/UI/Spinner.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/UI/Tabs.tsx";
+import { useDevice } from "@core/stores";
 import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { type ValidModuleConfigType } from "@core/stores";
+import {
+  getSettingsMetadata,
+  isModuleConfigTabSupported,
+} from "@core/utils/settingsCapabilities.ts";
 import { type ComponentType, Suspense, useMemo } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -40,10 +48,17 @@ export const ModuleConfig = ({
   loadedTabs,
   loadingTabs,
 }: ConfigProps) => {
+  const device = useDevice();
   const { hasModuleConfigChange } = useConfigTarget();
+  const { isRemote, targetNodeNum } = useConfigTarget();
   const { t } = useTranslation("moduleConfig");
-  const tabs: TabItem[] = useMemo(
-    () => [
+  const targetMetadata = useMemo(
+    () => getSettingsMetadata(device.metadata, targetNodeNum, isRemote),
+    [device.metadata, isRemote, targetNodeNum],
+  );
+
+  const tabs: TabItem[] = useMemo(() => {
+    const allTabs: TabItem[] = [
       {
         case: "mqtt",
         label: t("page.tabMqtt"),
@@ -85,6 +100,11 @@ export const ModuleConfig = ({
         element: Audio,
       },
       {
+        case: "remoteHardware",
+        label: t("page.tabRemoteHardware", "Remote Hardware"),
+        element: RemoteHardware,
+      },
+      {
         case: "neighborInfo",
         label: t("page.tabNeighborInfo"),
         element: NeighborInfo,
@@ -104,9 +124,20 @@ export const ModuleConfig = ({
         label: t("page.tabPaxcounter"),
         element: Paxcounter,
       },
-    ],
-    [t],
-  );
+      {
+        case: "statusmessage",
+        label: t("page.tabStatusMessage", "Status Message"),
+        element: StatusMessage,
+      },
+      {
+        case: "trafficManagement",
+        label: t("page.tabTrafficManagement", "Traffic Management"),
+        element: TrafficManagement,
+      },
+    ];
+
+    return allTabs.filter((tab) => isModuleConfigTabSupported(tab.case, targetMetadata));
+  }, [t, targetMetadata]);
 
   const flags = useMemo(
     () => new Map(tabs.map((tab) => [tab.case, hasModuleConfigChange(tab.case)])),

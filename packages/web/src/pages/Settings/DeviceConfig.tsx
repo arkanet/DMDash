@@ -7,8 +7,10 @@ import { Power } from "@components/PageComponents/Settings/Power.tsx";
 import { User } from "@components/PageComponents/Settings/User.tsx";
 import { Spinner } from "@components/UI/Spinner.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/UI/Tabs.tsx";
+import { useDevice } from "@core/stores";
 import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { type ValidConfigType } from "@core/stores";
+import { getSettingsMetadata, isConfigTabSupported } from "@core/utils/settingsCapabilities.ts";
 import { type ComponentType, Suspense, useMemo } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -35,10 +37,17 @@ export const DeviceConfig = ({
   loadedTabs,
   loadingTabs,
 }: ConfigProps) => {
+  const device = useDevice();
   const { hasConfigChange, hasUserChange } = useConfigTarget();
+  const { isRemote, targetNodeNum } = useConfigTarget();
   const { t } = useTranslation("config");
-  const tabs: TabItem[] = useMemo(
-    () => [
+  const targetMetadata = useMemo(
+    () => getSettingsMetadata(device.metadata, targetNodeNum, isRemote),
+    [device.metadata, isRemote, targetNodeNum],
+  );
+
+  const tabs: TabItem[] = useMemo(() => {
+    const allTabs: TabItem[] = [
       {
         case: "user",
         label: t("page.tabUser"),
@@ -74,9 +83,10 @@ export const DeviceConfig = ({
         label: t("page.tabBluetooth"),
         element: Bluetooth,
       },
-    ],
-    [t],
-  );
+    ];
+
+    return allTabs.filter((tab) => isConfigTabSupported(tab.case, targetMetadata));
+  }, [t, targetMetadata]);
 
   const flags = useMemo(
     () =>

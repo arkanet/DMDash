@@ -22,12 +22,19 @@ export const User = ({ onFormInit }: UserConfigProps) => {
     id: "",
     longName: "",
     shortName: "",
+    hwModel: Protobuf.Mesh.HardwareModel.UNSET,
     isLicensed: false,
     isUnmessagable: false,
   };
 
   const workingUser = getChange({ type: "user" }) as Protobuf.Mesh.User | undefined;
   const effectiveUser = workingUser ?? defaultUser;
+  const defaultHardwareModel = (
+    Protobuf.Mesh.HardwareModel[defaultUser.hwModel ?? 0] ?? t("unknown.notAvailable", "N/A")
+  ).replace(/_/g, " ");
+  const effectiveHardwareModel = (
+    Protobuf.Mesh.HardwareModel[effectiveUser.hwModel ?? 0] ?? t("unknown.notAvailable", "N/A")
+  ).replace(/_/g, " ");
 
   const onSubmit = (data: UserValidation) => {
     const payload = create(Protobuf.Mesh.UserSchema, {
@@ -52,14 +59,18 @@ export const User = ({ onFormInit }: UserConfigProps) => {
       onFormInit={onFormInit}
       validationSchema={validationSchema}
       defaultValues={{
+        nodeId: defaultUser.id,
         longName: defaultUser.longName,
         shortName: defaultUser.shortName,
+        hardwareModel: defaultHardwareModel,
         isLicensed: defaultUser.isLicensed ?? false,
         isUnmessageable: defaultUser.isUnmessagable ?? false,
       }}
       values={{
+        nodeId: effectiveUser.id,
         longName: effectiveUser.longName,
         shortName: effectiveUser.shortName,
+        hardwareModel: effectiveHardwareModel,
         isLicensed: effectiveUser.isLicensed ?? false,
         isUnmessageable: effectiveUser.isUnmessagable ?? false,
       }}
@@ -68,6 +79,13 @@ export const User = ({ onFormInit }: UserConfigProps) => {
           label: t("user.title"),
           description: t("user.description"),
           fields: [
+            {
+              type: "text",
+              name: "nodeId",
+              label: t("user.nodeId.label", "Node ID"),
+              description: t("user.nodeId.description", "The unique identifier of this node."),
+              disabled: true,
+            },
             {
               type: "text",
               name: "longName",
@@ -93,6 +111,16 @@ export const User = ({ onFormInit }: UserConfigProps) => {
                   showCharacterCount: true,
                 },
               },
+            },
+            {
+              type: "text",
+              name: "hardwareModel",
+              label: t("user.hardwareModel.label", "Hardware model"),
+              description: t(
+                "user.hardwareModel.description",
+                "The hardware model reported by the node firmware.",
+              ),
+              disabled: true,
             },
             {
               type: "toggle",
