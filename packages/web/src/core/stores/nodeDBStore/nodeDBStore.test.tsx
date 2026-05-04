@@ -542,14 +542,16 @@ describe("NodeDB deviceContext & debounce", () => {
     expect(renders).toBe(1);
 
     // mutate something unrelated to length
-    db.setNodeError(999, "X" as any);
-    await act(() => Promise.resolve());
+    await act(async () => {
+      db.setNodeError(999, "X" as any);
+    });
     expect(screen.getByTestId("len").textContent).toBe("0");
     expect(renders).toBe(1); // no re-render
 
     // now actually change the slice
-    db.addNode({ num: 1 } as any);
-    await act(() => Promise.resolve());
+    await act(async () => {
+      db.addNode({ num: 1 } as any);
+    });
     expect(screen.getByTestId("len").textContent).toBe("1");
     expect(renders).toBe(2);
   });
