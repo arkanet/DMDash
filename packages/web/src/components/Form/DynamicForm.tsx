@@ -67,7 +67,11 @@ export type DynamicFormFormInit<T extends FieldValues> = (methods: UseFormReturn
 
 const serializeFormValues = (values: unknown): string =>
   JSON.stringify(values, (_key, value) =>
-    value instanceof Uint8Array ? Array.from(value) : value,
+    typeof value === "bigint"
+      ? { __type: "bigint", value: value.toString() }
+      : value instanceof Uint8Array
+        ? Array.from(value)
+        : value,
   );
 
 export function useSyncFormValues<T extends FieldValues>(

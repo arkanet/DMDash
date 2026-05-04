@@ -6,6 +6,7 @@ import { useSyncFormValues } from "./DynamicForm.tsx";
 
 type SyncFormValues = {
   name: string;
+  revision?: bigint;
 };
 
 const SyncFormHarness = ({ values }: { values: SyncFormValues }) => {
@@ -60,6 +61,32 @@ describe("useSyncFormValues", () => {
 
     await waitFor(() => {
       expect(input.value).toBe("local-edit");
+    });
+  });
+
+  it("syncs form values when external state contains bigint fields", async () => {
+    const BigIntSyncHarness = () => {
+      const [values, setValues] = useState<SyncFormValues>({ name: "alpha", revision: 1n });
+
+      return (
+        <div>
+          <button type="button" onClick={() => setValues({ name: "server-update", revision: 2n })}>
+            refresh
+          </button>
+          <SyncFormHarness values={values} />
+        </div>
+      );
+    };
+
+    render(<BigIntSyncHarness />);
+
+    const input = screen.getByLabelText("name") as HTMLInputElement;
+    expect(input.value).toBe("alpha");
+
+    fireEvent.click(screen.getByRole("button", { name: "refresh" }));
+
+    await waitFor(() => {
+      expect(input.value).toBe("server-update");
     });
   });
 });
