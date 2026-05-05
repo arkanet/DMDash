@@ -2,7 +2,7 @@ import { deviceRoute, moduleRoute, radioRoute } from "@app/routes";
 import { toBinary } from "@bufbuild/protobuf";
 import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
-import { SidebarButton } from "@components/UI/Sidebar/SidebarButton.tsx";
+import { LeftSidebarButton } from "@components/UI/Sidebar/LeftSidebarButton.tsx";
 import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
 import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
@@ -268,7 +268,7 @@ const ConfigPage = () => {
       <Sidebar>
         <SidebarSection label={t("sidebar.label")} className="py-2 px-0">
           {sections.map((section) => (
-            <SidebarButton
+            <LeftSidebarButton
               key={section.key}
               label={section.label}
               active={activeSection?.key === section.key}
@@ -279,7 +279,7 @@ const ConfigPage = () => {
             />
           ))}
           {!isRemote && (
-            <SidebarButton
+            <LeftSidebarButton
               key="nodeImport"
               label={t("navigation.nodeImport", "Node Import")}
               active={false}

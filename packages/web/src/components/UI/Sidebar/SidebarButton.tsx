@@ -1,4 +1,5 @@
 import { Button } from "@components/UI/Button.tsx";
+import { useTheme } from "@core/hooks/useTheme.ts";
 import { useSidebar } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import type { LucideIcon } from "lucide-react";
@@ -6,6 +7,9 @@ import type React from "react";
 
 export interface SidebarButtonProps {
   label: string;
+  buttonClassName?: string;
+  labelClassName?: string;
+  labelStyle?: React.CSSProperties;
   count?: number;
   active?: boolean;
   Icon?: LucideIcon;
@@ -14,10 +18,14 @@ export interface SidebarButtonProps {
   disabled?: boolean;
   preventCollapse?: boolean;
   isDirty?: boolean;
+  stickyActiveLight?: boolean;
 }
 
 export const SidebarButton = ({
   label,
+  buttonClassName,
+  labelClassName,
+  labelStyle,
   active,
   Icon,
   count,
@@ -26,9 +34,12 @@ export const SidebarButton = ({
   disabled = false,
   preventCollapse = false,
   isDirty,
+  stickyActiveLight = false,
 }: SidebarButtonProps) => {
   const { isCollapsed: isSidebarCollapsed } = useSidebar();
+  const { theme } = useTheme();
   const isButtonCollapsed = isSidebarCollapsed && !preventCollapse;
+  const isLightTheme = theme === "light";
 
   return (
     <Button
@@ -38,6 +49,12 @@ export const SidebarButton = ({
       className={cn(
         "flex w-full items-center text-wrap",
         isButtonCollapsed ? "justify-center gap-0 px-2 h-9" : "justify-start gap-2 min-h-9",
+        stickyActiveLight &&
+          isLightTheme &&
+          active &&
+          "bg-black/10 hover:bg-black/10 active:bg-black/[0.15]",
+        stickyActiveLight && isLightTheme && !active && "active:bg-black/[0.15]",
+        buttonClassName,
       )}
       disabled={disabled}
     >
@@ -46,11 +63,13 @@ export const SidebarButton = ({
       {children}
 
       <span
+        style={labelStyle}
         className={cn(
           "flex flex-wrap justify-start text-left text-balance break-all",
           "min-w-0",
           "px-1",
           "transition-all duration-300 ease-in-out",
+          labelClassName,
           isButtonCollapsed
             ? "opacity-0 max-w-0 invisible w-0 overflow-hidden"
             : "opacity-100 max-w-full visible whitespace-normal",

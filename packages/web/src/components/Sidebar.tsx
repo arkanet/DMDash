@@ -1,5 +1,5 @@
 import { useFirstSavedConnection } from "@app/core/stores/deviceStore/selectors.ts";
-import { SidebarButton } from "@components/UI/Sidebar/SidebarButton.tsx";
+import { LeftSidebarButton } from "@components/UI/Sidebar/LeftSidebarButton.tsx";
 import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
 import { Spinner } from "@components/UI/Spinner.tsx";
 import { Subtle } from "@components/UI/Typography/Subtle.tsx";
@@ -175,7 +175,7 @@ export const Sidebar = ({ children }: SidebarProps) => {
       <SidebarSection label={t("navigation.title")} className="mt-4 px-0">
         {pages.map((link) => {
           return (
-            <SidebarButton
+            <LeftSidebarButton
               key={link.name}
               count={link.count}
               label={link.name}
@@ -187,6 +187,7 @@ export const Sidebar = ({ children }: SidebarProps) => {
               }}
               active={link.page === pathname}
               disabled={myNode === undefined}
+              stickyActiveLight
             />
           );
         })}

@@ -14,10 +14,14 @@ import {
 import { Subtle } from "./UI/Typography/Subtle.tsx";
 
 interface LanguageSwitcherProps {
+  className?: string;
   disableHover?: boolean;
 }
 
-export default function LanguageSwitcher({ disableHover = false }: LanguageSwitcherProps) {
+export default function LanguageSwitcher({
+  className,
+  disableHover = false,
+}: LanguageSwitcherProps) {
   const { t } = useTranslation("ui");
   const { set: setLanguage, current, getSupportedLangs } = useLang();
 
@@ -37,6 +41,7 @@ export default function LanguageSwitcher({ disableHover = false }: LanguageSwitc
             "group flex items-center justify-start",
             "transition-colors duration-150 gap-2.5 p-1.5 rounded-md",
             !disableHover && "hover:bg-gray-100 dark:hover:bg-gray-700",
+            className,
           )}
         >
           <Languages

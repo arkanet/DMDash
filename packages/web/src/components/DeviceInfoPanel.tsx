@@ -66,6 +66,7 @@ export const DeviceInfoPanel = ({
   const pathname = useLocation({ select: (location) => location.pathname });
   const { batteryLevel, voltage } = deviceMetrics;
   const isMapRoute = pathname === "/map" || pathname.startsWith("/map/");
+  const sidebarActionButtonClass = "mx-auto w-[90%] max-w-[90%] self-center";
 
   const getStatusColor = (status?: ConnectionStatus): string => {
     if (!status) {
@@ -125,7 +126,7 @@ export const DeviceInfoPanel = ({
       id: "theme",
       label: t("theme.changeTheme"),
       icon: Palette,
-      render: () => <ThemeSwitcher />,
+      render: () => <ThemeSwitcher className={sidebarActionButtonClass} />,
     },
     {
       id: "commandMenu",
@@ -138,7 +139,7 @@ export const DeviceInfoPanel = ({
       id: "language",
       label: t("languagePicker.label"),
       icon: Languages,
-      render: () => <LanguageSwitcher />,
+      render: () => <LanguageSwitcher className={sidebarActionButtonClass} />,
     },
   ];
 
@@ -279,6 +280,7 @@ export const DeviceInfoPanel = ({
                 "gap-2.5",
                 "transition-colors duration-150",
                 !disableHover && "hover:bg-gray-100 dark:hover:bg-gray-700",
+                sidebarActionButtonClass,
               )}
             >
               <Icon

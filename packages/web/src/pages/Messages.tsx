@@ -7,7 +7,8 @@ import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
 import { Avatar } from "@components/UI/Avatar.tsx";
 import { Input } from "@components/UI/Input.tsx";
-import { SidebarButton } from "@components/UI/Sidebar/SidebarButton.tsx";
+import { LeftSidebarButton } from "@components/UI/Sidebar/LeftSidebarButton.tsx";
+import { MessageSidebarButton } from "@components/UI/Sidebar/MessageSidebarButton.tsx";
 import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
 import { ToastAction } from "@components/UI/Toast.tsx";
@@ -403,7 +404,7 @@ export const MessagesPage = () => {
       <Sidebar>
         <SidebarSection label={t("navigation.channels")} className="py-2 px-0">
           {filteredChannels?.map((channel) => (
-            <SidebarButton
+            <LeftSidebarButton
               key={channel.index}
               count={getUnreadCount(channel.index)}
               label={
@@ -422,7 +423,7 @@ export const MessagesPage = () => {
               }}
             >
               <HashIcon size={16} className={cn(isCollapsed ? "mr-0 mt-2" : "mr-2")} />
-            </SidebarButton>
+            </LeftSidebarButton>
           ))}
         </SidebarSection>
       </Sidebar>
@@ -456,9 +457,8 @@ export const MessagesPage = () => {
         style={{ contentVisibility: "auto", containIntrinsicSize: "100px" }}
       >
         {filteredNodes()?.map((node) => (
-          <SidebarButton
+          <MessageSidebarButton
             key={node.num}
-            preventCollapse
             label={((): string => {
               const long = getNodeLongName(node);
               if (long) return long;
@@ -479,7 +479,7 @@ export const MessagesPage = () => {
               showFavorite={node.isFavorite}
               size="sm"
             />
-          </SidebarButton>
+          </MessageSidebarButton>
         ))}
       </div>
     </SidebarSection>
