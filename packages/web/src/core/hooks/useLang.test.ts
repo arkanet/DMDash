@@ -35,21 +35,21 @@ describe("useLang", () => {
   });
 
   it("prefers the selected language over resolved fallback language", () => {
-    mockI18n.language = "sv-SE";
+    mockI18n.language = "it-IT";
     mockI18n.resolvedLanguage = "en";
 
     const { result } = renderHook(() => useLang());
 
-    expect(result.current.current?.code).toBe("sv-SE");
-    expect(result.current.current?.name).toBe("Svenska");
+    expect(result.current.current?.code).toBe("it-IT");
+    expect(result.current.current?.name).toBe("Italiano");
   });
 
   it("matches a supported language by family when the selected code is generic", () => {
-    mockI18n.language = "sv";
+    mockI18n.language = "it";
     mockI18n.resolvedLanguage = "en";
 
     const { result } = renderHook(() => useLang());
 
-    expect(result.current.current?.code).toBe("sv-SE");
+    expect(result.current.current?.code).toBe("it-IT");
   });
 });

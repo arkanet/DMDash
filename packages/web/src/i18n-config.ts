@@ -12,39 +12,11 @@ export type Lang = {
 
 export type LangCode = Lang["code"];
 
-export const supportedLocaleCodes = [
-  "be-BY",
-  "bg-BG",
-  "cs-CZ",
-  "de-DE",
-  "en",
-  "es-ES",
-  "fi-FI",
-  "fr-FR",
-  "hu-HU",
-  "it-IT",
-  "ja-JP",
-  "ko-KR",
-  "nl-NL",
-  "pl-PL",
-  "pt-BR",
-  "pt-PT",
-  "ru-RU",
-  "sv-SE",
-  "tr-TR",
-  "uk-UA",
-  "zh-CN",
-  "zh-TW",
-] as const;
+export const supportedLocaleCodes = ["en", "it-IT"] as const;
 
 export const supportedLanguages: Lang[] = [
-  { code: "de-DE", name: "Deutsch", flag: "🇩🇪" },
   { code: "en", name: "English", flag: "🇺🇸" },
-  { code: "fi-FI", name: "Suomi", flag: "🇫🇮" },
-  { code: "fr-FR", name: "Français", flag: "🇫🇷" },
   { code: "it-IT", name: "Italiano", flag: "🇮🇹" },
-  { code: "ru-RU", name: "Русский", flag: "🇷🇺" },
-  { code: "sv-SE", name: "Svenska", flag: "🇸🇪" },
 ];
 
 export const FALLBACK_LANGUAGE_CODE: LangCode = "en";
@@ -69,12 +41,7 @@ i18next
     },
     fallbackLng: {
       default: [FALLBACK_LANGUAGE_CODE],
-      fi: ["fi-FI", FALLBACK_LANGUAGE_CODE],
-      fr: ["fr-FR", FALLBACK_LANGUAGE_CODE],
       it: ["it-IT", FALLBACK_LANGUAGE_CODE],
-      ru: ["ru-RU", FALLBACK_LANGUAGE_CODE],
-      sv: ["sv-SE", FALLBACK_LANGUAGE_CODE],
-      de: ["de-DE", FALLBACK_LANGUAGE_CODE],
     },
     fallbackNS: ["common", "ui", "dialog"],
     debug: import.meta.env.MODE === "development",

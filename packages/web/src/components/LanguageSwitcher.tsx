@@ -60,11 +60,11 @@ export default function LanguageSwitcher({ disableHover = false }: LanguageSwitc
               !disableHover && "group-hover:text-gray-900 dark:group-hover:text-white",
             )}
           >
-            {current?.name}
+            {current ? `${current.flag} ${current.name}` : undefined}
           </Subtle>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="center" className="w-48">
+      <DropdownMenuContent align="center" className="w-40">
         {getSupportedLangs.map((language) => (
           <DropdownMenuItem
             key={language.code}
