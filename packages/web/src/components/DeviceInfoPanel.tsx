@@ -1,8 +1,9 @@
 import type { ConnectionStatus } from "@app/core/stores/deviceStore/types.ts";
 import { cn } from "@core/utils/cn.ts";
 import type { Protobuf } from "@meshtastic/core";
-import { useNavigate } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
+  BookOpen,
   ChevronRight,
   CpuIcon,
   Languages,
@@ -62,7 +63,9 @@ export const DeviceInfoPanel = ({
 }: DeviceInfoPanelProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate({ from: "/" });
+  const pathname = useLocation({ select: (location) => location.pathname });
   const { batteryLevel, voltage } = deviceMetrics;
+  const isMapRoute = pathname === "/map" || pathname.startsWith("/map/");
 
   const getStatusColor = (status?: ConnectionStatus): string => {
     if (!status) {
@@ -138,6 +141,17 @@ export const DeviceInfoPanel = ({
       render: () => <LanguageSwitcher />,
     },
   ];
+
+  if (isMapRoute) {
+    actionButtons.push({
+      id: "guide",
+      label: "GUIDE",
+      icon: BookOpen,
+      onClick: () => {
+        window.open("/guide", "_blank", "noopener,noreferrer");
+      },
+    });
+  }
 
   return (
     <>
