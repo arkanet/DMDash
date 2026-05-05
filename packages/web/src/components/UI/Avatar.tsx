@@ -1,5 +1,10 @@
 import { useNodeDB } from "@app/core/stores";
 import { getColorFromNodeNum, isLightColor } from "@app/core/utils/color";
+import {
+  getCachedNodeIdenticon,
+  getNodeIdenticonDataUri,
+  resolveNodeAvatarId,
+} from "@app/core/utils/identicon";
 import { getNodeShortName } from "@app/darkmesh/utils.ts";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChartSimple } from "@fortawesome/free-solid-svg-icons";
@@ -14,12 +19,15 @@ import {
 import { cn } from "@core/utils/cn.ts";
 import { isNodeStatusUnread, normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
 import { LockKeyholeOpenIcon, StarIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface AvatarProps {
   nodeNum: number;
+  nodeId?: string;
   size?: "sm" | "lg";
   className?: string;
+  avatarClassName?: string;
   showError?: boolean;
   showFavorite?: boolean;
   showStatusIndicator?: boolean;
@@ -27,11 +35,13 @@ interface AvatarProps {
 
 export const Avatar = ({
   nodeNum,
+  nodeId,
   size = "sm",
   showError = false,
   showFavorite = false,
   showStatusIndicator = true,
   className,
+  avatarClassName,
 }: AvatarProps) => {
   const { t } = useTranslation();
   const node = useNodeDB((s) => s.getNode(nodeNum));
@@ -44,6 +54,11 @@ export const Avatar = ({
     sm: "size-10 text-xs font-light",
     lg: "size-16 text-lg",
   };
+
+  const resolvedNodeId = resolveNodeAvatarId(nodeNum, nodeId ?? node?.user?.id);
+  const [identiconSrc, setIdenticonSrc] = useState<string | undefined>(() =>
+    getCachedNodeIdenticon(resolvedNodeId),
+  );
 
   // Per le regole UI: Avatar mostra sempre lo shortName; se mancante, mostra ultime 4 cifre di nameHex.
   // Non mostrare mai il longName troncato qui.
@@ -68,24 +83,60 @@ export const Avatar = ({
     (node as { nodeStatus?: string; lastReadNodeStatus?: string } | undefined)?.lastReadNodeStatus,
   );
 
+  useEffect(() => {
+    const cached = getCachedNodeIdenticon(resolvedNodeId);
+    if (cached) {
+      setIdenticonSrc(cached);
+      return;
+    }
+
+    let cancelled = false;
+
+    void getNodeIdenticonDataUri(resolvedNodeId)
+      .then((src) => {
+        if (!cancelled) {
+          setIdenticonSrc(src);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("[Avatar] Failed to generate identicon", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedNodeId]);
+
   return (
-    <div
-      className={cn(
-        `relative flex items-center justify-center rounded-full font-semibold 
-`,
-        sizes[size],
-        "bg-[rgb(var(--bg-r),var(--bg-g),var(--bg-b))]", // allow override with className
-        className,
-      )}
-      style={
-        {
-          "--bg-r": bgColor.r,
-          "--bg-g": bgColor.g,
-          "--bg-b": bgColor.b,
-          color: textColor,
-        } as React.CSSProperties
-      }
-    >
+    <div className={cn("relative inline-flex shrink-0", sizes[size], className)}>
+      <div
+        className={cn(
+          "flex size-full items-center justify-center overflow-hidden rounded-full bg-[rgb(var(--bg-r),var(--bg-g),var(--bg-b))] font-semibold",
+          avatarClassName,
+        )}
+        style={
+          {
+            "--bg-r": bgColor.r,
+            "--bg-g": bgColor.g,
+            "--bg-b": bgColor.b,
+            color: textColor,
+          } as React.CSSProperties
+        }
+      >
+        {identiconSrc ? (
+          <img
+            src={identiconSrc}
+            alt=""
+            aria-hidden="true"
+            className="size-full object-cover"
+            decoding="async"
+            loading="lazy"
+            draggable={false}
+          />
+        ) : (
+          <p className="p-1 text-nowrap">{initials}</p>
+        )}
+      </div>
       {showStatusIndicator && nodeStatus ? (
         <TooltipProvider delayDuration={300}>
           <Tooltip>
@@ -155,7 +206,6 @@ export const Avatar = ({
           </Tooltip>
         </TooltipProvider>
       ) : null}
-      <p className="p-1 text-nowrap">{initials}</p>
     </div>
   );
 };

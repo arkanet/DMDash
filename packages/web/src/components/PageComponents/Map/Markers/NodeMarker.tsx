@@ -16,12 +16,14 @@ export const NodeMarker = memo(function NodeMarker({
   id,
   lng,
   lat,
+  label,
   longLabel,
   tooltipLabel,
   hasError,
   isFavorite,
   offset,
   avatarClassName,
+  showLabel = false,
   isVisible = true,
   onClick,
 }: {
@@ -35,6 +37,7 @@ export const NodeMarker = memo(function NodeMarker({
   isFavorite?: boolean;
   offset?: PxOffset;
   avatarClassName?: string;
+  showLabel?: boolean;
   isVisible?: boolean;
   onClick: (id: number, e: { originalEvent: MouseEvent }) => void;
 }) {
@@ -68,7 +71,7 @@ export const NodeMarker = memo(function NodeMarker({
             >
               <Avatar
                 nodeNum={id}
-                className={cn(
+                avatarClassName={cn(
                   "border-[1.5px] border-slate-600 shadow-m shadow-slate-600",
                   avatarClassName,
                 )}
@@ -90,10 +93,20 @@ export const NodeMarker = memo(function NodeMarker({
           </TooltipPortal>
         </Tooltip>
       </TooltipProvider>
+      {showLabel && label && (
+        <button
+          type="button"
+          className="absolute top-16 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-white/75 px-2 py-0.5 text-[10px] font-medium text-slate-900 backdrop-blur-xs cursor-pointer"
+          style={style}
+          onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
+        >
+          {label}
+        </button>
+      )}
       {longLabel && ( // only show label if there's a longLabel
         <button
           type="button"
-          className="absolute top-16 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-white/70 px-2 py-0.5 text-xs text-slate-900 backdrop-blur-xs  cursor-pointer"
+          className="absolute top-21 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-white/70 px-2 py-0.5 text-xs text-slate-900 backdrop-blur-xs cursor-pointer"
           style={style}
           onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
         >

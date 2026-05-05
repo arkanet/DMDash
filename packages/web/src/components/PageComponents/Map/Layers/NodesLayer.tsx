@@ -97,6 +97,7 @@ export const NodesLayer = ({
           hasError={hasNodeError(node.num)}
           isFavorite={node.isFavorite ?? false}
           avatarClassName={getNodeMarkerClassName?.(node)}
+          showLabel={true}
           isVisible={isVisible}
           onClick={(num, e) => {
             e.originalEvent?.stopPropagation();
@@ -172,6 +173,7 @@ export const NodesLayer = ({
         hasError={false}
         isFavorite={true}
         avatarClassName={getNodeMarkerClassName?.(myNode)}
+        showLabel={true}
         onClick={(_, e) => onMarkerClick(myNode.num, [0, 0], e)}
       />,
     );

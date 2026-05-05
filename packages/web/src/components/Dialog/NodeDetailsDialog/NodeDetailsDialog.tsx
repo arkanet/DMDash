@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@components/UI/Dialog.tsx";
+import { Avatar } from "@components/UI/Avatar.tsx";
 import { Separator } from "@components/UI/Separator.tsx";
 import {
   Tooltip,
@@ -157,6 +158,7 @@ export const NodeDetailsDialog = ({
   const currentNode = nodeForRender;
   const currentPositionPoint = positionPoint(currentNode?.position);
   const computedShortName = getNodeShortName(currentNode) ?? t("unknown.shortName");
+  const currentNodeError = nodeDB.getNodeError(currentNode.num);
   const neighborInfo = getNeighborInfo(currentNode?.num ?? effectiveNodeNum);
 
   function handleDirectMessage() {
@@ -429,8 +431,15 @@ export const NodeDetailsDialog = ({
           style={{ transform: `translateX(${offsetPercent}%)` }}
         >
           <DialogClose />
-          <DialogHeader>
-            <DialogTitle>
+          <DialogHeader className="items-center text-center">
+            <Avatar
+              nodeNum={currentNode.num}
+              size="lg"
+              className="mx-auto"
+              showFavorite={isFavoriteState}
+              showError={Boolean(currentNodeError)}
+            />
+            <DialogTitle className="text-center">
               {(() => {
                 const ln = getNodeLongName(currentNode) ?? "";
 
