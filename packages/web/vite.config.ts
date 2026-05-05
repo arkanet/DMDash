@@ -182,7 +182,34 @@ export default defineConfig(({ mode }) => {
         },
       }),
       VitePWA({
-        selfDestroying: true,
+        includeAssets: [
+          "darkmesh-dashboard-logo.png",
+          "darkmesh-dashboard-180.png",
+          "darkmesh-dashboard-192.png",
+          "darkmesh-dashboard-512.png",
+        ],
+        registerType: "autoUpdate",
+        manifest: {
+          name: "DarkMesh Dashboard",
+          short_name: "DarkMesh Dashboard",
+          description: "DarkMesh Dashboard",
+          start_url: "/",
+          display: "standalone",
+          theme_color: "#D32F2F",
+          background_color: "#D32F2F",
+          icons: [
+            {
+              src: "/darkmesh-dashboard-192.png",
+              sizes: "192x192",
+              type: "image/png",
+            },
+            {
+              src: "/darkmesh-dashboard-512.png",
+              sizes: "512x512",
+              type: "image/png",
+            },
+          ],
+        },
       }),
     ],
     optimizeDeps: {

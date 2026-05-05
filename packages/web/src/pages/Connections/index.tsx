@@ -108,8 +108,8 @@ export const Connections = () => {
             <div className="flex flex-wrap items-center gap-4 md:flex-nowrap">
               <div className="flex md:basis-1/3 md:justify-start">
                 <img
-                  src="/darkmesh-logo.png"
-                  alt="DarkMesh"
+                  src="/darkmesh-dashboard-logo.png"
+                  alt="DarkMesh Dashboard"
                   className="h-20 w-20 rounded-2xl border border-white/10 bg-black/80 p-2 shadow-[0_0_30px_rgba(255,255,255,0.06)]"
                 />
               </div>

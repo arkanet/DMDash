@@ -34,8 +34,8 @@
     "submit": "Submit"
   },
   "app": {
-    "title": "Meshtastic",
-    "fullTitle": "Meshtastic Web Client"
+    "title": "DarkMesh Dashboard",
+    "fullTitle": "DarkMesh Dashboard"
   },
   "loading": "Caricamento in corso...",
   "unit": {

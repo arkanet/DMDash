@@ -12,8 +12,8 @@
     "nodes": "Nodes"
   },
   "app": {
-    "title": "Meshtastic",
-    "logo": "Meshtastic Logo"
+    "title": "DarkMesh Dashboard",
+    "logo": "DarkMesh Dashboard logo"
   },
   "sidebar": {
     "collapseToggle": {

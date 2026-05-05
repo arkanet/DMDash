@@ -12,8 +12,8 @@
     "nodes": "Nodi"
   },
   "app": {
-    "title": "Meshtastic",
-    "logo": "Logo Meshtastic"
+    "title": "DarkMesh Dashboard",
+    "logo": "Logo DarkMesh Dashboard"
   },
   "sidebar": {
     "collapseToggle": {

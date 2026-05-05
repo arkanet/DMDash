@@ -157,18 +157,18 @@ export const Sidebar = ({ children }: SidebarProps) => {
         )}
       >
         <img
-          src="/darkmesh-logo.png"
-          alt="DarkMesh"
+          src="/darkmesh-dashboard-logo.png"
+          alt="DarkMesh Dashboard"
           className="size-10 flex-shrink-0 rounded-xl border border-white/10 bg-black/80 p-1"
         />
         <h2
           className={cn(
-            "text-xl font-semibold uppercase tracking-[0.16em] text-gray-800 dark:text-gray-100 whitespace-nowrap",
+            "text-sm font-semibold tracking-[0.08em] text-gray-800 dark:text-gray-100 whitespace-nowrap lg:text-base",
             "transition-all duration-300 ease-in-out",
             isCollapsed ? "opacity-0 max-w-0 invisible ml-0" : "opacity-100 max-w-xs visible ml-2",
           )}
         >
-          DarkMesh
+          DarkMesh Dashboard
         </h2>
       </div>
 

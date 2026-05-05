@@ -1,16 +1,21 @@
 {
-	"name": "Meshtastic",
-	"short_name": "Web Client",
-	"start_url": ".",
-	"description": "Meshtastic Web App",
+	"name": "DarkMesh Dashboard",
+	"short_name": "DarkMesh Dashboard",
+	"start_url": "/",
+	"description": "DarkMesh Dashboard",
 	"icons": [
 		{
-			"src": "/logo.svg",
-			"sizes": "any",
-			"type": "image/svg+xml"
+			"src": "/darkmesh-dashboard-192.png",
+			"sizes": "192x192",
+			"type": "image/png"
+		},
+		{
+			"src": "/darkmesh-dashboard-512.png",
+			"sizes": "512x512",
+			"type": "image/png"
 		}
 	],
-	"theme_color": "#67ea94",
-	"background_color": "#67ea94",
+	"theme_color": "#D32F2F",
+	"background_color": "#D32F2F",
 	"display": "standalone"
 }
