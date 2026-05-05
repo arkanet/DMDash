@@ -12,7 +12,7 @@ import { StackBadge } from "@components/PageComponents/Map/Markers/StackBadge.ts
 import { NodeDetail } from "@components/PageComponents/Map/Popups/NodeDetail.tsx";
 import type { PopupState } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
 import { PopupWrapper } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
-import { useNodeDB } from "@core/stores";
+import { useAppStore, useNodeDB } from "@core/stores";
 import { hasPos, toLngLat } from "@core/utils/geo.ts";
 import type { Protobuf } from "@meshtastic/core";
 import { useCallback, useMemo } from "react";
@@ -50,6 +50,7 @@ export const NodesLayer = ({
 }: NodeMarkerProps): React.ReactNode[] => {
   const { t } = useTranslation("map");
 
+  const identiconsEnabled = useAppStore((s) => s.identiconsEnabled);
   const { hasNodeError } = useNodeDB();
 
   const selectedNode = useMemo(
@@ -97,7 +98,7 @@ export const NodesLayer = ({
           hasError={hasNodeError(node.num)}
           isFavorite={node.isFavorite ?? false}
           avatarClassName={getNodeMarkerClassName?.(node)}
-          showLabel={true}
+          showLabel={identiconsEnabled}
           isVisible={isVisible}
           onClick={(num, e) => {
             e.originalEvent?.stopPropagation();
@@ -173,7 +174,7 @@ export const NodesLayer = ({
         hasError={false}
         isFavorite={true}
         avatarClassName={getNodeMarkerClassName?.(myNode)}
-        showLabel={true}
+        showLabel={identiconsEnabled}
         onClick={(_, e) => onMarkerClick(myNode.num, [0, 0], e)}
       />,
     );

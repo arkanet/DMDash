@@ -11,6 +11,7 @@ const CURRENT_STORE_VERSION = 0;
 type AppData = {
   // Persisted data
   rasterSources: RasterSource[];
+  identiconsEnabled: boolean;
 };
 
 export interface AppState extends AppData {
@@ -24,6 +25,7 @@ export interface AppState extends AppData {
   setRasterSources: (sources: RasterSource[]) => void;
   addRasterSource: (source: RasterSource) => void;
   removeRasterSource: (index: number) => void;
+  setIdenticonsEnabled: (enabled: boolean) => void;
   setSelectedDevice: (deviceId: number) => void;
   setCommandPaletteOpen: (open: boolean) => void;
   setNodeNumToBeRemoved: (nodeNum: number) => void;
@@ -34,6 +36,7 @@ export interface AppState extends AppData {
 export const deviceStoreInitializer: StateCreator<AppState> = (set, _get) => ({
   selectedDeviceId: 0,
   rasterSources: [],
+  identiconsEnabled: true,
   commandPaletteOpen: false,
   connectDialogOpen: false,
   nodeNumToBeRemoved: 0,
@@ -57,6 +60,13 @@ export const deviceStoreInitializer: StateCreator<AppState> = (set, _get) => ({
     set(
       produce<AppState>((draft) => {
         draft.rasterSources.splice(index, 1);
+      }),
+    );
+  },
+  setIdenticonsEnabled: (enabled: boolean) => {
+    set(
+      produce<AppState>((draft) => {
+        draft.identiconsEnabled = enabled;
       }),
     );
   },
@@ -94,6 +104,7 @@ const persistOptions: PersistOptions<AppState, AppData> = {
   version: CURRENT_STORE_VERSION,
   partialize: (s): AppData => ({
     rasterSources: s.rasterSources,
+    identiconsEnabled: s.identiconsEnabled,
   }),
   onRehydrateStorage: () => (state) => {
     if (!state) {

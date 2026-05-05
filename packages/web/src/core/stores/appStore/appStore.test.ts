@@ -57,6 +57,9 @@ describe("AppStore – basic state & actions", () => {
     state.setCommandPaletteOpen(true);
     expect(useAppStore.getState().commandPaletteOpen).toBe(true);
 
+    state.setIdenticonsEnabled(false);
+    expect(useAppStore.getState().identiconsEnabled).toBe(false);
+
     state.setConnectDialogOpen(true);
     expect(useAppStore.getState().connectDialogOpen).toBe(true);
 
@@ -104,6 +107,7 @@ describe("AppStore – persistence: partialize + rehydrate", () => {
       const state = useAppStore.getState();
 
       state.setRasterSources([makeRaster({ title: "x" }), makeRaster({ title: "y" })]);
+      state.setIdenticonsEnabled(false);
       state.setSelectedDevice(99);
       state.setCommandPaletteOpen(true);
       // Only rasterSources should persist by partialize
@@ -117,6 +121,7 @@ describe("AppStore – persistence: partialize + rehydrate", () => {
 
       // persisted slice:
       expect(state.rasterSources.map((raster) => raster.title)).toEqual(["x", "y"]);
+      expect(state.identiconsEnabled).toBe(false);
 
       // ephemeral fields reset to defaults:
       expect(state.selectedDeviceId).toBe(0);
@@ -145,6 +150,7 @@ describe("AppStore – persistence: partialize + rehydrate", () => {
       const { useAppStore } = await freshStore(true);
       const state = useAppStore.getState();
       state.setRasterSources([makeRaster({ title: "keep" }), makeRaster({ title: "drop" })]);
+      state.setIdenticonsEnabled(false);
       state.removeRasterSource(1); // drop "drop"
       expect(useAppStore.getState().rasterSources.map((raster) => raster.title)).toEqual(["keep"]);
     }
@@ -152,6 +158,7 @@ describe("AppStore – persistence: partialize + rehydrate", () => {
       const { useAppStore } = await freshStore(true);
       const state = useAppStore.getState();
       expect(state.rasterSources.map((raster) => raster.title)).toEqual(["keep"]);
+      expect(state.identiconsEnabled).toBe(false);
 
       // Now replace entirely
       state.setRasterSources([]);
@@ -160,6 +167,7 @@ describe("AppStore – persistence: partialize + rehydrate", () => {
       const { useAppStore } = await freshStore(true);
       const state = useAppStore.getState();
       expect(state.rasterSources).toEqual([]); // stayed cleared
+      expect(state.identiconsEnabled).toBe(false);
     }
   });
 });

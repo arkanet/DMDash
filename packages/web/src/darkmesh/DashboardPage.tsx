@@ -99,7 +99,7 @@ const DarkMeshDashboardPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { updateFavorite } = useFavoriteNode();
-  const { selectedDeviceId } = useAppStore();
+  const { selectedDeviceId, identiconsEnabled, setIdenticonsEnabled } = useAppStore();
   const deviceId = selectedDeviceId ?? -1;
   const { channels, traceroutes, sendAdminMessage, connection: _connection } = useDevice();
   const { getMyNode, getNodes, addNode } = useNodeDB();
@@ -753,6 +753,20 @@ const DarkMeshDashboardPage = () => {
         </div>
 
         <div className="space-y-6">
+          <DashboardCard
+            title="Display Preferences"
+            description="Choose how node avatars are rendered across the map, dialogs and node surfaces."
+          >
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm dark:border-zinc-800 dark:bg-zinc-900/70">
+              <Checkbox checked={identiconsEnabled} onChange={setIdenticonsEnabled}>
+                Enable identicon avatars
+              </Checkbox>
+              <p className="mt-3 text-slate-500 dark:text-slate-400">
+                Disable this option to return to the original short-name avatar view.
+              </p>
+            </div>
+          </DashboardCard>
+
           <DashboardCard
             title="Hunting Forwarder"
             description="Mirror position, telemetry and traceroute packets to a DarkMesh-compatible web endpoint."

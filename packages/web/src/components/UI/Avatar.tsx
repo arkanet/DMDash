@@ -1,4 +1,4 @@
-import { useNodeDB } from "@app/core/stores";
+import { useAppStore, useNodeDB } from "@app/core/stores";
 import { getColorFromNodeNum, isLightColor } from "@app/core/utils/color";
 import {
   getCachedNodeIdenticon,
@@ -45,6 +45,7 @@ export const Avatar = ({
 }: AvatarProps) => {
   const { t } = useTranslation();
   const node = useNodeDB((s) => s.getNode(nodeNum));
+  const identiconsEnabled = useAppStore((s) => s.identiconsEnabled);
 
   if (!nodeNum) {
     return null;
@@ -84,6 +85,10 @@ export const Avatar = ({
   );
 
   useEffect(() => {
+    if (!identiconsEnabled) {
+      return;
+    }
+
     const cached = getCachedNodeIdenticon(resolvedNodeId);
     if (cached) {
       setIdenticonSrc(cached);
@@ -105,7 +110,7 @@ export const Avatar = ({
     return () => {
       cancelled = true;
     };
-  }, [resolvedNodeId]);
+  }, [identiconsEnabled, resolvedNodeId]);
 
   return (
     <div className={cn("relative inline-flex shrink-0", sizes[size], className)}>
@@ -123,7 +128,7 @@ export const Avatar = ({
           } as React.CSSProperties
         }
       >
-        {identiconSrc ? (
+        {identiconsEnabled && identiconSrc ? (
           <img
             src={identiconSrc}
             alt=""
