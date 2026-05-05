@@ -56,7 +56,25 @@ export type NotificationsStore = {
   setConfig: (c: Partial<NotificationsStore["config"]>) => void;
 };
 
+type NotificationsConfig = NotificationsStore["config"];
+
 const STORAGE_KEY = "darkmesh:notifications:v1";
+const CONFIG_STORAGE_KEY = "darkmesh:notifications:config:v1";
+
+const defaultConfig: NotificationsConfig = {
+  enablePersistence: true,
+  ttlDays: 7,
+  maxEntries: 500,
+  batteryMonitoring: {
+    enabled: false,
+    scope: "all",
+    selectedNodeNums: [],
+    batteryPercentThreshold: 15,
+    voltageThreshold: 0,
+    cooldownMs: 60 * 60 * 1000,
+    nodeOverrides: {},
+  },
+};
 
 function makeId() {
   return `${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
@@ -79,22 +97,37 @@ function saveToStorage(list: Notification[]) {
   } catch {}
 }
 
+function loadConfigFromStorage(): NotificationsConfig {
+  try {
+    const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
+    if (!raw) return defaultConfig;
+    const parsed = JSON.parse(raw) as Partial<NotificationsConfig>;
+    return {
+      ...defaultConfig,
+      ...parsed,
+      batteryMonitoring: {
+        ...defaultConfig.batteryMonitoring,
+        ...parsed.batteryMonitoring,
+        nodeOverrides: {
+          ...(defaultConfig.batteryMonitoring.nodeOverrides ?? {}),
+          ...(parsed.batteryMonitoring?.nodeOverrides ?? {}),
+        },
+      },
+    };
+  } catch {
+    return defaultConfig;
+  }
+}
+
+function saveConfigToStorage(config: NotificationsConfig) {
+  try {
+    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+  } catch {}
+}
+
 export const useNotificationsStore = createStore<NotificationsStore>((set, get) => ({
   notifications: typeof window !== "undefined" ? loadFromStorage() : [],
-  config: {
-    enablePersistence: false,
-    ttlDays: 7,
-    maxEntries: 500,
-    batteryMonitoring: {
-      enabled: false,
-      scope: "all",
-      selectedNodeNums: [],
-      batteryPercentThreshold: 15,
-      voltageThreshold: 0,
-      cooldownMs: 60 * 60 * 1000, // 1 hour
-      nodeOverrides: {},
-    },
-  },
+  config: typeof window !== "undefined" ? loadConfigFromStorage() : defaultConfig,
   add: (n) => {
     const id = makeId();
     const timestamp = Date.now();
@@ -163,6 +196,7 @@ export const useNotificationsStore = createStore<NotificationsStore>((set, get) 
           };
         }
       }
+      saveConfigToStorage(merged);
       if (merged.enablePersistence) saveToStorage(s.notifications);
       return { config: merged };
     }),

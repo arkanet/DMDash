@@ -62,11 +62,12 @@ interface DarkMeshPersistedState {
   schedules: ScheduledDarkMeshMessage[];
   beaconsByDevice: Record<number, BeaconConfig>;
   huntByDevice: Record<number, HuntConfig>;
+  huntDraftByDevice: Record<number, HuntConfig>;
+  selectedTraceRoute?: TraceRouteSelection;
   tracePriorityByDevice?: Record<number, boolean>;
 }
 
 interface DarkMeshState extends DarkMeshPersistedState {
-  selectedTraceRoute?: TraceRouteSelection;
   pendingTraceRouteTargetByDevice: Record<number, number | undefined>;
   /** Map deviceId -> packet requestId for pending traceroute requests */
   pendingTraceRouteRequestByDevice: Record<number, number | undefined>;
@@ -85,6 +86,7 @@ interface DarkMeshState extends DarkMeshPersistedState {
   markBeaconSent: (deviceId: number) => void;
   markBeaconError: (deviceId: number, message: string) => void;
   upsertHuntConfig: (deviceId: number, config: HuntConfig) => void;
+  upsertHuntDraft: (deviceId: number, config: HuntConfig) => void;
   markHuntForwarded: (deviceId: number) => void;
   setHuntStatus: (deviceId: number, status: string) => void;
   setHuntError: (deviceId: number, message: string) => void;
@@ -122,6 +124,7 @@ export const useDarkMeshStore = create<DarkMeshState>()(
       schedules: [],
       beaconsByDevice: {},
       huntByDevice: {},
+      huntDraftByDevice: {},
       selectedTraceRoute: undefined,
       pendingTraceRouteTargetByDevice: {},
       pendingTraceRouteRequestByDevice: {},
@@ -211,6 +214,14 @@ export const useDarkMeshStore = create<DarkMeshState>()(
           },
         })),
 
+      upsertHuntDraft: (deviceId, config) =>
+        set((state) => ({
+          huntDraftByDevice: {
+            ...state.huntDraftByDevice,
+            [deviceId]: config,
+          },
+        })),
+
       markHuntForwarded: (deviceId) =>
         set((state) => ({
           huntByDevice: {
@@ -289,6 +300,8 @@ export const useDarkMeshStore = create<DarkMeshState>()(
         schedules: state.schedules,
         beaconsByDevice: state.beaconsByDevice,
         huntByDevice: state.huntByDevice,
+        huntDraftByDevice: state.huntDraftByDevice,
+        selectedTraceRoute: state.selectedTraceRoute,
         tracePriorityByDevice: state.tracePriorityByDevice,
       }),
     },

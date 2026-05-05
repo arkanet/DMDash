@@ -110,11 +110,16 @@ const DarkMeshDashboardPage = () => {
     (state) => state.beaconsByDevice[deviceId] ?? defaultBeaconConfig,
   );
   const huntConfig = useDarkMeshStore((state) => state.huntByDevice[deviceId] ?? defaultHuntConfig);
+  const huntDraft = useDarkMeshStore(
+    (state) =>
+      state.huntDraftByDevice[deviceId] ?? state.huntByDevice[deviceId] ?? defaultHuntConfig,
+  );
   const selectedTraceRoute = useDarkMeshStore((state) => state.selectedTraceRoute);
 
   const removeSchedule = useDarkMeshStore((state) => state.removeSchedule);
   const upsertBeaconConfig = useDarkMeshStore((state) => state.upsertBeaconConfig);
   const upsertHuntConfig = useDarkMeshStore((state) => state.upsertHuntConfig);
+  const upsertHuntDraft = useDarkMeshStore((state) => state.upsertHuntDraft);
   const setHuntStatus = useDarkMeshStore((state) => state.setHuntStatus);
   const setHuntError = useDarkMeshStore((state) => state.setHuntError);
   const setSelectedTraceRoute = useDarkMeshStore((state) => state.setSelectedTraceRoute);
@@ -170,7 +175,6 @@ const DarkMeshDashboardPage = () => {
 
   // schedule UI state is not currently wired in; keep schedules from store
   const [beaconDraft, setBeaconDraft] = useState<BeaconConfig>(beaconConfig);
-  const [huntDraft, setHuntDraft] = useState<HuntConfig>(huntConfig);
   const [exportFavoriteOnly, setExportFavoriteOnly] = useState(false);
   const [exportGpsOnly, setExportGpsOnly] = useState(false);
   const [exportBackboneOnly, setExportBackboneOnly] = useState(false);
@@ -182,6 +186,13 @@ const DarkMeshDashboardPage = () => {
   useEffect(() => {
     setBeaconDraft(beaconConfig);
   }, [beaconConfig]);
+
+  const updateHuntDraft = (patch: Partial<HuntConfig>) => {
+    upsertHuntDraft(deviceId, {
+      ...huntDraft,
+      ...patch,
+    });
+  };
 
   const [beaconFilter, setBeaconFilter] = useState("");
 
@@ -207,11 +218,6 @@ const DarkMeshDashboardPage = () => {
     for (const d of direct) if (matchedSet.has(Number(d.value.split(":")[1]))) out.push(d);
     return out;
   })();
-
-  useEffect(() => {
-    setHuntDraft(huntConfig);
-  }, [huntConfig]);
-
   // Add-schedule handler removed because it's not currently wired into the UI.
   // Keep implementation history in git if needed later.
 
@@ -232,6 +238,7 @@ const DarkMeshDashboardPage = () => {
           ...huntDraft,
           enabled: true,
         });
+        updateHuntDraft({ enabled: true });
         setHuntStatus(deviceId, "Health check passed. Hunt forwarding is active.");
         toast({ title: "DarkMesh hunting endpoint validated" });
       } else {
@@ -240,6 +247,7 @@ const DarkMeshDashboardPage = () => {
           ...huntDraft,
           enabled: true,
         });
+        updateHuntDraft({ enabled: true });
         setHuntStatus(deviceId, "Local hunt forwarding enabled (packets persisted locally)");
         toast({ title: "Local hunting enabled" });
       }
@@ -259,6 +267,7 @@ const DarkMeshDashboardPage = () => {
       ...huntDraft,
       enabled: false,
     });
+    updateHuntDraft({ enabled: false });
     setHuntStatus(deviceId, "Hunt forwarding disabled");
   };
 
@@ -778,10 +787,9 @@ const DarkMeshDashboardPage = () => {
                 value={huntDraft.endpoint}
                 disabled={huntDraft.mode === "local"}
                 onChange={(event) =>
-                  setHuntDraft((current) => ({
-                    ...current,
+                  updateHuntDraft({
                     endpoint: event.target.value,
-                  }))
+                  })
                 }
               />
             </label>
@@ -793,10 +801,9 @@ const DarkMeshDashboardPage = () => {
                 value={huntDraft.token}
                 disabled={huntDraft.mode === "local"}
                 onChange={(event) =>
-                  setHuntDraft((current) => ({
-                    ...current,
+                  updateHuntDraft({
                     token: event.target.value,
-                  }))
+                  })
                 }
               />
             </label>
@@ -807,10 +814,9 @@ const DarkMeshDashboardPage = () => {
                 className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 value={huntDraft.mode ?? "local"}
                 onChange={(event) =>
-                  setHuntDraft((current) => ({
-                    ...current,
+                  updateHuntDraft({
                     mode: event.target.value as HuntConfig["mode"],
-                  }))
+                  })
                 }
               >
                 <option value="local">Local (persist only)</option>
@@ -825,10 +831,9 @@ const DarkMeshDashboardPage = () => {
                 className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 value={huntDraft.backgroundMode}
                 onChange={(event) =>
-                  setHuntDraft((current) => ({
-                    ...current,
+                  updateHuntDraft({
                     backgroundMode: event.target.value as HuntConfig["backgroundMode"],
-                  }))
+                  })
                 }
               >
                 <option value="fast">Fast</option>

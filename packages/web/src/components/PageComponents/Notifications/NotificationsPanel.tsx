@@ -1,13 +1,54 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useEffect } from "react";
 import { Protobuf } from "@meshtastic/core";
 import { useNotifications } from "@core/hooks/useNotifications.ts";
 import NotificationItem from "./NotificationItem";
 import { useNodeDB } from "@core/stores";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
+import useLocalStorage from "@core/hooks/useLocalStorage.ts";
 import { filterNodesByQuery } from "@core/utils/filterNodes.ts";
 import { useTranslation } from "react-i18next";
 import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils";
 // using select + filter UI (like Scheduled Messages)
+
+type BatteryMonitoringConfig = ReturnType<
+  typeof useNotificationsStore.getState
+>["config"]["batteryMonitoring"];
+
+function derivePrimaryScope(
+  batteryMonitoring: BatteryMonitoringConfig,
+  myNodeNum?: number,
+): "all" | "local" | "selected" {
+  if (batteryMonitoring.scope === "connected_bt") {
+    return "local";
+  }
+
+  if (batteryMonitoring.scope !== "selected") {
+    return "all";
+  }
+
+  const selected = batteryMonitoring.selectedNodeNums ?? [];
+  if (selected.length === 1 && myNodeNum !== undefined && selected[0] === myNodeNum) {
+    return "local";
+  }
+
+  return "selected";
+}
+
+function deriveSelectedNodeNum(
+  batteryMonitoring: BatteryMonitoringConfig,
+  primaryScope: "all" | "local" | "selected",
+  myNodeNum?: number,
+): number | null {
+  if (primaryScope === "local") {
+    return myNodeNum ?? null;
+  }
+
+  if (primaryScope !== "selected") {
+    return null;
+  }
+
+  return batteryMonitoring.selectedNodeNums?.[0] ?? null;
+}
 
 export function NotificationsPanel() {
   const { notifications, markAllSeen, setConfig } = useNotifications();
@@ -15,7 +56,11 @@ export function NotificationsPanel() {
   const nodes = nodeStore.getNodes(() => true, true);
   const myNode = nodeStore.getMyNode ? nodeStore.getMyNode() : undefined;
   const currentCfg = useNotificationsStore((s) => s.config);
-  const [filter, setFilter] = useState<"all" | "unseen">("all");
+  const initialPrimaryScope = derivePrimaryScope(currentCfg.batteryMonitoring, myNode?.num);
+  const [filter, setFilter] = useLocalStorage<"all" | "unseen">(
+    "darkmesh:notifications:panel-filter:v1",
+    "all",
+  );
 
   const { t } = useTranslation();
 
@@ -34,11 +79,20 @@ export function NotificationsPanel() {
         (n as unknown as { nodeId?: string | number; nodeID?: string | number })?.nodeID ??
         undefined,
     }));
-  const [selectedNotifNodeNum, setSelectedNotifNodeNum] = useState<number | null>(null);
-  const [primaryScope, setPrimaryScope] = useState<"all" | "local" | "selected">("all");
+  const [selectedNotifNodeNum, setSelectedNotifNodeNum] = useLocalStorage<number | null>(
+    "darkmesh:notifications:selected-node:v1",
+    deriveSelectedNodeNum(currentCfg.batteryMonitoring, initialPrimaryScope, myNode?.num),
+  );
+  const [primaryScope, setPrimaryScope] = useLocalStorage<"all" | "local" | "selected">(
+    "darkmesh:notifications:scope:v1",
+    initialPrimaryScope,
+  );
 
   // notif node filter state (immediate - same behavior as Distress Beacon)
-  const [notifNodeFilter, setNotifNodeFilter] = useState("");
+  const [notifNodeFilter, setNotifNodeFilter] = useLocalStorage<string>(
+    "darkmesh:notifications:node-filter:v1",
+    "",
+  );
 
   // keep selectedNotifNodeNum in sync with primaryScope and myNode
   useEffect(() => {
