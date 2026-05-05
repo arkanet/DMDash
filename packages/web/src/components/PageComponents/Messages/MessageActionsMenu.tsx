@@ -40,7 +40,7 @@ export const MessageActionsMenu = ({
     }
     return;
   }, [showPicker]);
-  const { t } = useTranslation();
+  const { t } = useTranslation("messages");
   const hoverIconBarClass = cn(
     "absolute top-2 right-2",
     "flex items-center gap-x-1",

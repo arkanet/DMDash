@@ -28,8 +28,8 @@
     "addReactionLabel": "Add Reaction",
     "replyLabel": "Reply"
   },
-  "messages_actionsMenu_addReactionLabel": "EMOJI",
-  "messages_actionsMenu_replyLabel": "REPLAY",
+  "messages_actionsMenu_addReactionLabel": "Reaction",
+  "messages_actionsMenu_replyLabel": "Reply",
   "deliveryStatus": {
     "delivered": {
       "label": "Message delivered",
