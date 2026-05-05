@@ -2,10 +2,10 @@ import { DeviceWrapper } from "@app/DeviceWrapper.tsx";
 import { CommandPalette } from "@components/CommandPalette/index.tsx";
 import { DialogManager } from "@components/Dialog/DialogManager.tsx";
 import { KeyBackupReminder } from "@components/KeyBackupReminder.tsx";
+import { ThemeDocumentController } from "@components/ThemeDocumentController.tsx";
 import { Toaster } from "@components/Toaster.tsx";
 import { ErrorPage } from "@components/UI/ErrorPage.tsx";
 import Footer from "@components/UI/Footer.tsx";
-import { useTheme } from "@core/hooks/useTheme.ts";
 import { SidebarProvider, useAppStore, useDeviceStore } from "@core/stores";
 import { DarkMeshRuntime } from "@app/darkmesh/runtime.tsx";
 import { Connections } from "@pages/Connections/index.tsx";
@@ -15,8 +15,6 @@ import { ErrorBoundary } from "react-error-boundary";
 import { MapProvider } from "react-map-gl/maplibre";
 
 export function App() {
-  useTheme();
-
   const { getDevice } = useDeviceStore();
   const { selectedDeviceId } = useAppStore();
   const pathname = useLocation({
@@ -36,6 +34,7 @@ export function App() {
         }}
       /> */}
       <Toaster />
+      <ThemeDocumentController pathname={pathname} />
       <TanStackRouterDevtools position="bottom-right" />
       <DeviceWrapper deviceId={selectedDeviceId}>
         <div

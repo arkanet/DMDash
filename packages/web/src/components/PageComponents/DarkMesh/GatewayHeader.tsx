@@ -3,6 +3,7 @@ import { useTheme } from "@core/hooks/useTheme.ts";
 import { useAppStore } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { useEffect, useRef, useState } from "react";
+import { getMissingMetricTone, type SignalTone } from "./theme.ts";
 
 interface GatewayHeaderProps {
   className?: string;
@@ -15,12 +16,6 @@ export const RSSI_FAIR_THRESHOLD = -126;
 const CONFIDENCE_GOOD_MIN = 80;
 const CONFIDENCE_FAIR_MIN = 60;
 const CONFIDENCE_BAD_MIN = 30;
-
-type SignalTone = {
-  background: string;
-  label: string;
-  value: string;
-};
 
 export function getSnrTone(value?: number): SignalTone {
   if (value === undefined) {
@@ -218,27 +213,31 @@ function SignalMetric({
   label,
   value,
   tone,
+  isDarkTheme,
   className,
 }: {
   label: string;
   value: string;
   tone: SignalTone;
+  isDarkTheme: boolean;
   className?: string;
 }) {
+  const effectiveTone = value === "n/a" ? getMissingMetricTone(isDarkTheme) : tone;
+
   return (
     <div
       className={cn("flex flex-1 flex-col justify-center rounded-xl px-2.5 py-1.5", className)}
-      style={{ backgroundColor: tone.background }}
+      style={{ backgroundColor: effectiveTone.background }}
     >
       <div
         className="text-[0.7rem] uppercase tracking-[0.14em] md:text-[10px]"
-        style={{ color: tone.label }}
+        style={{ color: effectiveTone.label }}
       >
         {label}
       </div>
       <div
         className="mt-0.5 text-[0.7rem] font-semibold md:text-[0.8125rem]"
-        style={{ color: tone.value }}
+        style={{ color: effectiveTone.value }}
       >
         {value}
       </div>
@@ -272,25 +271,16 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
     };
   }, [gateway?.observedAt]);
 
-  const snrTone = getSnrTone(gateway?.rxSnr);
-  const rssiTone = getRssiTone(gateway?.rxRssi);
-  const confidenceTone = getConfidenceTone(gateway?.confidence);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const root = document.documentElement;
-    const computed = getComputedStyle(root);
-    // If gateway vars are not defined, set sensible night defaults (device default = night)
-    if (!computed.getPropertyValue("--gateway-bg")) {
-      root.style.setProperty("--gateway-bg", "#222");
-    }
-    if (!computed.getPropertyValue("--color-zinc-100")) {
-      root.style.setProperty("--color-zinc-100", "#e6eef8");
-    }
-    if (!computed.getPropertyValue("--color-gray-800")) {
-      root.style.setProperty("--color-gray-800", "#1f2937");
-    }
-  }, []);
+  const snrTone =
+    gateway?.rxSnr === undefined ? getMissingMetricTone(isDarkTheme) : getSnrTone(gateway?.rxSnr);
+  const rssiTone =
+    gateway?.rxRssi === undefined
+      ? getMissingMetricTone(isDarkTheme)
+      : getRssiTone(gateway?.rxRssi);
+  const confidenceTone =
+    gateway?.confidence === undefined
+      ? getMissingMetricTone(isDarkTheme)
+      : getConfidenceTone(gateway?.confidence);
 
   return (
     <div className={cn("w-full", className)}>
@@ -359,6 +349,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
             label="SNR"
             value={formatSnr(gateway?.rxSnr)}
             tone={snrTone}
+            isDarkTheme={isDarkTheme}
             className="mr-1 mb-1 w-30"
           />
 
@@ -366,20 +357,31 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
             label="RSSI"
             value={formatRssi(gateway?.rxRssi)}
             tone={rssiTone}
+            isDarkTheme={isDarkTheme}
             className="mr-1 mb-1 w-30"
           />
 
           <SignalMetric
             label="AirUtl"
             value={formatPercent(gateway?.deviceMetrics?.airUtilTx)}
-            tone={getAirTone(gateway?.deviceMetrics?.airUtilTx ?? undefined)}
+            tone={
+              gateway?.deviceMetrics?.airUtilTx === undefined
+                ? getMissingMetricTone(isDarkTheme)
+                : getAirTone(gateway?.deviceMetrics?.airUtilTx)
+            }
+            isDarkTheme={isDarkTheme}
             className="mr-1 mb-1"
           />
 
           <SignalMetric
             label="ChUtl"
             value={formatPercent(gateway?.deviceMetrics?.channelUtilization)}
-            tone={getChannelTone(gateway?.deviceMetrics?.channelUtilization ?? undefined)}
+            tone={
+              gateway?.deviceMetrics?.channelUtilization === undefined
+                ? getMissingMetricTone(isDarkTheme)
+                : getChannelTone(gateway?.deviceMetrics?.channelUtilization)
+            }
+            isDarkTheme={isDarkTheme}
             className="mr-1 mb-1"
           />
         </div>

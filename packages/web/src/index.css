@@ -58,6 +58,9 @@
   --textPrimary: #0b0f19;
   --textSecondary: #475569;
   --link: #991b1b;
+  --gateway-bg: #f1f1f1;
+  --color-zinc-100: #0b1220;
+  --color-gray-800: #0b1220;
 
   --brightnessHover: 0.95;
   --brightnessPress: 1.05;
@@ -72,6 +75,9 @@
   --textPrimary: #f5f5f5;
   --textSecondary: #a1a1aa;
   --link: #fafafa;
+  --gateway-bg: #222;
+  --color-zinc-100: #e6eef8;
+  --color-gray-800: #1f2937;
 
   --brightnessHover: 1.1;
   --brightnessPress: 0.9;

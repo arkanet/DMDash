@@ -5,6 +5,7 @@ import {
 } from "@app/components/PageComponents/Map/Tools/MapLayerTool.tsx";
 import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { VisualTracerouteCard } from "@components/PageComponents/DarkMesh/VisualTracerouteCard.tsx";
+import { getTraceroutePanelTheme } from "@components/PageComponents/DarkMesh/theme.ts";
 import { FilterControl } from "@components/generic/Filter/FilterControl.tsx";
 import { type FilterState, useFilterNode } from "@components/generic/Filter/useFilterNode.ts";
 import { BaseMap } from "@components/Map.tsx";
@@ -23,6 +24,7 @@ import { Button } from "@components/UI/Button.tsx";
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { distanceKm, getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
 import { useMapFitting } from "@core/hooks/useMapFitting.ts";
+import { useTheme } from "@core/hooks/useTheme.ts";
 import { useDevice, useNodeDB } from "@core/stores";
 import { useToast } from "@core/hooks/useToast.ts";
 import { cn } from "@core/utils/cn.ts";
@@ -67,6 +69,8 @@ const MapPage: React.FC = () => {
   const connection = device.connection;
   const { toast } = useToast();
   const { t } = useTranslation();
+  const { theme } = useTheme();
+  const traceroutePanelTheme = getTraceroutePanelTheme(theme === "dark");
   // derived store selectors and local UI state
   const deviceId = device.id;
   const selectedTraceRoute = useDarkMeshStore((s) => s.selectedTraceRoute);
@@ -984,9 +988,16 @@ const MapPage: React.FC = () => {
                 className="h-full shadow-none"
               />
             ) : (
-              <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-[#222] p-4 text-[0.75rem] text-zinc-100 shadow-none backdrop-blur-sm">
-                <div className="font-semibold">Waiting for traceroute response</div>
-                <div className="mt-2 text-[0.75rem] text-zinc-400">
+              <div
+                className={cn(
+                  "flex h-full flex-col rounded-2xl p-4 text-[0.75rem] shadow-none backdrop-blur-sm",
+                  traceroutePanelTheme.containerClass,
+                )}
+              >
+                <div className={cn("font-semibold", traceroutePanelTheme.titleClass)}>
+                  Waiting for traceroute response
+                </div>
+                <div className={cn("mt-2 text-[0.75rem]", traceroutePanelTheme.mutedTextClass)}>
                   {pendingTraceRouteNode
                     ? (getNodeLongName(pendingTraceRouteNode) ?? undefined)
                     : `!${numberToHexUnpadded(pendingTraceRouteTarget ?? 0).toUpperCase()}`}
@@ -995,7 +1006,7 @@ const MapPage: React.FC = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-[0.75rem]"
+                    className={cn("text-[0.75rem]", traceroutePanelTheme.actionButtonClass)}
                     onClick={clearVisualTraceroute}
                   >
                     Cancel

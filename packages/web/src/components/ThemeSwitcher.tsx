@@ -44,24 +44,6 @@ export default function ThemeSwitcher({
     const currentIndex = preferences.indexOf(preference);
     const nextPreference = preferences[(currentIndex + 1) % preferences.length] ?? "system";
     setPreference(nextPreference);
-    // Apply gateway-specific CSS variables for light/dark preferences only.
-    if (typeof document !== "undefined") {
-      const root = document.documentElement;
-      if (nextPreference === "dark") {
-        root.style.setProperty("--gateway-bg", "#222");
-        root.style.setProperty("--color-zinc-100", "#e6eef8");
-        root.style.setProperty("--color-gray-800", "#1f2937");
-      } else if (nextPreference === "light") {
-        root.style.setProperty("--gateway-bg", "#f1f1f1");
-        root.style.setProperty("--color-zinc-100", "#0b1220");
-        root.style.setProperty("--color-gray-800", "#0b1220");
-      } else {
-        // system/device preference - remove overrides to respect device settings
-        root.style.removeProperty("--gateway-bg");
-        root.style.removeProperty("--color-zinc-100");
-        root.style.removeProperty("--color-gray-800");
-      }
-    }
     toggleShowTooltip();
   };
 
