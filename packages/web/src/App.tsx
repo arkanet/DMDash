@@ -23,6 +23,7 @@ export function App() {
 
   const device = getDevice(selectedDeviceId);
   const isPublicGuideRoute = pathname === "/guide" || pathname.startsWith("/guide/");
+  const isConnectionsRoute = pathname === "/" || pathname === "/connections";
 
   return (
     // <ThemeProvider defaultTheme="system" storageKey="theme">
@@ -50,16 +51,22 @@ export function App() {
                   <KeyBackupReminder />
                   <CommandPalette />
                   <MapProvider>
-                    <Outlet />
+                    {isConnectionsRoute ? (
+                      <div className="h-full w-full overflow-y-auto">
+                        <Outlet />
+                      </div>
+                    ) : (
+                      <Outlet />
+                    )}
                   </MapProvider>
                 </div>
               ) : isPublicGuideRoute ? (
                 <Outlet />
               ) : (
-                <>
+                <div className="min-h-0 flex-1 overflow-y-auto">
                   <Connections />
                   <Footer />
-                </>
+                </div>
               )}
             </div>
           </SidebarProvider>
