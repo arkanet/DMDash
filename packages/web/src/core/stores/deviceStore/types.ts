@@ -27,7 +27,7 @@ type DialogVariant = keyof Dialogs;
 type Page = "dashboard" | "messages" | "map" | "settings" | "channels" | "nodes";
 
 export type ConnectionId = number;
-export type ConnectionType = "http" | "bluetooth" | "serial";
+export type ConnectionType = "http" | "tcp" | "bluetooth" | "serial";
 export type ConnectionStatus =
   | "connected"
   | "connecting"
@@ -52,6 +52,7 @@ export type Connection = {
 
 export type NewConnection =
   | { type: "http"; name: string; url: string }
+  | { type: "tcp"; name: string; host: string; port: number }
   | {
       type: "bluetooth";
       name: string;

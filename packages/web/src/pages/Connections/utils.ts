@@ -5,7 +5,19 @@ import type {
   NewConnection,
 } from "@app/core/stores/deviceStore/types";
 import { randId } from "@app/core/utils/randId";
-import { Bluetooth, Cable, Globe, type LucideIcon } from "lucide-react";
+import { Bluetooth, Cable, Globe, Network, type LucideIcon } from "lucide-react";
+
+export const DEFAULT_TCP_PORT = 4403;
+
+export type NetworkConnectionMode = "http" | "tcp";
+
+export type DiscoveredNetworkDevice = {
+  id: string;
+  name: string;
+  host: string;
+  addresses: string[];
+  services: Array<{ protocol: NetworkConnectionMode; port: number }>;
+};
 
 export function createConnectionFromInput(input: NewConnection): Connection {
   const base = {
@@ -23,6 +35,16 @@ export function createConnectionFromInput(input: NewConnection): Connection {
       name: input.name.length === 0 ? input.url : input.name,
     };
   }
+  if (input.type === "tcp") {
+    return {
+      ...base,
+      type: "tcp",
+      host: input.host,
+      port: input.port,
+      isDefault: false,
+      name: input.name.length === 0 ? `${input.host}:${input.port}` : input.name,
+    };
+  }
   if (input.type === "bluetooth") {
     return {
       ...base,
@@ -38,6 +60,51 @@ export function createConnectionFromInput(input: NewConnection): Connection {
     usbVendorId: input.usbVendorId,
     usbProductId: input.usbProductId,
   };
+}
+
+export async function testTcpReachable(
+  host: string,
+  port = DEFAULT_TCP_PORT,
+  timeoutMs = 5000,
+): Promise<boolean> {
+  try {
+    const protocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
+    const params = new URLSearchParams({ host, port: String(port) });
+    const ws = new WebSocket(`${protocol}//${globalThis.location.host}/api/tcp/ws?${params}`);
+    const timer = setTimeout(() => ws.close(1011, "timeout"), timeoutMs);
+    return await new Promise<boolean>((resolve) => {
+      ws.addEventListener("message", (event) => {
+        if (typeof event.data !== "string") {
+          return;
+        }
+        try {
+          const message = JSON.parse(event.data) as { type?: string };
+          if (message.type === "connected") {
+            clearTimeout(timer);
+            ws.close(1000, "probe complete");
+            resolve(true);
+          }
+          if (message.type === "error") {
+            clearTimeout(timer);
+            ws.close();
+            resolve(false);
+          }
+        } catch {
+          // Ignore non-control messages.
+        }
+      });
+      ws.addEventListener("error", () => {
+        clearTimeout(timer);
+        resolve(false);
+      });
+      ws.addEventListener("close", () => {
+        clearTimeout(timer);
+        resolve(false);
+      });
+    });
+  } catch {
+    return false;
+  }
 }
 
 export async function testHttpReachable(url: string, timeoutMs = 2500): Promise<boolean> {
@@ -58,9 +125,30 @@ export async function testHttpReachable(url: string, timeoutMs = 2500): Promise<
   }
 }
 
+export async function discoverNetworkDevices(): Promise<DiscoveredNetworkDevice[]> {
+  try {
+    const response = await fetch("/api/network/discover", {
+      method: "GET",
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      return [];
+    }
+    const payload = (await response.json()) as {
+      devices?: DiscoveredNetworkDevice[];
+    };
+    return payload.devices ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export function connectionTypeIcon(type: ConnectionType): LucideIcon {
   if (type === "http") {
     return Globe;
+  }
+  if (type === "tcp") {
+    return Network;
   }
   if (type === "bluetooth") {
     return Bluetooth;
@@ -71,6 +159,9 @@ export function connectionTypeIcon(type: ConnectionType): LucideIcon {
 export function formatConnectionSubtext(conn: Connection): string {
   if (conn.type === "http") {
     return conn.url;
+  }
+  if (conn.type === "tcp") {
+    return `${conn.host}:${conn.port}`;
   }
   if (conn.type === "bluetooth") {
     return conn.deviceName || conn.deviceId || "No device selected";

@@ -295,7 +295,14 @@ export const Connections = () => {
 
 function TypeBadge({ type }: { type: Connection["type"] }) {
   const Icon = connectionTypeIcon(type);
-  const label = type === "http" ? "HTTP" : type === "bluetooth" ? "Bluetooth" : "Serial";
+  const label =
+    type === "http"
+      ? "Network HTTP"
+      : type === "tcp"
+        ? "Network TCP"
+        : type === "bluetooth"
+          ? "Bluetooth"
+          : "Serial";
   return (
     <Badge variant="default" className="gap-1.5 border border-white/10 bg-white/5 text-zinc-100">
       <Icon className="h-3.5 w-3.5" />

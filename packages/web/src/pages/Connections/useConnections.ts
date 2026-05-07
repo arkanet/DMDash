@@ -4,7 +4,12 @@ import type {
   ConnectionStatus,
   NewConnection,
 } from "@app/core/stores/deviceStore/types";
-import { createConnectionFromInput, testHttpReachable } from "@app/pages/Connections/utils";
+import { TransportTCPBridge } from "@app/pages/Connections/TransportTCPBridge";
+import {
+  createConnectionFromInput,
+  testHttpReachable,
+  testTcpReachable,
+} from "@app/pages/Connections/utils";
 import { useAppStore, useDeviceStore, useMessageStore, useNodeDBStore } from "@core/stores";
 import { subscribeAll } from "@core/subscriptions.ts";
 import { randId } from "@core/utils/randId.ts";
@@ -131,6 +136,7 @@ export function useConnections() {
       id: ConnectionId,
       transport:
         | Awaited<ReturnType<typeof TransportHTTP.create>>
+        | Awaited<ReturnType<typeof TransportTCPBridge.create>>
         | Awaited<ReturnType<typeof TransportWebBluetooth.createFromDevice>>
         | Awaited<ReturnType<typeof TransportWebSerial.createFromPort>>,
       btDevice?: BluetoothDevice,
@@ -264,6 +270,12 @@ export function useConnections() {
           const transport = await TransportHTTP.create(url.host, isTLS);
           setupMeshDevice(id, transport);
           // Status will be set to "configured" by onConfigComplete event
+          return true;
+        }
+
+        if (conn.type === "tcp") {
+          const transport = await TransportTCPBridge.create(conn.host, conn.port);
+          setupMeshDevice(id, transport);
           return true;
         }
 
@@ -487,6 +499,7 @@ export function useConnections() {
   const refreshStatuses = useCallback(async () => {
     // Check reachability/availability without auto-connecting
     // HTTP: test endpoint reachability
+    // TCP: test the local WebSocket bridge to the Meshtastic TCP port
     // Bluetooth/Serial: check permission grants
 
     // HTTP connections: test reachability if not already connected/configured
@@ -500,6 +513,21 @@ export function useConnections() {
       )
       .map(async (c) => {
         const ok = await testHttpReachable(c.url);
+        updateSavedConnection(c.id, {
+          status: ok ? "online" : "error",
+        });
+      });
+
+    const tcpChecks = connections
+      .filter(
+        (c): c is Connection & { type: "tcp"; host: string; port: number } =>
+          c.type === "tcp" &&
+          c.status !== "connected" &&
+          c.status !== "configured" &&
+          c.status !== "configuring",
+      )
+      .map(async (c) => {
+        const ok = await testTcpReachable(c.host, c.port);
         updateSavedConnection(c.id, {
           status: ok ? "online" : "error",
         });
@@ -580,7 +608,7 @@ export function useConnections() {
         }
       });
 
-    await Promise.all([...httpChecks, ...btChecks, ...serialChecks]);
+    await Promise.all([...httpChecks, ...tcpChecks, ...btChecks, ...serialChecks]);
   }, [connections, updateSavedConnection]);
 
   const syncConnectionStatuses = useCallback(() => {

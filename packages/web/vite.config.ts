@@ -8,6 +8,8 @@ import { defineConfig, loadEnv } from "vite";
 import { createHtmlPlugin } from "vite-plugin-html";
 import { VitePWA } from "vite-plugin-pwa";
 import { handleHuntForwardProxy, handleHuntHealthProxy } from "./server/huntProxy";
+import { handleNetworkDiscoveryProxy } from "./server/networkDiscovery";
+import { attachTcpBridgeProxy } from "./server/tcpProxy";
 
 let hash = "";
 let version = "v0.0.0";
@@ -131,7 +133,10 @@ function darkMeshHuntDevProxy() {
       middlewares: {
         use: (
           handler: (
-            req: { url?: string; method?: string } & import("node:http").IncomingMessage,
+            req: {
+              url?: string;
+              method?: string;
+            } & import("node:http").IncomingMessage,
             res: import("node:http").ServerResponse,
             next: () => void,
           ) => void,
@@ -151,8 +156,25 @@ function darkMeshHuntDevProxy() {
           return;
         }
 
+        if (pathname === "/api/network/discover") {
+          void handleNetworkDiscoveryProxy(req, res);
+          return;
+        }
+
         next();
       });
+    },
+  };
+}
+
+function darkMeshTcpBridgeProxy() {
+  return {
+    name: "darkmesh-tcp-bridge-proxy",
+    configureServer(server: { httpServer?: import("node:http").Server | null }) {
+      attachTcpBridgeProxy(server.httpServer);
+    },
+    configurePreviewServer(server: { httpServer?: import("node:http").Server | null }) {
+      attachTcpBridgeProxy(server.httpServer);
     },
   };
 }
@@ -166,6 +188,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       darkMeshHuntDevProxy(),
+      darkMeshTcpBridgeProxy(),
       react(),
       tailwindcss(),
       ...(useHTTPS ? [basicSsl()] : []),

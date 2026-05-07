@@ -1,7 +1,14 @@
 import { SupportBadge } from "@app/components/Badge/SupportedBadge.tsx";
 import { Switch } from "@app/components/UI/Switch.tsx";
-import type { ConnectionType, NewConnection } from "@app/core/stores/deviceStore/types.ts";
-import { testHttpReachable } from "@app/pages/Connections/utils";
+import type { NewConnection } from "@app/core/stores/deviceStore/types.ts";
+import {
+  DEFAULT_TCP_PORT,
+  type DiscoveredNetworkDevice,
+  type NetworkConnectionMode,
+  discoverNetworkDevices,
+  testHttpReachable,
+  testTcpReachable,
+} from "@app/pages/Connections/utils";
 import { Button } from "@components/UI/Button.tsx";
 import { Input } from "@components/UI/Input.tsx";
 import { Label } from "@components/UI/Label.tsx";
@@ -22,20 +29,25 @@ import {
   Loader2,
   type LucideIcon,
   MousePointerClick,
+  Network,
+  Radar,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { DialogWrapper } from "../DialogWrapper.tsx";
 import { urlOrIpv4Schema } from "./validation.ts";
 
-type TabKey = ConnectionType;
+type TabKey = "network" | "bluetooth" | "serial";
 type TestingStatus = "idle" | "testing" | "success" | "failure";
+type DiscoveryStatus = "idle" | "scanning" | "done" | "failure";
 type DialogState = {
   tab: TabKey;
+  networkMode: NetworkConnectionMode;
   name: string;
   protocol: "http" | "https";
   url: string;
+  tcpPort: string;
   testStatus: TestingStatus;
   btSelected: { id: string; name?: string; device?: BluetoothDevice } | undefined;
   serialSelected: { vendorId?: number; productId?: number } | undefined;
@@ -44,9 +56,11 @@ type DialogState = {
 type DialogAction =
   | { type: "RESET"; payload?: { isHTTPS?: boolean } }
   | { type: "SET_TAB"; payload: TabKey }
+  | { type: "SET_NETWORK_MODE"; payload: NetworkConnectionMode }
   | { type: "SET_NAME"; payload: string }
   | { type: "SET_PROTOCOL"; payload: "http" | "https" }
   | { type: "SET_URL"; payload: string }
+  | { type: "SET_TCP_PORT"; payload: string }
   | { type: "SET_TEST_STATUS"; payload: TestingStatus }
   | {
       type: "SET_BT_SELECTED";
@@ -144,10 +158,12 @@ const FeatureErrorMessage = ({ missingFeatures, tabId }: FeatureErrorProps) => {
 };
 
 const initialState: DialogState = {
-  tab: "http",
+  tab: "network",
+  networkMode: "http",
   name: "",
   protocol: "http",
   url: "",
+  tcpPort: String(DEFAULT_TCP_PORT),
   testStatus: "idle",
   btSelected: undefined,
   serialSelected: undefined,
@@ -165,12 +181,16 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
       return createInitialDialogState(action.payload?.isHTTPS ? { protocol: "https" } : {});
     case "SET_TAB":
       return { ...state, tab: action.payload };
+    case "SET_NETWORK_MODE":
+      return { ...state, networkMode: action.payload, testStatus: "idle" };
     case "SET_NAME":
       return { ...state, name: action.payload };
     case "SET_PROTOCOL":
       return { ...state, protocol: action.payload };
     case "SET_URL":
       return { ...state, url: action.payload };
+    case "SET_TCP_PORT":
+      return { ...state, tcpPort: action.payload, testStatus: "idle" };
     case "SET_TEST_STATUS":
       return { ...state, testStatus: action.payload };
     case "SET_BT_SELECTED":
@@ -215,7 +235,7 @@ function PickerRow({
 }
 
 const TAB_META: Array<{ key: TabKey; label: string; Icon: LucideIcon }> = [
-  { key: "http", label: "HTTP", Icon: Globe },
+  { key: "network", label: "Network", Icon: Network },
   { key: "bluetooth", label: "Bluetooth", Icon: Bluetooth },
   { key: "serial", label: "Serial", Icon: Cable },
 ];
@@ -237,6 +257,8 @@ export default function AddConnectionDialog({
   );
   const { unsupported } = useBrowserFeatureDetection();
   const { t } = useTranslation();
+  const [discoveryStatus, setDiscoveryStatus] = useState<DiscoveryStatus>("idle");
+  const [discoveredDevices, setDiscoveredDevices] = useState<DiscoveredNetworkDevice[]>([]);
 
   const bluetoothSupported = typeof navigator !== "undefined" && "bluetooth" in navigator;
   const serialSupported = typeof navigator !== "undefined" && "serial" in navigator;
@@ -249,6 +271,8 @@ export default function AddConnectionDialog({
   useEffect(() => {
     if (!open) {
       reset();
+      setDiscoveryStatus("idle");
+      setDiscoveredDevices([]);
     }
   }, [reset, open]);
 
@@ -365,90 +389,270 @@ export default function AddConnectionDialog({
     }
   }, [state.protocol, state.url, toast, t]);
 
+  const tcpPort = Number.parseInt(state.tcpPort, 10);
+  const tcpHostValid = urlOrIpv4Schema.safeParse(state.url).success;
+  const tcpPortValid = Number.isInteger(tcpPort) && tcpPort >= 10 && tcpPort <= 65535;
+
+  const handleTestTcp = useCallback(async () => {
+    if (!tcpHostValid || !tcpPortValid) {
+      toast({
+        title: "Invalid TCP endpoint",
+        description: "Enter a valid IP or hostname and a TCP port between 10 and 65535.",
+      });
+      return;
+    }
+    dispatch({ type: "SET_TEST_STATUS", payload: "testing" });
+    const reachable = await testTcpReachable(state.url.trim(), tcpPort);
+    if (reachable) {
+      dispatch({ type: "SET_TEST_STATUS", payload: "success" });
+    } else {
+      dispatch({ type: "SET_TEST_STATUS", payload: "failure" });
+      toast({
+        title: "TCP endpoint not reachable",
+        description:
+          "Check that the node is reachable on the network and Meshtastic TCP is enabled.",
+      });
+    }
+  }, [state.url, tcpHostValid, tcpPort, tcpPortValid, toast]);
+
+  const handleDiscoverNetwork = useCallback(async () => {
+    setDiscoveryStatus("scanning");
+    const devices = await discoverNetworkDevices();
+    setDiscoveredDevices(devices);
+    setDiscoveryStatus(devices.length > 0 ? "done" : "failure");
+  }, []);
+
+  const selectDiscoveredDevice = useCallback(
+    (device: DiscoveredNetworkDevice, mode: NetworkConnectionMode, port: number) => {
+      const host =
+        device.addresses.find((address) => address.includes(".")) ??
+        device.addresses[0] ??
+        device.host;
+      dispatch({ type: "SET_NETWORK_MODE", payload: mode });
+      dispatch({ type: "SET_URL_AND_RESET_TEST", payload: host });
+      dispatch({ type: "SET_TCP_PORT", payload: String(port) });
+      if (!state.name) {
+        dispatch({ type: "SET_NAME", payload: device.name });
+      }
+    },
+    [state.name],
+  );
+
   const PANES: Record<TabKey, Pane> = useMemo(
     () => ({
-      http: {
-        placeholder: t("addConnection.httpConnection.namePlaceholder"),
+      network: {
+        placeholder:
+          state.networkMode === "http"
+            ? t("addConnection.httpConnection.namePlaceholder")
+            : "Network TCP node",
         children: () => (
           <div className="flex flex-col gap-4">
-            <Label htmlFor="url">{t("addConnection.httpConnection.heading")}</Label>
-
-            <Input
-              id={"url"}
-              inputMode="url"
-              placeholder={t("addConnection.httpConnection.inputPlaceholder")}
-              prefix={`${state.protocol}://`}
-              value={state.url}
-              onChange={(e) => {
-                dispatch({
-                  type: "SET_URL_AND_RESET_TEST",
-                  payload: e.target.value,
-                });
-              }}
-            />
-            <div className="flex items-center gap-2 mt-1">
-              <Switch
-                value={state.protocol}
-                disabled={!!isURLHTTPS}
-                checked={state.protocol === "https"}
-                onCheckedChange={(value) => {
-                  dispatch({
-                    type: "SET_PROTOCOL",
-                    payload: value ? "https" : "http",
-                  });
-                  dispatch({ type: "SET_TEST_STATUS", payload: "idle" });
-                }}
-              ></Switch>
-              <Label>{t("addConnection.httpConnection.useHttps")}</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant={state.networkMode === "http" ? "default" : "subtle"}
+                className="gap-2"
+                onClick={() => dispatch({ type: "SET_NETWORK_MODE", payload: "http" })}
+              >
+                <Globe className="h-4 w-4" />
+                HTTP
+              </Button>
+              <Button
+                type="button"
+                variant={state.networkMode === "tcp" ? "default" : "subtle"}
+                className="gap-2"
+                onClick={() => dispatch({ type: "SET_NETWORK_MODE", payload: "tcp" })}
+              >
+                <Network className="h-4 w-4" />
+                TCP
+              </Button>
+              <Button
+                type="button"
+                variant="subtle"
+                className="gap-2"
+                onClick={handleDiscoverNetwork}
+                disabled={discoveryStatus === "scanning"}
+              >
+                {discoveryStatus === "scanning" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Radar className="h-4 w-4" />
+                )}
+                Discover
+              </Button>
             </div>
+
+            {discoveredDevices.length > 0 ? (
+              <div className="grid gap-2 rounded-md border border-slate-200 p-2 dark:border-slate-800">
+                {discoveredDevices.map((device) => (
+                  <div
+                    key={device.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded bg-slate-50 p-2 text-sm dark:bg-slate-900"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{device.name}</div>
+                      <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                        {(device.addresses[0] ?? device.host) || "Unknown host"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {device.services.map((service) => (
+                        <Button
+                          key={`${device.id}-${service.protocol}-${service.port}`}
+                          type="button"
+                          variant="subtle"
+                          size="sm"
+                          onClick={() =>
+                            selectDiscoveredDevice(device, service.protocol, service.port)
+                          }
+                        >
+                          {service.protocol.toUpperCase()}:{service.port}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : discoveryStatus === "failure" ? (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                No network devices discovered. You can still enter an address manually.
+              </p>
+            ) : null}
+
+            {state.networkMode === "http" ? (
+              <>
+                <Label htmlFor="url">{t("addConnection.httpConnection.heading")}</Label>
+
+                <Input
+                  id={"url"}
+                  inputMode="url"
+                  placeholder={t("addConnection.httpConnection.inputPlaceholder")}
+                  prefix={`${state.protocol}://`}
+                  value={state.url}
+                  onChange={(e) => {
+                    dispatch({
+                      type: "SET_URL_AND_RESET_TEST",
+                      payload: e.target.value,
+                    });
+                  }}
+                />
+                <div className="flex items-center gap-2 mt-1">
+                  <Switch
+                    value={state.protocol}
+                    disabled={!!isURLHTTPS}
+                    checked={state.protocol === "https"}
+                    onCheckedChange={(value) => {
+                      dispatch({
+                        type: "SET_PROTOCOL",
+                        payload: value ? "https" : "http",
+                      });
+                      dispatch({ type: "SET_TEST_STATUS", payload: "idle" });
+                    }}
+                  ></Switch>
+                  <Label>{t("addConnection.httpConnection.useHttps")}</Label>
+                </div>
+              </>
+            ) : (
+              <>
+                <Label htmlFor="tcp-host">Meshtastic TCP endpoint</Label>
+                <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2">
+                  <Input
+                    id={"tcp-host"}
+                    inputMode="url"
+                    placeholder="192.168.1.42 or meshtastic.local"
+                    value={state.url}
+                    onChange={(e) => {
+                      dispatch({
+                        type: "SET_URL_AND_RESET_TEST",
+                        payload: e.target.value,
+                      });
+                    }}
+                  />
+                  <Input
+                    aria-label="TCP port"
+                    inputMode="numeric"
+                    value={state.tcpPort}
+                    onChange={(e) => {
+                      dispatch({
+                        type: "SET_TCP_PORT",
+                        payload: e.target.value,
+                      });
+                    }}
+                  />
+                </div>
+              </>
+            )}
+
             <div className="flex items-center gap-2 mt-4">
               <Button
                 variant="subtle"
                 className="gap-2"
-                onClick={handleTestHttp}
+                onClick={state.networkMode === "http" ? handleTestHttp : handleTestTcp}
                 disabled={
-                  urlOrIpv4Schema.safeParse(`${state.protocol}://${state.url}`).success === false ||
-                  state.testStatus === "testing"
+                  state.networkMode === "http"
+                    ? urlOrIpv4Schema.safeParse(`${state.protocol}://${state.url}`).success ===
+                        false || state.testStatus === "testing"
+                    : !tcpHostValid || !tcpPortValid || state.testStatus === "testing"
                 }
               >
                 {state.testStatus === "testing" ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {t("addConnection.httpConnection.connectionTest.button.loading")}
+                    {state.networkMode === "http"
+                      ? t("addConnection.httpConnection.connectionTest.button.loading")
+                      : "Testing"}
                   </>
                 ) : (
                   <>
                     <MousePointerClick className="h-4 w-4" />
-                    {t("addConnection.httpConnection.connectionTest.button.label")}
+                    {state.networkMode === "http"
+                      ? t("addConnection.httpConnection.connectionTest.button.label")
+                      : "Test TCP"}
                   </>
                 )}
               </Button>
               {state.testStatus === "success" && (
                 <div className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
                   <CheckCircle2 className="h-4 w-4" />
-                  {t("addConnection.httpConnection.connectionTest.reachable")}
+                  {state.networkMode === "http"
+                    ? t("addConnection.httpConnection.connectionTest.reachable")
+                    : "Reachable"}
                 </div>
               )}
               {state.testStatus === "failure" && (
                 <div className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
                   <XCircle className="h-4 w-4" />
-                  {t("addConnection.httpConnection.connectionTest.notReachable")}
+                  {state.networkMode === "http"
+                    ? t("addConnection.httpConnection.connectionTest.notReachable")
+                    : "Not reachable"}
                 </div>
               )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {t("addConnection.httpConnection.connectionTest.description")}
+              {state.networkMode === "http"
+                ? t("addConnection.httpConnection.connectionTest.description")
+                : "Uses the Meshtastic TCP stream on port 4403 through the local DMDash bridge."}
             </p>
           </div>
         ),
         validate: () =>
-          urlOrIpv4Schema.safeParse(`${state.protocol}://${state.url}`).success === true &&
-          state.testStatus === "success",
-        build: () => ({
-          type: "http",
-          name: state.name.trim(),
-          url: `${state.protocol}://${state.url.trim()}`,
-        }),
+          state.networkMode === "http"
+            ? urlOrIpv4Schema.safeParse(`${state.protocol}://${state.url}`).success === true &&
+              state.testStatus === "success"
+            : tcpHostValid && tcpPortValid && state.testStatus === "success",
+        build: () =>
+          state.networkMode === "http"
+            ? {
+                type: "http",
+                name: state.name.trim(),
+                url: `${state.protocol}://${state.url.trim()}`,
+              }
+            : {
+                type: "tcp",
+                name: state.name.trim(),
+                host: state.url.trim(),
+                port: tcpPort,
+              },
       },
       bluetooth: {
         placeholder: "My Bluetooth Node",
@@ -527,9 +731,17 @@ export default function AddConnectionDialog({
       isURLHTTPS,
       handlePickBluetooth,
       handlePickSerial,
+      handleDiscoverNetwork,
       handleTestHttp,
+      handleTestTcp,
+      selectDiscoveredDevice,
+      discoveredDevices,
+      discoveryStatus,
       unsupported,
       t,
+      tcpHostValid,
+      tcpPort,
+      tcpPortValid,
     ],
   );
 
