@@ -12,6 +12,7 @@ interface MapProps {
   children?: React.ReactNode;
   onLoad?: (map: MapRef) => void;
   onMouseMove?: (event: MapLayerMouseEvent) => void;
+  onMove?: (event: { viewState: { zoom: number } }) => void;
   onClick?: (event: MapLayerMouseEvent) => void;
   interactiveLayerIds?: string[];
   initialViewState?: {
@@ -26,6 +27,7 @@ export const BaseMap = ({
   onLoad,
   onClick,
   onMouseMove,
+  onMove,
   interactiveLayerIds,
   initialViewState,
 }: MapProps) => {
@@ -69,7 +71,7 @@ export const BaseMap = ({
       renderWorldCopies={false}
       maxPitch={0}
       dragRotate={false}
-      touchZoomRotate={false}
+      touchZoomRotate={true}
       initialViewState={
         initialViewState ?? {
           zoom: 1.8,
@@ -81,6 +83,7 @@ export const BaseMap = ({
       locale={locale}
       interactiveLayerIds={interactiveLayerIds}
       onMouseMove={onMouseMove}
+      onMove={onMove}
       onClick={onClick}
     >
       <AttributionControl

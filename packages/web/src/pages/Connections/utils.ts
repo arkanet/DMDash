@@ -19,6 +19,28 @@ export type DiscoveredNetworkDevice = {
   services: Array<{ protocol: NetworkConnectionMode; port: number }>;
 };
 
+function isPrivateIpv4(host: string): boolean {
+  const parts = host.split(".").map((part) => Number.parseInt(part, 10));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part))) {
+    return false;
+  }
+  const [a, b] = parts;
+  return (
+    a === 10 ||
+    (a === 172 && b !== undefined && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    a === 169 ||
+    a === 127
+  );
+}
+
+export function needsLocalNetworkBridge(host: string): boolean {
+  const pageHost = globalThis.location.hostname;
+  const localPage =
+    pageHost === "localhost" || pageHost.endsWith(".local") || isPrivateIpv4(pageHost);
+  return isPrivateIpv4(host.trim()) && !localPage;
+}
+
 export function createConnectionFromInput(input: NewConnection): Connection {
   const base = {
     id: randId(),
@@ -68,6 +90,9 @@ export async function testTcpReachable(
   timeoutMs = 5000,
 ): Promise<boolean> {
   try {
+    if (needsLocalNetworkBridge(host)) {
+      return false;
+    }
     const protocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
     const params = new URLSearchParams({ host, port: String(port) });
     const ws = new WebSocket(`${protocol}//${globalThis.location.host}/api/tcp/ws?${params}`);

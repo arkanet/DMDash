@@ -38,6 +38,43 @@ const DEVICESTORE_RETENTION_NUM = 10;
 const TRACEROUTE_TARGET_RETENTION_NUM = 100; // Number of traceroutes targets to keep
 const TRACEROUTE_ROUTE_RETENTION_NUM = 100; // Number of traceroutes to keep per target
 const WAYPOINT_RETENTION_NUM = 100;
+const UNREAD_SESSION_PREFIX = "darkmesh-unread-counts:";
+
+function getUnreadSessionKey(deviceId: number) {
+  return `${UNREAD_SESSION_PREFIX}${deviceId}`;
+}
+
+function loadUnreadCounts(deviceId: number): Map<number, number> {
+  if (typeof window === "undefined") return new Map();
+
+  try {
+    const raw = window.sessionStorage.getItem(getUnreadSessionKey(deviceId));
+    if (!raw) return new Map();
+    const entries = JSON.parse(raw) as Array<[number, number]>;
+    return new Map(
+      entries
+        .map(([key, value]) => [Number(key), Number(value)] as const)
+        .filter(([, value]) => Number.isFinite(value) && value > 0),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+function saveUnreadCounts(deviceId: number, counts: Map<number, number>) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const entries = Array.from(counts.entries()).filter(([, value]) => value > 0);
+    if (entries.length === 0) {
+      window.sessionStorage.removeItem(getUnreadSessionKey(deviceId));
+      return;
+    }
+    window.sessionStorage.setItem(getUnreadSessionKey(deviceId), JSON.stringify(entries));
+  } catch {
+    // ignore storage failures
+  }
+}
 
 type DeviceData = {
   // Persisted data
@@ -217,7 +254,7 @@ function deviceFactory(
     },
     pendingSettingsChanges: false,
     messageDraft: "",
-    unreadCounts: new Map(),
+    unreadCounts: loadUnreadCounts(id),
     clientNotifications: [],
 
     setStatus: (status: Types.DeviceStatusEnum) => {
@@ -661,6 +698,7 @@ function deviceFactory(
           }
           const currentCount = device.unreadCounts.get(nodeNum) ?? 0;
           device.unreadCounts.set(nodeNum, currentCount + 1);
+          saveUnreadCounts(id, device.unreadCounts);
         }),
       );
     },
@@ -693,6 +731,7 @@ function deviceFactory(
           if (device.unreadCounts.get(nodeNum) === 0) {
             device.unreadCounts.delete(nodeNum);
           }
+          saveUnreadCounts(id, device.unreadCounts);
         }),
       );
     },

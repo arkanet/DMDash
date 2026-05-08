@@ -30,6 +30,55 @@ export function groupNodesByIdenticalCoords(
   return map;
 }
 
+function cellSizeForZoom(zoom: number): number | undefined {
+  if (zoom >= 12) {
+    return undefined;
+  }
+  if (zoom >= 10) {
+    return 0.025;
+  }
+  if (zoom >= 8) {
+    return 0.08;
+  }
+  if (zoom >= 6) {
+    return 0.25;
+  }
+  if (zoom >= 4) {
+    return 0.75;
+  }
+  return 2;
+}
+
+export function groupNodesByZoomGrid(
+  nodes: Protobuf.Mesh.NodeInfo[],
+  zoom: number,
+): Map<ClusterKey, Protobuf.Mesh.NodeInfo[]> {
+  const cellSize = cellSizeForZoom(zoom);
+  if (!cellSize) {
+    return groupNodesByIdenticalCoords(nodes);
+  }
+
+  const map = new Map<ClusterKey, Protobuf.Mesh.NodeInfo[]>();
+  for (const node of nodes) {
+    const position = node.position;
+    if (!position || !hasPos(position)) {
+      continue;
+    }
+
+    const [lng, lat] = toLngLat(position);
+    const latCell = Math.round(lat / cellSize);
+    const lngCell = Math.round(lng / cellSize);
+    const key = `${latCell},${lngCell},${cellSize}`;
+    const arr = map.get(key);
+    if (arr) {
+      arr.push(node);
+    } else {
+      map.set(key, [node]);
+    }
+  }
+  return map;
+}
+
 export function hashToAngle(key: string): number {
   // djb2
   let h = 5381;

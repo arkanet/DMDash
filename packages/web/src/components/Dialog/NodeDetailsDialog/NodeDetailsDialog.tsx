@@ -124,6 +124,15 @@ export const NodeDetailsDialog = ({
   const [showNeighborPanel, setShowNeighborPanel] = useState(false);
   const [showEnvPanel, setShowEnvPanel] = useState(false);
   const [nestedStack, setNestedStack] = useState<number[]>([]);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 950px)");
+    const sync = () => setIsMobileViewport(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   // Notifications store (pulled at top-level to avoid conditional hooks)
   const notificationsConfig = useNotificationsStore((s) => s.config);
@@ -428,7 +437,8 @@ export const NodeDetailsDialog = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           aria-describedby={undefined}
-          style={{ transform: `translateX(${offsetPercent}%)` }}
+          className="max-md:inset-0 max-md:h-dvh max-md:max-h-dvh max-md:w-screen max-md:max-w-none max-md:rounded-none"
+          style={isMobileViewport ? undefined : { transform: `translateX(${offsetPercent}%)` }}
         >
           <DialogClose />
           <DialogHeader className="items-center text-center">

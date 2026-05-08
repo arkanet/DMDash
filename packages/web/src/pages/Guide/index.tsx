@@ -80,6 +80,33 @@ function rewriteGuideHtml(html: string, assetBase: string): string {
     }
   });
 
+  const mobileFullscreenStyle = documentNode.createElement("style");
+  mobileFullscreenStyle.textContent = `
+    @media (max-width: 950px) {
+      html,
+      body {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+      }
+
+      body > *,
+      main,
+      article,
+      section,
+      .container,
+      .page,
+      .guide,
+      .guide-shell,
+      .guide-page {
+        width: 100% !important;
+        max-width: none !important;
+      }
+    }
+  `;
+  documentNode.head.append(mobileFullscreenStyle);
+
   const anchorScript = documentNode.createElement("script");
   anchorScript.textContent = `
     (() => {
@@ -203,11 +230,11 @@ export default function GuidePage({ variant = "landing" }: GuidePageProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-1 bg-[#090909]">
+    <div className="flex min-h-screen w-screen flex-1 bg-[#090909] max-md:h-dvh max-md:min-h-dvh max-md:w-[calc(100dvw/0.75)]">
       <iframe
         title={config.title}
         srcDoc={srcDoc}
-        className="h-screen w-full border-0 bg-[#090909]"
+        className="h-screen w-full border-0 bg-[#090909] max-md:h-[calc(100dvh/0.75)]"
       />
     </div>
   );

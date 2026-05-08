@@ -2,6 +2,7 @@ import { DialogManager } from "@components/Dialog/DialogManager.tsx";
 import type { useAppStore, useMessageStore } from "@core/stores";
 import DarkMeshDashboardPage from "@app/darkmesh/DashboardPage.tsx";
 import { Connections } from "@pages/Connections/index.tsx";
+import ChannelsPage from "@pages/ChannelsPage.tsx";
 import GuidePage from "@pages/Guide/index.tsx";
 import React from "react";
 const MapPage = React.lazy(() => import("@pages/Map/index.tsx"));
@@ -178,6 +179,12 @@ const scheduledMessagesRoute = createRoute({
   component: ScheduledMessagesPage,
 });
 
+const channelsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/channels",
+  component: ChannelsPage,
+});
+
 const dialogWithParamsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dialog/$dialogId",
@@ -241,6 +248,7 @@ export const routeTree = rootRoute.addChildren([
   ]),
   nodesRoute,
   scheduledMessagesRoute,
+  channelsRoute,
   dialogWithParamsRoute,
   connectionsRoute,
   guideRoute,

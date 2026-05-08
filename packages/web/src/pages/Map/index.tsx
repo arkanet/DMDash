@@ -37,6 +37,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { Layer, Source, type MapLayerMouseEvent, useMap } from "react-map-gl/maplibre";
 import useTracerouteStore from "@core/stores/tracerouteStore";
+import { useParams } from "@tanstack/react-router";
 
 function buildTraceCoordinates(
   nodes: Array<Protobuf.Mesh.NodeInfo | undefined>,
@@ -69,15 +70,22 @@ const MapPage: React.FC = () => {
   const connection = device.connection;
   const { toast } = useToast();
   const { t } = useTranslation();
+  const mapParams = useParams({ strict: false }) as {
+    long?: number;
+    lat?: number;
+    zoom?: number;
+  };
   const { theme } = useTheme();
   const traceroutePanelTheme = getTraceroutePanelTheme(theme === "dark");
   // derived store selectors and local UI state
   const deviceId = device.id;
   const selectedTraceRoute = useDarkMeshStore((s) => s.selectedTraceRoute);
+  const highlightedNeighborNodeFromStore = useDarkMeshStore((s) => s.highlightedNeighborNode);
   const pendingTraceRouteTarget = useDarkMeshStore(
     (s) => s.pendingTraceRouteTargetByDevice[deviceId],
   );
   const clearSelectedTraceRoute = useDarkMeshStore((s) => s.setSelectedTraceRoute);
+  const setStoredHighlightedNeighborNode = useDarkMeshStore((s) => s.setHighlightedNeighborNode);
   const setPendingTraceRouteTarget = useDarkMeshStore((s) => s.setPendingTraceRouteTarget);
   const setPendingTraceRouteRequest = useDarkMeshStore((s) => s.setPendingTraceRouteRequest);
 
@@ -91,6 +99,7 @@ const MapPage: React.FC = () => {
   );
 
   const [expandedCluster, setExpandedCluster] = useState<string | undefined>(undefined);
+  const [mapZoom, setMapZoom] = useState(1.8);
 
   // map helpers / refs
   const { default: mapRef } = useMap();
@@ -128,6 +137,14 @@ const MapPage: React.FC = () => {
   const [highlightedNeighborNode, setHighlightedNeighborNode] = useState<number | undefined>(
     undefined,
   );
+
+  useEffect(() => {
+    if (highlightedNeighborNodeFromStore === undefined) {
+      return;
+    }
+
+    setHighlightedNeighborNode(highlightedNeighborNodeFromStore);
+  }, [highlightedNeighborNodeFromStore]);
 
   const selectedNodeLinks = useMemo(() => {
     const nodeNum = highlightedNeighborNode;
@@ -314,7 +331,10 @@ const MapPage: React.FC = () => {
     }
 
     if (features.length === 0) return undefined;
-    return { type: "FeatureCollection", features } as unknown as GeoJSON.FeatureCollection;
+    return {
+      type: "FeatureCollection",
+      features,
+    } as unknown as GeoJSON.FeatureCollection;
   }, [device.traceroutes, getNode]);
 
   // Automatically request positions for missing endpoints (cooldown 60s)
@@ -326,7 +346,9 @@ const MapPage: React.FC = () => {
       (selectedNodeLinks as unknown as { missing?: number[] })?.missing ?? [];
     if (!missing || missing.length === 0) return;
     if (!connection || typeof connection.requestPosition !== "function") {
-      toast({ title: t("toast.positionRequestError", "Unable to request GPS data") });
+      toast({
+        title: t("toast.positionRequestError", "Unable to request GPS data"),
+      });
       return;
     }
 
@@ -358,7 +380,11 @@ const MapPage: React.FC = () => {
       }
     });
 
-    toast({ title: t("toast.requestingPosition.title", "Requesting GPS data...", { ns: "ui" }) });
+    toast({
+      title: t("toast.requestingPosition.title", "Requesting GPS data...", {
+        ns: "ui",
+      }),
+    });
   }, [selectedNodeLinks, connection, toast, t]);
 
   // Node markers & clusters
@@ -378,13 +404,20 @@ const MapPage: React.FC = () => {
 
           // if we already have GPS, open node popup/dialog
           if (node && node.position && hasPos(node.position)) {
-            setPopupState({ type: "node", num: nodeNum, offset: [0, 0], preventAutoPan: true });
+            setPopupState({
+              type: "node",
+              num: nodeNum,
+              offset: [0, 0],
+              preventAutoPan: true,
+            });
             return;
           }
 
           // otherwise request GPS from device, wait for position packet then open dialog
           if (!connection || typeof connection.requestPosition !== "function") {
-            toast({ title: t("toast.positionRequestError", "Unable to request GPS data") });
+            toast({
+              title: t("toast.positionRequestError", "Unable to request GPS data"),
+            });
             return;
           }
 
@@ -449,7 +482,11 @@ const MapPage: React.FC = () => {
             // timeout
             setTimeout(() => {
               connection.events.onPositionPacket.unsubscribe(onPos);
-              toast({ title: t("toast.positionRequestMissing", "GPS data missing", { ns: "ui" }) });
+              toast({
+                title: t("toast.positionRequestMissing", "GPS data missing", {
+                  ns: "ui",
+                }),
+              });
             }, 15000);
           })();
         }
@@ -558,6 +595,18 @@ const MapPage: React.FC = () => {
       return Number(zoom.toFixed(2));
     };
 
+    if (
+      typeof mapParams.lat === "number" &&
+      typeof mapParams.long === "number" &&
+      typeof mapParams.zoom === "number"
+    ) {
+      return {
+        latitude: mapParams.lat,
+        longitude: mapParams.long,
+        zoom: mapParams.zoom,
+      } as const;
+    }
+
     if (myNode && myNode.position && hasPos(myNode.position)) {
       const [lng, lat] = toLngLat(myNode.position);
       return {
@@ -575,7 +624,7 @@ const MapPage: React.FC = () => {
       longitude: romeLng,
       zoom: computeZoomForSpanKm(spanKm, romeLat),
     } as const;
-  }, [myNode]);
+  }, [mapParams.lat, mapParams.long, mapParams.zoom, myNode]);
 
   const tracerouteOverlay = useMemo(() => {
     if (!selectedTraceRoute) {
@@ -718,18 +767,27 @@ const MapPage: React.FC = () => {
 
       if (node && node.position && hasPos(node.position)) {
         focusLngLat(toLngLat(node.position));
-        setPopupState({ type: "node", num: nodeNum, offset: [0, 0], preventAutoPan: true });
+        setPopupState({
+          type: "node",
+          num: nodeNum,
+          offset: [0, 0],
+          preventAutoPan: true,
+        });
         return;
       }
 
       if (!connection || typeof connection.requestPosition !== "function") {
-        toast({ title: t("toast.positionRequestError", "Unable to request GPS data") });
+        toast({
+          title: t("toast.positionRequestError", "Unable to request GPS data"),
+        });
         return;
       }
 
       (async () => {
         toast({
-          title: t("toast.requestingPosition.title", "Requesting GPS data...", { ns: "ui" }),
+          title: t("toast.requestingPosition.title", "Requesting GPS data...", {
+            ns: "ui",
+          }),
         });
         try {
           await connection.requestPosition(nodeNum);
@@ -748,10 +806,17 @@ const MapPage: React.FC = () => {
               const n = getNode(nodeNum);
               if (n && n.position && hasPos(n.position)) {
                 focusLngLat(toLngLat(n.position));
-                setPopupState({ type: "node", num: nodeNum, offset: [0, 0], preventAutoPan: true });
+                setPopupState({
+                  type: "node",
+                  num: nodeNum,
+                  offset: [0, 0],
+                  preventAutoPan: true,
+                });
               }
               toast({
-                title: t("toast.positionRequestReceived", "GPS data received", { ns: "ui" }),
+                title: t("toast.positionRequestReceived", "GPS data received", {
+                  ns: "ui",
+                }),
               });
             }
           } catch {
@@ -763,7 +828,11 @@ const MapPage: React.FC = () => {
 
         setTimeout(() => {
           connection.events.onPositionPacket.unsubscribe(onPos);
-          toast({ title: t("toast.positionRequestMissing", "GPS data missing", { ns: "ui" }) });
+          toast({
+            title: t("toast.positionRequestMissing", "GPS data missing", {
+              ns: "ui",
+            }),
+          });
         }, 15000);
       })();
     },
@@ -782,6 +851,7 @@ const MapPage: React.FC = () => {
     () => (
       <NodesLayer
         mapRef={mapRef}
+        mapZoom={mapZoom}
         filteredNodes={filteredNodes}
         myNode={myNode}
         expandedCluster={expandedCluster}
@@ -795,7 +865,11 @@ const MapPage: React.FC = () => {
             : undefined
         }
         onHighlightNeighbors={(num) =>
-          setHighlightedNeighborNode((prev) => (prev === num ? undefined : num))
+          setHighlightedNeighborNode((prev) => {
+            const next = prev === num ? undefined : num;
+            setStoredHighlightedNeighborNode(next);
+            return next;
+          })
         }
         highlightedNeighborNode={highlightedNeighborNode}
       />
@@ -804,11 +878,13 @@ const MapPage: React.FC = () => {
       filteredNodes,
       expandedCluster,
       mapRef,
+      mapZoom,
       myNode,
       popupState,
       tracerouteOverlay,
       visibilityState.nodeMarkers,
       highlightedNeighborNode,
+      setStoredHighlightedNeighborNode,
     ],
   );
 
@@ -938,6 +1014,8 @@ const MapPage: React.FC = () => {
         setVisibilityState((s) => ({ ...s, traceroutes: false }));
         // also clear pinned node selection
         setPinnedPopupNode(undefined);
+        setHighlightedNeighborNode(undefined);
+        setStoredHighlightedNeighborNode(undefined);
       } catch {
         // ignore
       }
@@ -951,7 +1029,7 @@ const MapPage: React.FC = () => {
         // ignore
       }
     };
-  }, [mapRef, clearSelectedTraceRoute, setVisibilityState]);
+  }, [mapRef, clearSelectedTraceRoute, setVisibilityState, setStoredHighlightedNeighborNode]);
 
   // When a popupState switches to a node, pin that node so links persist after popup close
   useEffect(() => {
@@ -968,9 +1046,9 @@ const MapPage: React.FC = () => {
       leftBar={<Sidebar />}
       headerContent={<GatewayHeader />}
     >
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
         {showTraceroutePanel && (
-          <aside className="w-52 lg:w-64 shrink-0 border-r border-slate-300 bg-background px-2 py-3 text-balance dark:border-slate-700">
+          <aside className="absolute bottom-2 left-2 top-2 z-30 w-52 shrink-0 overflow-y-auto rounded-xl border border-slate-300 bg-background/95 px-2 py-3 text-balance shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 md:static md:block md:h-auto md:rounded-none md:border-y-0 md:border-l-0 md:bg-background md:shadow-none md:backdrop-blur-none lg:w-64">
             {tracerouteOverlay ? (
               <VisualTracerouteCard
                 traceroute={tracerouteOverlay.trace}
@@ -1022,6 +1100,7 @@ const MapPage: React.FC = () => {
             initialViewState={initialMapView}
             onLoad={getMapBounds}
             onMouseMove={onMouseMove}
+            onMove={(event) => setMapZoom(event.viewState.zoom)}
             onClick={onMapBackgroundClick}
             interactiveLayerIds={[
               `${heatmapLayerElementId}-interaction`,
@@ -1179,7 +1258,10 @@ const MapPage: React.FC = () => {
                       const mid2 = coords[Math.floor(coords.length * 0.15)];
                       pts.push({
                         type: "Feature",
-                        geometry: { type: "Point", coordinates: mid2 as [number, number] },
+                        geometry: {
+                          type: "Point",
+                          coordinates: mid2 as [number, number],
+                        },
                         properties: {
                           text: "◀",
                           angle: 180,

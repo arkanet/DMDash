@@ -79,6 +79,7 @@ export const mockDeviceStore: Device = {
   incrementUnread: vi.fn(),
   resetUnread: vi.fn(),
   sendAdminMessage: vi.fn(),
+  sendNeighborInfoRequest: vi.fn(),
   addClientNotification: vi.fn(),
   removeClientNotification: vi.fn(),
   getClientNotification: vi.fn(),

@@ -26,6 +26,8 @@
 
 
 @theme {
+  --breakpoint-md: 950px;
+
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
@@ -59,6 +61,7 @@
   --textSecondary: #475569;
   --link: #991b1b;
   --gateway-bg: #f1f1f1;
+  --darkmesh-action-color: #00bcd4;
   --color-zinc-100: #0b1220;
   --color-gray-800: #0b1220;
 
@@ -76,12 +79,23 @@
   --textSecondary: #a1a1aa;
   --link: #fafafa;
   --gateway-bg: #222;
+  --darkmesh-action-color: #00bcd4;
   --color-zinc-100: #e6eef8;
   --color-gray-800: #1f2937;
 
   --brightnessHover: 1.1;
   --brightnessPress: 0.9;
   --brightnessDisabled: 0.75;
+}
+
+@keyframes darkmesh-connection-progress {
+  from {
+    transform: translateX(-65%);
+  }
+
+  to {
+    transform: translateX(165%);
+  }
 }
 
 /* Accordion Animations */
@@ -120,12 +134,34 @@ body {
   height: 100%;
 }
 
+#root {
+  height: 100%;
+}
+
 body {
   font-family: var(--font-sans);
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 22%),
     radial-gradient(circle at bottom right, rgba(127, 29, 29, 0.12), transparent 24%),
     var(--backgroundPrimary);
+}
+
+@media (max-width: 950px) {
+  body {
+    zoom: 0.75;
+    width: 133.333vw;
+    height: 133.333vh;
+  }
+
+  #root {
+    width: 133.333vw;
+    height: 133.333vh;
+  }
+
+  .mobile-viewport-fill {
+    height: calc(100dvh / 0.75);
+    min-height: calc(100dvh / 0.75);
+  }
 }
 
 

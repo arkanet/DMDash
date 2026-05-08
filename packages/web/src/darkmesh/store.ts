@@ -58,12 +58,20 @@ export interface GatewaySnapshot {
 
 export type TraceRouteSelection = Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>;
 
+export interface NeighborDiscoveryRecord {
+  id: string;
+  nodeNum: number;
+  observedAt: number;
+  neighborInfo: Protobuf.Mesh.NeighborInfo;
+}
+
 interface DarkMeshPersistedState {
   schedules: ScheduledDarkMeshMessage[];
   beaconsByDevice: Record<number, BeaconConfig>;
   huntByDevice: Record<number, HuntConfig>;
   huntDraftByDevice: Record<number, HuntConfig>;
   selectedTraceRoute?: TraceRouteSelection;
+  neighborDiscoveryByDevice?: Record<number, Record<number, NeighborDiscoveryRecord[]>>;
   tracePriorityByDevice?: Record<number, boolean>;
 }
 
@@ -71,6 +79,7 @@ interface DarkMeshState extends DarkMeshPersistedState {
   pendingTraceRouteTargetByDevice: Record<number, number | undefined>;
   /** Map deviceId -> packet requestId for pending traceroute requests */
   pendingTraceRouteRequestByDevice: Record<number, number | undefined>;
+  highlightedNeighborNode?: number;
   gatewaysByDevice: Record<number, GatewaySnapshot | undefined>;
   tracePriorityByDevice?: Record<number, boolean>;
   setTracePriority: (deviceId: number, enabled: boolean) => void;
@@ -92,6 +101,12 @@ interface DarkMeshState extends DarkMeshPersistedState {
   setHuntError: (deviceId: number, message: string) => void;
   setGateway: (deviceId: number, gateway?: GatewaySnapshot) => void;
   setSelectedTraceRoute: (trace?: TraceRouteSelection) => void;
+  addNeighborDiscoveryRecord: (
+    deviceId: number,
+    nodeNum: number,
+    neighborInfo: Protobuf.Mesh.NeighborInfo,
+  ) => void;
+  setHighlightedNeighborNode: (nodeNum?: number) => void;
   setPendingTraceRouteTarget: (deviceId: number, target?: number) => void;
   setPendingTraceRouteRequest: (deviceId: number, requestId?: number) => void;
 }
@@ -126,6 +141,8 @@ export const useDarkMeshStore = create<DarkMeshState>()(
       huntByDevice: {},
       huntDraftByDevice: {},
       selectedTraceRoute: undefined,
+      neighborDiscoveryByDevice: {},
+      highlightedNeighborNode: undefined,
       pendingTraceRouteTargetByDevice: {},
       pendingTraceRouteRequestByDevice: {},
       gatewaysByDevice: {},
@@ -272,6 +289,32 @@ export const useDarkMeshStore = create<DarkMeshState>()(
           selectedTraceRoute: trace,
         })),
 
+      addNeighborDiscoveryRecord: (deviceId, nodeNum, neighborInfo) =>
+        set((state) => {
+          const byNode = state.neighborDiscoveryByDevice?.[deviceId] ?? {};
+          const previous = byNode[nodeNum] ?? [];
+          const nextRecord: NeighborDiscoveryRecord = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            nodeNum,
+            observedAt: Date.now(),
+            neighborInfo,
+          };
+          return {
+            neighborDiscoveryByDevice: {
+              ...(state.neighborDiscoveryByDevice ?? {}),
+              [deviceId]: {
+                ...byNode,
+                [nodeNum]: [nextRecord, ...previous].slice(0, 100),
+              },
+            },
+          };
+        }),
+
+      setHighlightedNeighborNode: (nodeNum) =>
+        set(() => ({
+          highlightedNeighborNode: nodeNum,
+        })),
+
       setPendingTraceRouteTarget: (deviceId, target) =>
         set((state) => ({
           pendingTraceRouteTargetByDevice: {
@@ -302,6 +345,7 @@ export const useDarkMeshStore = create<DarkMeshState>()(
         huntByDevice: state.huntByDevice,
         huntDraftByDevice: state.huntDraftByDevice,
         selectedTraceRoute: state.selectedTraceRoute,
+        neighborDiscoveryByDevice: state.neighborDiscoveryByDevice,
         tracePriorityByDevice: state.tracePriorityByDevice,
       }),
     },

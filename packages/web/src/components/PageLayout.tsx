@@ -5,6 +5,7 @@ import { cn } from "@core/utils/cn.ts";
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
 import { ErrorBoundary } from "react-error-boundary";
+import { MobileAppNav } from "./MobileAppNav.tsx";
 
 export interface ActionItem {
   key: string;
@@ -22,9 +23,11 @@ export interface PageLayoutProps {
   label: string;
   actions?: ActionItem[];
   headerContent?: React.ReactNode;
+  mobileHeaderContent?: React.ReactNode;
   children: React.ReactNode;
   leftBar?: React.ReactNode;
   rightBar?: React.ReactNode;
+  mobileSubNav?: React.ReactNode;
   noPadding?: boolean;
   leftBarClassName?: string;
   rightBarClassName?: string;
@@ -36,9 +39,11 @@ export const PageLayout = ({
   label: _label,
   actions,
   headerContent,
+  mobileHeaderContent,
   children,
   leftBar,
   rightBar,
+  mobileSubNav,
   noPadding,
   leftBarClassName,
   rightBarClassName,
@@ -52,7 +57,7 @@ export const PageLayout = ({
         {leftBar && (
           <aside
             className={cn(
-              "px-2 pr-0 shrink-0 border-r-[0.5px] border-slate-300 dark:border-slate-700 h-full overflow-y-auto",
+              "hidden px-2 pr-0 shrink-0 border-r-[0.5px] border-slate-300 dark:border-slate-700 h-full overflow-y-auto md:block",
               leftBarClassName,
             )}
           >
@@ -64,12 +69,14 @@ export const PageLayout = ({
           {/* Header */}
           <header
             className={cn(
-              "shrink-0 border-b border-slate-300 dark:border-slate-700",
-              headerContent ? "px-2 pb-2" : "flex h-14 items-center px-2 pb-2",
+              "shrink-0 border-b border-slate-300 dark:border-slate-700 max-md:border-b-0",
+              headerContent
+                ? "px-2 pb-2 max-md:p-0"
+                : "flex h-14 items-center px-2 pb-2 max-md:block max-md:h-auto max-md:p-0",
               topBarClassName,
             )}
           >
-            <div className="flex min-w-0 items-center justify-end">
+            <div className="flex min-w-0 items-center justify-end max-md:hidden">
               <div className="flex items-center space-x-1 md:space-x-2 shrink-0 pr-6">
                 {actions?.map((action) => {
                   return (
@@ -100,27 +107,35 @@ export const PageLayout = ({
                 })}
               </div>
             </div>
-            {headerContent ? <div className="px-2 pt-2">{headerContent}</div> : null}
+            {headerContent ? <div className="px-2 pt-2 max-md:hidden">{headerContent}</div> : null}
+            <MobileAppNav subNav={mobileSubNav} />
+            {mobileHeaderContent ? (
+              <div className="hidden bg-[#101010] px-3 py-3 max-md:block">
+                {mobileHeaderContent}
+              </div>
+            ) : null}
           </header>
 
           <main
             className={cn(
               "flex-1 flex flex-col",
-              "overflow-hidden",
+              "overflow-hidden max-md:overflow-auto",
               !noPadding && "px-2",
               contentClassName,
             )}
           >
             {children}
           </main>
-          <Footer />
+          <div className="max-md:hidden">
+            <Footer />
+          </div>
         </div>
 
         {/* Right Sidebar */}
         {rightBar && (
           <aside
             className={cn(
-              "w-56 lg:w-[270px] text-balance shrink-0 border-l border-slate-300 dark:border-slate-700 px-2 overflow-hidden",
+              "hidden w-56 lg:w-[270px] text-balance shrink-0 border-l border-slate-300 dark:border-slate-700 px-2 overflow-hidden md:block",
               rightBarClassName,
             )}
           >

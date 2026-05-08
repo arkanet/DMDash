@@ -6,6 +6,7 @@ import {
   type DiscoveredNetworkDevice,
   type NetworkConnectionMode,
   discoverNetworkDevices,
+  needsLocalNetworkBridge,
   testHttpReachable,
   testTcpReachable,
 } from "@app/pages/Connections/utils";
@@ -402,6 +403,15 @@ export default function AddConnectionDialog({
       return;
     }
     dispatch({ type: "SET_TEST_STATUS", payload: "testing" });
+    if (needsLocalNetworkBridge(state.url.trim())) {
+      dispatch({ type: "SET_TEST_STATUS", payload: "failure" });
+      toast({
+        title: "Local bridge required",
+        description:
+          "This page is not running on your local network. Start DMDash locally or on a LAN host, then test the private TCP endpoint again.",
+      });
+      return;
+    }
     const reachable = await testTcpReachable(state.url.trim(), tcpPort);
     if (reachable) {
       dispatch({ type: "SET_TEST_STATUS", payload: "success" });

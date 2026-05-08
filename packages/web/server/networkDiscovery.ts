@@ -35,10 +35,11 @@ function answerData(answer: Answer): unknown {
 }
 
 function serviceProtocol(serviceType: string): NetworkProtocol | undefined {
-  if (serviceType === "_http._tcp.local") {
+  const normalized = serviceType.replace(/\.$/, "");
+  if (normalized === "_http._tcp.local") {
     return "http";
   }
-  if (serviceType === "_meshtastic._tcp.local") {
+  if (normalized === "_meshtastic._tcp.local") {
     return "tcp";
   }
   return undefined;
@@ -50,7 +51,9 @@ function normalizeName(name: string): string {
 
 function isLikelyMeshtasticDevice(device: NetworkDiscoveryDevice): boolean {
   const haystack = `${device.id} ${device.name} ${device.host}`.toLowerCase();
-  return haystack.includes("meshtastic");
+  return (
+    haystack.includes("meshtastic") || device.services.some((service) => service.protocol === "tcp")
+  );
 }
 
 function dataString(answer: Answer): string | undefined {
@@ -134,10 +137,11 @@ function collectAnswers(records: Map<string, ServiceRecord>, answers: Answer[]) 
     for (const address of hostAddresses.get(lowerHost) ?? []) {
       addAddress(record, address);
     }
-    if (answer.name.endsWith("._http._tcp.local")) {
+    const answerName = answer.name.replace(/\.$/, "");
+    if (answerName.endsWith("._http._tcp.local")) {
       record.services.set("http", srv.port);
     }
-    if (answer.name.endsWith("._meshtastic._tcp.local")) {
+    if (answerName.endsWith("._meshtastic._tcp.local")) {
       record.services.set("tcp", srv.port);
     }
   }

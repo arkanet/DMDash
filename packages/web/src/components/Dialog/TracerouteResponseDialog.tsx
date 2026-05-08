@@ -7,17 +7,9 @@ import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { TraceRoute } from "../PageComponents/Messages/TraceRoute.tsx";
 import { useTracerouteStore } from "@core/stores/tracerouteStore";
 import { useAppStore } from "@core/stores/appStore";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../UI/Dialog.tsx";
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../UI/Dialog.tsx";
 
 export interface TracerouteResponseDialogProps {
   traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> | undefined;
@@ -50,6 +42,19 @@ export const TracerouteResponseDialog = ({
     return null;
   }
 
+  const rows = [
+    ...[from.num, ...route, toUser.num].map((nodeNum, index) => ({
+      direction: "Forward",
+      nodeNum,
+      snr: snrTowards[index - 1],
+    })),
+    ...[toUser.num, ...routeBack, from.num].map((nodeNum, index) => ({
+      direction: "Back",
+      nodeNum,
+      snr: snrBack[index - 1],
+    })),
+  ].filter((row) => row.nodeNum);
+
   function handleViewOnMap() {
     if (!traceroute) {
       return;
@@ -69,28 +74,63 @@ export const TracerouteResponseDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogClose />
+      <DialogContent className="top-1/2 left-1/2 max-h-[86vh] max-w-[min(92vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]">
+        <DialogClose className="text-zinc-100" />
         <DialogHeader>
-          <DialogTitle>
-            {t("tracerouteResponse.title", {
-              identifier: `${fromLongName} (${fromShortName})`,
-            })}
+          <DialogTitle className="text-center text-4xl font-semibold text-zinc-100 max-md:text-3xl">
+            Traceroute
           </DialogTitle>
+          <p className="text-center text-2xl text-zinc-200 max-md:text-xl">
+            {fromLongName} ({fromShortName})
+          </p>
         </DialogHeader>
-        <DialogDescription>
-          <TraceRoute
-            route={route}
-            routeBack={routeBack}
-            from={{ user: from.user }}
-            to={{ user: toUser.user }}
-            snrTowards={snrTowards}
-            snrBack={snrBack}
-          />
-        </DialogDescription>
-        <div className="mt-4 flex justify-end">
-          <Button size="sm" variant="outline" onClick={handleViewOnMap}>
+        <div className="max-h-[55vh] overflow-y-auto">
+          <table className="w-full border-separate border-spacing-y-1 text-left text-sm">
+            <thead className="text-zinc-100">
+              <tr>
+                <th className="px-2 py-2">Dir</th>
+                <th className="px-2 py-2">Node</th>
+                <th className="px-2 py-2">HEX</th>
+                <th className="px-2 py-2 text-right">SNR</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => {
+                const node = getNode(row.nodeNum);
+                const name = node
+                  ? (getNodeShortName(node) ?? getNodeLongName(node) ?? String(row.nodeNum))
+                  : String(row.nodeNum);
+                const hex = node?.user?.id ?? `!${numberToHexUnpadded(row.nodeNum).toUpperCase()}`;
+                return (
+                  <tr key={`${row.direction}-${row.nodeNum}-${index}`} className="bg-[#2b2b2b]">
+                    <td className="px-2 py-2 text-zinc-300">{row.direction}</td>
+                    <td className="px-2 py-2 font-semibold">{name}</td>
+                    <td className="px-2 py-2 font-mono">{hex}</td>
+                    <td className="px-2 py-2 text-right font-semibold text-[#00e531]">
+                      {row.snr === undefined ? "?" : row.snr.toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-6 flex justify-end gap-6">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)]"
+            onClick={handleViewOnMap}
+          >
             {t("tracerouteResponse.viewOnMap", "View on Map")}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)]"
+            onClick={onOpenChange}
+          >
+            Chiudi
           </Button>
         </div>
       </DialogContent>

@@ -57,18 +57,19 @@ export const PopupWrapper = memo(function SelectedNodePopup({
     };
   }, [lat, lng, mapRef, preventAutoPan]);
 
+  const popupOffset: PxOffset = [offset?.[0] ?? 0, (offset?.[1] ?? 0) - 28];
+
   return (
     <Popup
       ref={popupRef}
-      anchor="top"
+      anchor="bottom"
       longitude={lng}
       latitude={lat}
+      offset={popupOffset}
       onClose={onClose}
       className="darkmesh-map-popup w-full max-w-fit"
       maxWidth="fit-content"
       style={{
-        left: `${offset?.[0] ?? 0}px`,
-        top: `${(offset?.[1] ?? 0) + 22}px`,
         maxWidth: "fit-content",
       }}
     >

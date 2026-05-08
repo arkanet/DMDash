@@ -171,7 +171,11 @@ function getAirTone(value?: number): SignalTone {
   })();
 
   const bg = `hsl(${Math.round(hue)} 85% 45%)`;
-  return { background: bg, label: "rgba(10, 10, 10, 0.7)", value: "rgba(10, 10, 10, 0.94)" };
+  return {
+    background: bg,
+    label: "rgba(10, 10, 10, 0.7)",
+    value: "rgba(10, 10, 10, 0.94)",
+  };
 }
 
 function getChannelTone(value?: number): SignalTone {
@@ -198,7 +202,11 @@ function getChannelTone(value?: number): SignalTone {
   }
 
   const bg = `hsl(${Math.round(hue)} 85% 45%)`;
-  return { background: bg, label: "rgba(10, 10, 10, 0.7)", value: "rgba(10, 10, 10, 0.94)" };
+  return {
+    background: bg,
+    label: "rgba(10, 10, 10, 0.7)",
+    value: "rgba(10, 10, 10, 0.94)",
+  };
 }
 
 function formatConfidence(value?: number): string {
@@ -226,17 +234,20 @@ function SignalMetric({
 
   return (
     <div
-      className={cn("flex flex-1 flex-col justify-center rounded-xl px-2.5 py-1.5", className)}
+      className={cn(
+        "flex flex-1 flex-col justify-center rounded-xl px-2.5 py-1.5 max-md:rounded-md max-md:px-1 max-md:py-0.5",
+        className,
+      )}
       style={{ backgroundColor: effectiveTone.background }}
     >
       <div
-        className="text-[0.7rem] uppercase tracking-[0.14em] md:text-[10px]"
+        className="whitespace-nowrap text-[0.6rem] uppercase tracking-[0.14em] md:text-[10px]"
         style={{ color: effectiveTone.label }}
       >
         {label}
       </div>
       <div
-        className="mt-0.5 text-[0.7rem] font-semibold md:text-[0.8125rem]"
+        className="mt-0.5 whitespace-nowrap text-[0.62rem] font-semibold md:text-[0.8125rem]"
         style={{ color: effectiveTone.value }}
       >
         {value}
@@ -286,7 +297,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
     <div className={cn("w-full", className)}>
       <div
         className={cn(
-          "flex min-h-[92px] w-full overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-500",
+          "flex min-h-[92px] w-full flex-row overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-500 max-md:min-h-[76px] max-md:p-2 md:flex-row",
           highlight ? "border-emerald-400" : "border-zinc-800",
         )}
         style={{
@@ -301,7 +312,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
       >
         <div
           className={cn(
-            "flex min-w-0 flex-1 flex-col justify-center border-r-0 px-3.5 py-3",
+            "flex min-w-0 flex-1 flex-col justify-center border-r-0 px-3.5 py-3 max-md:p-1",
             isDarkTheme ? "text-zinc-100" : "text-zinc-900",
           )}
           style={{
@@ -312,7 +323,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
         >
           <div
             className={cn(
-              "truncate text-[0.7rem] font-semibold md:text-[1rem]",
+              "truncate text-[0.8rem] font-semibold md:text-[1rem]",
               isDarkTheme ? "text-zinc-100" : "text-gray-800",
             )}
             style={{
@@ -323,7 +334,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
           >
             {gateway?.nodeName ?? "No gateway detected yet"}
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[0.7rem] md:text-[0.8125rem]">
+          <div className="mt-1 flex w-full flex-nowrap items-center gap-2 text-[0.68rem] md:mt-1.5 md:w-auto md:text-[0.8125rem]">
             <span className={isDarkTheme ? "text-zinc-400" : "text-zinc-600"}>
               Gateway Relay Confidence:
             </span>
@@ -340,50 +351,54 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
         </div>
 
         <div
-          className="flex w-fit shrink-0 gap-1 items-center p-0.5"
+          className="ml-auto grid w-[60%] max-w-[25%] shrink-0 grid-cols-2 justify-end gap-0.5 p-1 max-md:self-stretch max-md:p-0 md:flex md:w-fit md:max-w-none md:items-center md:p-0.5"
           style={{
             backgroundColor: `var(--gateway-bg, ${isDarkTheme ? "#222" : "#f1f1f1"})`,
           }}
         >
-          <SignalMetric
-            label="SNR"
-            value={formatSnr(gateway?.rxSnr)}
-            tone={snrTone}
-            isDarkTheme={isDarkTheme}
-            className="mr-1 mb-1 w-30"
-          />
+          <div className="flex min-w-0 flex-col gap-1 md:contents">
+            <SignalMetric
+              label="SNR"
+              value={formatSnr(gateway?.rxSnr)}
+              tone={snrTone}
+              isDarkTheme={isDarkTheme}
+              className="min-w-0 md:mr-1 md:mb-1 md:w-30"
+            />
 
-          <SignalMetric
-            label="RSSI"
-            value={formatRssi(gateway?.rxRssi)}
-            tone={rssiTone}
-            isDarkTheme={isDarkTheme}
-            className="mr-1 mb-1 w-30"
-          />
+            <SignalMetric
+              label="RSSI"
+              value={formatRssi(gateway?.rxRssi)}
+              tone={rssiTone}
+              isDarkTheme={isDarkTheme}
+              className="min-w-0 md:mr-1 md:mb-1 md:w-30"
+            />
+          </div>
 
-          <SignalMetric
-            label="AirUtl"
-            value={formatPercent(gateway?.deviceMetrics?.airUtilTx)}
-            tone={
-              gateway?.deviceMetrics?.airUtilTx === undefined
-                ? getMissingMetricTone(isDarkTheme)
-                : getAirTone(gateway?.deviceMetrics?.airUtilTx)
-            }
-            isDarkTheme={isDarkTheme}
-            className="mr-1 mb-1"
-          />
+          <div className="flex min-w-0 flex-col gap-1 md:contents">
+            <SignalMetric
+              label="AirUtl"
+              value={formatPercent(gateway?.deviceMetrics?.airUtilTx)}
+              tone={
+                gateway?.deviceMetrics?.airUtilTx === undefined
+                  ? getMissingMetricTone(isDarkTheme)
+                  : getAirTone(gateway?.deviceMetrics?.airUtilTx)
+              }
+              isDarkTheme={isDarkTheme}
+              className="min-w-0 md:mr-1 md:mb-1"
+            />
 
-          <SignalMetric
-            label="ChUtl"
-            value={formatPercent(gateway?.deviceMetrics?.channelUtilization)}
-            tone={
-              gateway?.deviceMetrics?.channelUtilization === undefined
-                ? getMissingMetricTone(isDarkTheme)
-                : getChannelTone(gateway?.deviceMetrics?.channelUtilization)
-            }
-            isDarkTheme={isDarkTheme}
-            className="mr-1 mb-1"
-          />
+            <SignalMetric
+              label="ChUtl"
+              value={formatPercent(gateway?.deviceMetrics?.channelUtilization)}
+              tone={
+                gateway?.deviceMetrics?.channelUtilization === undefined
+                  ? getMissingMetricTone(isDarkTheme)
+                  : getChannelTone(gateway?.deviceMetrics?.channelUtilization)
+              }
+              isDarkTheme={isDarkTheme}
+              className="min-w-0 md:mr-1 md:mb-1"
+            />
+          </div>
         </div>
       </div>
     </div>

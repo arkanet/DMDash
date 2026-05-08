@@ -266,10 +266,9 @@ export const SNRTooltip = ({
   return (
     <div
       className={cn(
-        "absolute block p-2 px-3 text-sm bg-white dark:bg-slate-800 rounded-lg shadow snr-tooltip",
+        "absolute bottom-6 left-1/2 z-30 block w-[min(22rem,calc(100%-2rem))] -translate-x-1/2 rounded-lg bg-white p-2 px-3 text-sm shadow dark:bg-slate-800 snr-tooltip",
         "",
       )}
-      style={{ left: `${pos.x + 5}px`, top: `${pos.y + 10}px` }}
       aria-hidden={!pos}
     >
       <div>

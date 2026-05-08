@@ -69,8 +69,15 @@ export const NodeMarker = memo(function NodeMarker({
               style={style}
               onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
             >
+              <span className="hidden h-10 w-8 flex-col items-center max-md:flex">
+                <span className="relative flex size-8 items-center justify-center rounded-full border-2 border-white bg-[#2f8fe8] shadow-[0_2px_5px_rgba(0,0,0,0.45)]">
+                  <span className="size-2.5 rounded-full bg-white" />
+                </span>
+                <span className="-mt-1 h-4 w-4 rotate-45 rounded-br-full bg-[#2f8fe8] shadow-[2px_2px_3px_rgba(0,0,0,0.25)]" />
+              </span>
               <Avatar
                 nodeNum={id}
+                className="max-md:hidden"
                 avatarClassName={cn(
                   "border-[1.5px] border-slate-600 shadow-m shadow-slate-600",
                   avatarClassName,
@@ -96,7 +103,7 @@ export const NodeMarker = memo(function NodeMarker({
       {showLabel && label && (
         <button
           type="button"
-          className="absolute top-16 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-white/75 px-2 py-0.5 text-[10px] font-medium text-slate-900 backdrop-blur-xs cursor-pointer"
+          className="absolute top-16 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-900 backdrop-blur-xs cursor-pointer max-md:top-7 max-md:text-sm"
           style={style}
           onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
         >

@@ -50,6 +50,8 @@ const DARKMESH_RETURN_LINKS = [
   { href: "https://mesh.loracity.it/", label: "BLOG" },
 ] as const;
 
+const DARKMESH_ACTION_COLOR = "#00bcd4";
+
 export const Connections = () => {
   const {
     connections,
@@ -105,37 +107,39 @@ export const Connections = () => {
       <div className="mx-auto space-y-6">
         <header className="rounded-[28px] border border-white/10 bg-[#141414]/92 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-sm">
           <div className="flex flex-col gap-5">
-            <div className="flex flex-wrap items-center gap-4 md:flex-nowrap">
-              <div className="flex md:basis-1/3 md:justify-start">
+            <div className="grid items-start gap-4 md:grid-cols-[auto_1fr_auto]">
+              <div className="flex justify-center md:justify-start">
                 <img
                   src="/darkmesh-dashboard-logo.png"
                   alt="DarkMesh Dashboard"
                   className="h-20 w-20 rounded-2xl border border-white/10 bg-black/80 p-2 shadow-[0_0_30px_rgba(255,255,255,0.06)]"
                 />
               </div>
-              <div className="flex min-w-0 flex-1 justify-start md:basis-1/3 md:justify-center">
-                <h1 className="text-left text-3xl font-semibold uppercase tracking-[0.16em] text-white md:text-center md:text-4xl">
+              <div className="flex min-w-0 flex-col items-center gap-3">
+                <h1 className="whitespace-nowrap text-center text-[clamp(1.35rem,7vw,2.85rem)] font-semibold uppercase tracking-[0.16em] text-white">
                   {t("page.title")}
                 </h1>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 md:basis-1/3 md:justify-end">
-                {hasConnectedDevice ? (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {hasConnectedDevice ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate({ to: "/map" })}
+                      className="gap-2 border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
+                    >
+                      <ArrowLeft className="size-4" />
+                      {t("button.backToApp", "Back to app")}
+                    </Button>
+                  ) : null}
                   <Button
-                    variant="outline"
-                    onClick={() => navigate({ to: "/map" })}
-                    className="gap-2 border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
+                    onClick={() => setAddOpen(true)}
+                    className="gap-2 border border-[#7a2424] bg-[#551717] text-zinc-100 hover:bg-[#6c1d1d]"
                   >
-                    <ArrowLeft className="size-4" />
-                    {t("button.backToApp", "Back to app")}
+                    <RouterIcon className="size-5" />
+                    {t("button.addConnection")}
                   </Button>
-                ) : null}
-                <Button
-                  onClick={() => setAddOpen(true)}
-                  className="gap-2 border border-[#7a2424] bg-[#551717] text-zinc-100 hover:bg-[#6c1d1d]"
-                >
-                  <RouterIcon className="size-5" />
-                  {t("button.addConnection")}
-                </Button>
+                </div>
+              </div>
+              <div className="flex justify-center md:justify-end">
                 <LanguageSwitcher />
               </div>
             </div>
@@ -354,8 +358,6 @@ function ConnectionCard({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <ConnectionStatusBadge status={connection.status} />
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -363,7 +365,7 @@ function ConnectionCard({
                   <span className="sr-only">{t("moreActions")}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" sideOffset={8}>
                 {connection.type === "http" && connection.isDefault && (
                   <DropdownMenuItem className="gap-2" onClick={() => onSetDefault()}>
                     <StarOff className="size-4" />
@@ -406,19 +408,25 @@ function ConnectionCard({
                 </AlertDialog>
               </DropdownMenuContent>
             </DropdownMenu>
+            <ConnectionStatusBadge status={connection.status} />
           </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
+        {isBusy ? <ConnectionProgressBar status={connection.status} /> : null}
         {connection.error ? (
-          <p className="text-sm text-red-400">{connection.error}</p>
+          <p className={isBusy ? "mt-3 text-sm text-red-400" : "text-sm text-red-400"}>
+            {connection.error}
+          </p>
         ) : connection.lastConnectedAt ? (
-          <p className="text-sm text-zinc-400">
+          <p className={isBusy ? "mt-3 text-sm text-zinc-400" : "text-sm text-zinc-400"}>
             {t("lastConnectedAt", { date: "" })}{" "}
             <TimeAgo timestamp={connection.lastConnectedAt} className="text-sm text-zinc-400" />
           </p>
         ) : (
-          <p className="text-sm text-zinc-400">{t("neverConnected")}</p>
+          <p className={isBusy ? "mt-3 text-sm text-zinc-400" : "text-sm text-zinc-400"}>
+            {t("neverConnected")}
+          </p>
         )}
       </CardContent>
       <CardFooter className="flex items-center gap-2 mt-auto">
@@ -452,5 +460,44 @@ function ConnectionCard({
         )}
       </CardFooter>
     </Card>
+  );
+}
+
+function ConnectionProgressBar({ status }: { status: Connection["status"] }) {
+  const { t } = useTranslation("connections");
+  const [startedAt, setStartedAt] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const nextStartedAt = Date.now();
+    setStartedAt(nextStartedAt);
+    setNow(nextStartedAt);
+
+    const interval = window.setInterval(() => setNow(Date.now()), 120);
+    return () => window.clearInterval(interval);
+  }, [status]);
+
+  const elapsedMs = Math.max(0, now - startedAt);
+  const estimateMs = status === "configuring" ? 18_000 : 10_000;
+  const progress = Math.min(96, Math.max(6, (elapsedMs / estimateMs) * 100));
+  const elapsedSeconds = Math.floor(elapsedMs / 1000);
+  const label =
+    status === "configuring"
+      ? t("status.configuring", "Configuring device")
+      : t("status.connecting", "Connecting to device");
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-3 text-xs font-medium text-zinc-400">
+        <span>{label}</span>
+        <span>{elapsedSeconds}s</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full transition-[width] duration-150 ease-linear"
+          style={{ width: `${progress}%`, backgroundColor: DARKMESH_ACTION_COLOR }}
+        />
+      </div>
+    </div>
   );
 }

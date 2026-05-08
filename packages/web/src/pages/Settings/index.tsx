@@ -293,6 +293,46 @@ const ConfigPage = () => {
     [sections, activeSection?.key, navigate, t, setDialogOpen, isRemote],
   );
 
+  const mobileSubNav = (
+    <div className="flex items-center gap-1 overflow-x-auto">
+      {sections.map((section) => {
+        const Icon = section.icon;
+        const active = activeSection?.key === section.key;
+        return (
+          <button
+            key={section.key}
+            type="button"
+            onClick={() => navigate({ to: section.route.to })}
+            className={cn(
+              "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium",
+              active
+                ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800",
+            )}
+          >
+            <Icon className="size-4" />
+            <span className="whitespace-nowrap">{section.label}</span>
+            {section.changeCount > 0 ? (
+              <span className="rounded-full bg-blue-500 px-1.5 text-[0.65rem] leading-4 text-white">
+                {section.changeCount}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+      {!isRemote ? (
+        <button
+          type="button"
+          onClick={() => setDialogOpen("nodeImport", true)}
+          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <RefreshCwIcon className="size-4" />
+          <span className="whitespace-nowrap">{t("navigation.nodeImport", "Node Import")}</span>
+        </button>
+      ) : null}
+    </div>
+  );
+
   const hasDrafts =
     getConfigChangeCount() > 0 ||
     getModuleConfigChangeCount() > 0 ||
@@ -363,6 +403,7 @@ const ConfigPage = () => {
       leftBar={leftSidebar}
       label={activeSection?.label ?? ""}
       actions={actions}
+      mobileSubNav={mobileSubNav}
     >
       {ActiveComponent && <ActiveComponent onFormInit={onFormInit} />}
     </PageLayout>

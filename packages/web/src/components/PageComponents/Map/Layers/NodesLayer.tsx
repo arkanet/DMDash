@@ -1,6 +1,6 @@
 import {
   fanOutOffsetsPx,
-  groupNodesByIdenticalCoords,
+  groupNodesByZoomGrid,
   type PxOffset,
 } from "@components/PageComponents/Map/cluster.ts";
 import {
@@ -23,6 +23,7 @@ import type { MapRef } from "react-map-gl/maplibre";
 
 export interface NodeMarkerProps {
   mapRef: MapRef | undefined;
+  mapZoom: number;
   filteredNodes: Protobuf.Mesh.NodeInfo[];
   myNode: Protobuf.Mesh.NodeInfo | undefined;
   expandedCluster: string | undefined;
@@ -37,6 +38,7 @@ export interface NodeMarkerProps {
 
 export const NodesLayer = ({
   mapRef: _mapRef,
+  mapZoom,
   filteredNodes,
   myNode,
   expandedCluster,
@@ -69,7 +71,7 @@ export const NodesLayer = ({
     [setPopupState],
   );
 
-  const clusters = groupNodesByIdenticalCoords(filteredNodes);
+  const clusters = groupNodesByZoomGrid(filteredNodes, mapZoom);
   const rendered: React.ReactNode[] = [];
 
   for (const [key, nodes] of clusters) {
@@ -78,6 +80,24 @@ export const NodesLayer = ({
     }
     const [lng, lat] = toLngLat(nodes[0].position);
     const isExpanded = expandedCluster === key;
+    const shouldCollapseCluster = mapZoom < 12 && nodes.length > 1 && !isExpanded;
+
+    if (shouldCollapseCluster) {
+      rendered.push(
+        <StackBadge
+          key={`zoom-cluster-${key}`}
+          lng={lng}
+          lat={lat}
+          count={nodes.length}
+          isVisible={isVisible}
+          onClick={(e) => {
+            e.originalEvent?.stopPropagation();
+            setExpandedCluster(key);
+          }}
+        />,
+      );
+      continue;
+    }
 
     // Precompute pixel offsets for expanded state
     const expandedOffsets = isExpanded ? fanOutOffsetsPx(nodes.length, key) : undefined;

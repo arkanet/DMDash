@@ -35,13 +35,56 @@ import { Protobuf, Types, Constants } from "@meshtastic/core";
 import { getNodeLongName } from "@app/darkmesh/utils.ts";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { HashIcon, LockIcon, LockOpenIcon } from "lucide-react";
+import { ArrowLeftIcon, HashIcon, LockIcon, LockOpenIcon, UsersIcon } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getChannelName } from "../components/PageComponents/Channels/Channels.tsx";
 import type { Message } from "../core/stores/messageStore/types.ts";
 
 type NodeInfoWithUnread = Protobuf.Mesh.NodeInfo & { unreadCount: number };
+const UNREAD_SCROLL_SESSION_KEY = "darkmesh-message-unread-scroll";
+
+function getUnreadScrollKey(type: MessageType, id: number) {
+  return `${type === MessageType.Direct ? "direct" : "broadcast"}:${id}`;
+}
+
+function readUnreadScrollCount(type: MessageType, id: number): number {
+  if (typeof window === "undefined") return 0;
+
+  try {
+    const raw = window.sessionStorage.getItem(UNREAD_SCROLL_SESSION_KEY);
+    const values = raw ? (JSON.parse(raw) as Record<string, number>) : {};
+    return Number(values[getUnreadScrollKey(type, id)] ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
+function writeUnreadScrollCount(type: MessageType, id: number, count: number) {
+  if (typeof window === "undefined" || count <= 0) return;
+
+  try {
+    const raw = window.sessionStorage.getItem(UNREAD_SCROLL_SESSION_KEY);
+    const values = raw ? (JSON.parse(raw) as Record<string, number>) : {};
+    values[getUnreadScrollKey(type, id)] = count;
+    window.sessionStorage.setItem(UNREAD_SCROLL_SESSION_KEY, JSON.stringify(values));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function clearUnreadScrollCount(type: MessageType, id: number) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const raw = window.sessionStorage.getItem(UNREAD_SCROLL_SESSION_KEY);
+    const values = raw ? (JSON.parse(raw) as Record<string, number>) : {};
+    delete values[getUnreadScrollKey(type, id)];
+    window.sessionStorage.setItem(UNREAD_SCROLL_SESSION_KEY, JSON.stringify(values));
+  } catch {
+    // ignore storage failures
+  }
+}
 
 function getCompressionPreferenceKey(chatType: MessageType, chatId: number) {
   if (chatType === MessageType.Direct) {
@@ -76,6 +119,7 @@ export const MessagesPage = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [replyTo, setReplyTo] = useState<Message | undefined>();
   const [mentionOpen, setMentionOpen] = useState<boolean>(false);
+  const [showMobileChannelList, setShowMobileChannelList] = useState(true);
   const { t } = useTranslation(["messages", "channels", "ui"]);
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -89,6 +133,7 @@ export const MessagesPage = () => {
 
   const chatType = type === "direct" ? MessageType.Direct : MessageType.Broadcast;
   const numericChatId = Number(chatId);
+  const [unreadAnchorCount, setUnreadAnchorCount] = useState(0);
 
   const allChannels = Array.from(channels.values());
   const filteredChannels = allChannels.filter(
@@ -105,6 +150,19 @@ export const MessagesPage = () => {
   useEffect(() => {
     setReplyTo(undefined);
   }, [chatType, numericChatId]);
+
+  useEffect(() => {
+    const count = readUnreadScrollCount(chatType, numericChatId);
+    setUnreadAnchorCount(count);
+    if (count > 0) {
+      clearUnreadScrollCount(chatType, numericChatId);
+      const timeoutId = window.setTimeout(() => {
+        resetUnread(numericChatId);
+        setUnreadAnchorCount(0);
+      }, 350);
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, [chatType, numericChatId, resetUnread]);
 
   const handleReply = useCallback(
     (message: Message) => {
@@ -148,6 +206,9 @@ export const MessagesPage = () => {
 
     return undefined;
   });
+  const directMessageMaps = useMessageStore(
+    (s) => s.messageStores.get(deviceId as number)?.messages.direct,
+  );
 
   const currentMessages = useMemo(() => {
     if (!selectedMessageMap) return [] as Message[];
@@ -159,6 +220,93 @@ export const MessagesPage = () => {
     );
     return arr.reverse();
   }, [selectedMessageMap]);
+
+  const channelSummaries = useMemo(
+    () =>
+      filteredChannels.map((channel) => {
+        const channelMessages = useMessageStore
+          .getState()
+          .messageStores.get(deviceId as number)
+          ?.messages.broadcast.get(channel.index);
+        const latest = channelMessages
+          ? Array.from(channelMessages.values()).sort((a, b) => b.date - a.date)[0]
+          : undefined;
+        const sender = latest ? getNode(latest.from) : undefined;
+        const senderName =
+          sender?.user?.shortName ??
+          (latest ? numberToHexUnpadded(latest.from).slice(-4) : undefined);
+
+        return {
+          channel,
+          latest,
+          senderName,
+          unread: getUnreadCount(channel.index) ?? 0,
+          label: getChannelName(channel),
+        };
+      }),
+    [deviceId, filteredChannels, getNode, getUnreadCount],
+  );
+
+  const directSummaries = useMemo(() => {
+    if (myNodeNum === undefined) {
+      return [];
+    }
+
+    const directEntries = Array.from(directMessageMaps?.entries() ?? []);
+    const seen = new Set<number>();
+    const summaries = directEntries
+      .map(([conversationId, directMessages]) => {
+        const nodeNums = conversationId.split(":").map(Number);
+        const otherNum = nodeNums.find((nodeNum) => nodeNum !== myNodeNum);
+        if (otherNum === undefined || seen.has(otherNum)) {
+          return undefined;
+        }
+        seen.add(otherNum);
+
+        const node = getNode(otherNum);
+        const latest = Array.from(directMessages.values()).sort((a, b) => b.date - a.date)[0];
+
+        return {
+          nodeNum: otherNum,
+          node,
+          latest,
+          unread: getUnreadCount(otherNum) ?? 0,
+          label:
+            (node ? getNodeLongName(node) : undefined) ??
+            `!${numberToHexUnpadded(otherNum).toUpperCase()}`,
+        };
+      })
+      .filter(
+        (
+          summary,
+        ): summary is {
+          nodeNum: number;
+          node: Protobuf.Mesh.NodeInfo | undefined;
+          latest: Message | undefined;
+          unread: number;
+          label: string;
+        } => Boolean(summary),
+      );
+
+    if (isDirect && !seen.has(numericChatId)) {
+      const node = getNode(numericChatId);
+      summaries.unshift({
+        nodeNum: numericChatId,
+        node,
+        latest: undefined,
+        unread: getUnreadCount(numericChatId) ?? 0,
+        label:
+          (node ? getNodeLongName(node) : undefined) ??
+          `!${numberToHexUnpadded(numericChatId).toUpperCase()}`,
+      });
+    }
+
+    return summaries.sort((a, b) => {
+      const latestDiff = (b.latest?.date ?? 0) - (a.latest?.date ?? 0);
+      if (latestDiff !== 0) return latestDiff;
+      return b.unread - a.unread;
+    });
+  }, [directMessageMaps, getNode, getUnreadCount, isDirect, myNodeNum, numericChatId]);
 
   const compressionPreferenceKey = useMemo(() => {
     if (!isBroadcast && !isDirect) {
@@ -385,14 +533,24 @@ export const MessagesPage = () => {
     switch (chatType) {
       case MessageType.Broadcast:
         return (
-          <ChannelChat messages={currentMessages} onReply={handleReply} onMention={handleMention} />
+          <ChannelChat
+            messages={currentMessages}
+            unreadAnchorCount={unreadAnchorCount}
+            onReply={handleReply}
+            onMention={handleMention}
+          />
         );
       case MessageType.Direct:
         if (myNodeNum === undefined) {
           return <SelectMessageChat />;
         }
         return (
-          <ChannelChat messages={currentMessages} onReply={handleReply} onMention={handleMention} />
+          <ChannelChat
+            messages={currentMessages}
+            unreadAnchorCount={unreadAnchorCount}
+            onReply={handleReply}
+            onMention={handleMention}
+          />
         );
       default:
         return <SelectMessageChat />;
@@ -485,6 +643,119 @@ export const MessagesPage = () => {
     </SidebarSection>
   );
 
+  const openBroadcastChannel = (channelIndex: number) => {
+    writeUnreadScrollCount(MessageType.Broadcast, channelIndex, getUnreadCount(channelIndex) ?? 0);
+    navigateToChat(MessageType.Broadcast, channelIndex.toString());
+    setShowMobileChannelList(false);
+  };
+
+  const openDirectChannel = (nodeNum: number) => {
+    const node = getNode(nodeNum);
+    if (node) {
+      writeUnreadScrollCount(MessageType.Direct, nodeNum, getUnreadCount(nodeNum) ?? 0);
+      handleDirectChatClick(node);
+    } else {
+      writeUnreadScrollCount(MessageType.Direct, nodeNum, getUnreadCount(nodeNum) ?? 0);
+      navigateToChat(MessageType.Direct, nodeNum.toString());
+    }
+    setShowMobileChannelList(false);
+  };
+
+  useEffect(() => {
+    if (type === "direct" && chatId !== undefined) {
+      setShowMobileChannelList(false);
+    }
+  }, [chatId, type]);
+
+  const mobileChannelList = (
+    <div className="flex h-full flex-col overflow-y-auto bg-background-primary px-3 py-4 text-text-primary md:hidden">
+      <div className="space-y-3">
+        {directSummaries.map(({ nodeNum, node, latest, unread, label }) => (
+          <button
+            key={`direct-${nodeNum}`}
+            type="button"
+            onClick={() => openDirectChannel(nodeNum)}
+            className="grid min-h-24 w-full grid-cols-[4.25rem_1fr_auto] items-center gap-3 rounded-[1.35rem] bg-background-secondary px-4 py-3 text-left text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#2f2f2f] dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)]"
+          >
+            <div className="flex justify-center">
+              {node ? (
+                <Avatar
+                  nodeNum={node.num}
+                  showError={hasNodeError(node.num)}
+                  showFavorite={node.isFavorite}
+                  size="sm"
+                />
+              ) : (
+                <LockIcon className="size-8 text-[#9b1118]" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-[1.45rem] leading-tight text-text-primary">{label}</div>
+              {latest ? (
+                <div className="mt-2 line-clamp-2 text-[1.05rem] leading-tight text-text-primary">
+                  {latest.message}
+                </div>
+              ) : (
+                <div className="mt-2 text-[1.05rem] leading-tight text-text-secondary">
+                  Direct Message
+                </div>
+              )}
+            </div>
+            <div className="self-start whitespace-nowrap text-[1.1rem] text-text-primary">
+              {unread > 0 ? (
+                <span className="rounded-full bg-[#8d0606] px-2 py-0.5 text-sm text-white">
+                  {unread}
+                </span>
+              ) : latest ? (
+                new Intl.DateTimeFormat(undefined, {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(new Date(latest.date * 1000))
+              ) : (
+                ""
+              )}
+            </div>
+          </button>
+        ))}
+        {channelSummaries.map(({ channel, latest, senderName, unread, label }) => (
+          <button
+            key={channel.index}
+            type="button"
+            onClick={() => openBroadcastChannel(channel.index)}
+            className="grid min-h-24 w-full grid-cols-[4.25rem_1fr_auto] items-center gap-3 rounded-[1.35rem] bg-background-secondary px-4 py-3 text-left text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#2f2f2f] dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)]"
+          >
+            <div className="flex justify-center">
+              <UsersIcon className={cn("size-8", unread ? "text-[#00e531]" : "text-[#9b1118]")} />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-[1.45rem] leading-tight text-text-primary">{label}</div>
+              {latest ? (
+                <div className="mt-2 line-clamp-2 text-[1.05rem] leading-tight text-text-primary">
+                  {senderName ? `${senderName}: ` : ""}
+                  {latest.message}
+                </div>
+              ) : null}
+            </div>
+            <div className="self-start whitespace-nowrap text-[1.1rem] text-text-primary">
+              {unread > 0 ? (
+                <span className="rounded-full bg-[#8d0606] px-2 py-0.5 text-sm text-white">
+                  {unread}
+                </span>
+              ) : latest ? (
+                new Intl.DateTimeFormat(undefined, {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(new Date(latest.date * 1000))
+              ) : (
+                ""
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   const handleMention = (_msg: Message) => {
     // Open the mention selector in the input; insertion remains manual.
     setMentionOpen(true);
@@ -505,6 +776,7 @@ export const MessagesPage = () => {
       `}
       rightBar={rightSidebar}
       leftBar={leftSidebar}
+      mobileSubNav={undefined}
       headerContent={<GatewayHeader />}
       actions={
         isDirect && otherNode
@@ -567,7 +839,7 @@ export const MessagesPage = () => {
           : []
       }
     >
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="hidden flex-1 flex-col overflow-hidden md:flex">
         {renderChatContent()}
 
         <div className="flex-none dark:bg-slate-900 p-2">
@@ -591,6 +863,47 @@ export const MessagesPage = () => {
             </div>
           )}
         </div>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:hidden">
+        {showMobileChannelList ? (
+          mobileChannelList
+        ) : (
+          <>
+            <div className="flex h-12 shrink-0 items-center gap-3 bg-background-primary px-3 text-text-primary dark:bg-[#101010] dark:text-zinc-100">
+              <button
+                type="button"
+                onClick={() => setShowMobileChannelList(true)}
+                className="inline-flex size-10 items-center justify-center rounded-full hover:bg-[#2f2f2f]"
+                aria-label="Back to messages"
+              >
+                <ArrowLeftIcon className="size-6" />
+              </button>
+              <div className="min-w-0 truncate text-lg font-semibold">
+                {isBroadcast && currentChannel
+                  ? getChannelName(currentChannel)
+                  : isDirect && otherNode
+                    ? (getNodeLongName(otherNode) ??
+                      `!${numberToHexUnpadded(otherNode.num).toUpperCase()}`)
+                    : t("emptyState.title")}
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-hidden">{renderChatContent()}</div>
+            <div className="flex-none bg-background-primary p-2 dark:bg-[#101010]">
+              <MessageInput
+                to={isDirect ? numericChatId : MessageType.Broadcast}
+                onSend={sendText}
+                maxBytes={200}
+                replyTo={replyTo}
+                onClearReply={() => setReplyTo(undefined)}
+                ref={messageInputRef}
+                mentionOpen={mentionOpen}
+                onMentionHandled={() => setMentionOpen(false)}
+                compressionPreferenceKey={compressionPreferenceKey}
+                compressionAutoSignal={compressionAutoSignal}
+              />
+            </div>
+          </>
+        )}
       </div>
     </PageLayout>
   );

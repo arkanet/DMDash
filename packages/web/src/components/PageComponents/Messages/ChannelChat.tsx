@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 
 export interface ChannelChatProps {
   messages?: Message[];
+  unreadAnchorCount?: number;
   onReply?: (message: Message) => void;
   onMention?: (message: Message) => void;
 }
@@ -104,7 +105,12 @@ const EmptyState = () => {
   );
 };
 
-export const ChannelChat = ({ messages = [], onReply, onMention }: ChannelChatProps) => {
+export const ChannelChat = ({
+  messages = [],
+  unreadAnchorCount = 0,
+  onReply,
+  onMention,
+}: ChannelChatProps) => {
   const { i18n, t } = useTranslation();
   const { getMyNode } = useNodeDB();
   const myNodeNum = getMyNode()?.num;
@@ -150,6 +156,13 @@ export const ChannelChat = ({ messages = [], onReply, onMention }: ChannelChatPr
     () => sorted.find((message) => message.from !== myNodeNum)?.messageId,
     [myNodeNum, sorted],
   );
+  const oldestUnreadMessageId = useMemo(() => {
+    if (!unreadAnchorCount || myNodeNum === undefined) return undefined;
+    const unreadMessages = sorted
+      .filter((message) => message.from !== myNodeNum)
+      .slice(0, unreadAnchorCount);
+    return unreadMessages.at(-1)?.messageId;
+  }, [myNodeNum, sorted, unreadAnchorCount]);
 
   const listRef = useRef<HTMLUListElement | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | undefined>(undefined);
@@ -176,12 +189,19 @@ export const ChannelChat = ({ messages = [], onReply, onMention }: ChannelChatPr
   useLayoutEffect(() => {
     const el = listRef.current;
     if (!el) return;
+    if (oldestUnreadMessageId !== undefined) {
+      requestAnimationFrame(() => {
+        const target = document.getElementById(`message-${oldestUnreadMessageId}`);
+        target?.scrollIntoView({ block: "center", behavior: "auto" });
+      });
+      return;
+    }
     try {
       el.scrollTo({ top: 0, behavior: "auto" });
     } catch {
       /* ignore */
     }
-  }, [messages.length]);
+  }, [messages.length, oldestUnreadMessageId]);
 
   if (!messages.length) {
     return (

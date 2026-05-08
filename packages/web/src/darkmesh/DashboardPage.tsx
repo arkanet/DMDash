@@ -776,105 +776,111 @@ const DarkMeshDashboardPage = () => {
             </div>
           </DashboardCard>
 
-          <DashboardCard
-            title="Hunting Forwarder"
-            description="Mirror position, telemetry and traceroute packets to a DarkMesh-compatible web endpoint."
-          >
-            <label className="block text-sm" htmlFor="darkmesh-hunt-endpoint">
-              <span className="mb-1 block text-slate-500 dark:text-slate-400">Endpoint</span>
-              <Input
-                id="darkmesh-hunt-endpoint"
-                value={huntDraft.endpoint}
-                disabled={huntDraft.mode === "local"}
-                onChange={(event) =>
-                  updateHuntDraft({
-                    endpoint: event.target.value,
-                  })
-                }
-              />
-            </label>
+          <div id="hunting-forwarder" className="scroll-mt-28 md:scroll-mt-6">
+            <DashboardCard
+              title="Hunting Forwarder"
+              description="Mirror position, telemetry and traceroute packets to a DarkMesh-compatible web endpoint."
+            >
+              <label className="block text-sm" htmlFor="darkmesh-hunt-endpoint">
+                <span className="mb-1 block text-slate-500 dark:text-slate-400">Endpoint</span>
+                <Input
+                  id="darkmesh-hunt-endpoint"
+                  value={huntDraft.endpoint}
+                  disabled={huntDraft.mode === "local"}
+                  onChange={(event) =>
+                    updateHuntDraft({
+                      endpoint: event.target.value,
+                    })
+                  }
+                />
+              </label>
 
-            <label className="block text-sm" htmlFor="darkmesh-hunt-token">
-              <span className="mb-1 block text-slate-500 dark:text-slate-400">Bearer token</span>
-              <Input
-                id="darkmesh-hunt-token"
-                value={huntDraft.token}
-                disabled={huntDraft.mode === "local"}
-                onChange={(event) =>
-                  updateHuntDraft({
-                    token: event.target.value,
-                  })
-                }
-              />
-            </label>
+              <label className="block text-sm" htmlFor="darkmesh-hunt-token">
+                <span className="mb-1 block text-slate-500 dark:text-slate-400">Bearer token</span>
+                <Input
+                  id="darkmesh-hunt-token"
+                  value={huntDraft.token}
+                  disabled={huntDraft.mode === "local"}
+                  onChange={(event) =>
+                    updateHuntDraft({
+                      token: event.target.value,
+                    })
+                  }
+                />
+              </label>
 
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-500 dark:text-slate-400">Forwarding mode</span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                value={huntDraft.mode ?? "local"}
-                onChange={(event) =>
-                  updateHuntDraft({
-                    mode: event.target.value as HuntConfig["mode"],
-                  })
-                }
-              >
-                <option value="local">Local (persist only)</option>
-                <option value="remote">Remote (forward only)</option>
-                <option value="both">Both (local + remote)</option>
-              </select>
-            </label>
+              <label className="block text-sm">
+                <span className="mb-1 block text-slate-500 dark:text-slate-400">
+                  Forwarding mode
+                </span>
+                <select
+                  className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  value={huntDraft.mode ?? "local"}
+                  onChange={(event) =>
+                    updateHuntDraft({
+                      mode: event.target.value as HuntConfig["mode"],
+                    })
+                  }
+                >
+                  <option value="local">Local (persist only)</option>
+                  <option value="remote">Remote (forward only)</option>
+                  <option value="both">Both (local + remote)</option>
+                </select>
+              </label>
 
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-500 dark:text-slate-400">Background mode</span>
-              <select
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                value={huntDraft.backgroundMode}
-                onChange={(event) =>
-                  updateHuntDraft({
-                    backgroundMode: event.target.value as HuntConfig["backgroundMode"],
-                  })
-                }
-              >
-                <option value="fast">Fast</option>
-                <option value="medium">Medium</option>
-                <option value="slow">Slow</option>
-                <option value="super_slow">Super slow</option>
-              </select>
-            </label>
+              <label className="block text-sm">
+                <span className="mb-1 block text-slate-500 dark:text-slate-400">
+                  Background mode
+                </span>
+                <select
+                  className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  value={huntDraft.backgroundMode}
+                  onChange={(event) =>
+                    updateHuntDraft({
+                      backgroundMode: event.target.value as HuntConfig["backgroundMode"],
+                    })
+                  }
+                >
+                  <option value="fast">Fast</option>
+                  <option value="medium">Medium</option>
+                  <option value="slow">Slow</option>
+                  <option value="super_slow">Super slow</option>
+                </select>
+              </label>
 
-            <div className="flex flex-wrap gap-3">
-              <Button
-                icon={<Radar className="h-4 w-4" />}
-                onClick={() => void handleValidateHunt()}
-              >
-                Validate & enable
-              </Button>
-              <Button variant="outline" onClick={handleDisableHunt}>
-                Disable
-              </Button>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-900/70">
-              <div className="font-medium text-slate-900 dark:text-slate-100">
-                {huntConfig.enabled ? "Hunt forwarding active" : "Hunt forwarding idle"}
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  icon={<Radar className="h-4 w-4" />}
+                  onClick={() => void handleValidateHunt()}
+                >
+                  Validate & enable
+                </Button>
+                <Button variant="outline" onClick={handleDisableHunt}>
+                  Disable
+                </Button>
               </div>
-              <div className="mt-2 text-slate-500 dark:text-slate-400">
-                Packets forwarded: {huntConfig.forwardedCount}
-              </div>
-              <div className="text-slate-500 dark:text-slate-400">
-                Last activity: {formatSince(huntConfig.lastForwardAt)}
-              </div>
-              {huntConfig.lastStatus ? (
-                <div className="mt-2 text-slate-500 dark:text-slate-400">
-                  {huntConfig.lastStatus}
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-900/70">
+                <div className="font-medium text-slate-900 dark:text-slate-100">
+                  {huntConfig.enabled ? "Hunt forwarding active" : "Hunt forwarding idle"}
                 </div>
-              ) : null}
-              {huntConfig.lastError ? (
-                <div className="mt-2 text-red-500">{huntConfig.lastError}</div>
-              ) : null}
-            </div>
-          </DashboardCard>
+                <div className="mt-2 text-slate-500 dark:text-slate-400">
+                  Packets forwarded: {huntConfig.forwardedCount}
+                </div>
+                <div className="text-slate-500 dark:text-slate-400">
+                  Last activity: {formatSince(huntConfig.lastForwardAt)}
+                </div>
+                {huntConfig.lastStatus ? (
+                  <div className="mt-2 text-slate-500 dark:text-slate-400">
+                    {huntConfig.lastStatus}
+                  </div>
+                ) : null}
+                {huntConfig.lastError ? (
+                  <div className="mt-2 text-red-500">{huntConfig.lastError}</div>
+                ) : null}
+              </div>
+            </DashboardCard>
+          </div>
 
           <DashboardCard
             title="DarkMesh NodeDB"
