@@ -9,18 +9,20 @@ import { useTranslation } from "react-i18next";
 
 import { useTracerouteStore } from "@core/stores/tracerouteStore";
 import { useAppStore } from "@core/stores/appStore";
-import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "../UI/Dialog.tsx";
+import { Dialog, DialogContent, DialogTitle } from "../UI/Dialog.tsx";
 
 export interface TracerouteResponseDialogProps {
   traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> | undefined;
   open: boolean;
   onOpenChange: () => void;
+  durationMs?: number;
 }
 
 export const TracerouteResponseDialog = ({
   traceroute,
   open,
   onOpenChange,
+  durationMs,
 }: TracerouteResponseDialogProps) => {
   const { t } = useTranslation("dialog");
   const { getNode } = useNodeDB();
@@ -31,29 +33,15 @@ export const TracerouteResponseDialog = ({
   const snrTowards = (traceroute?.data.snrTowards ?? []).map((snr) => snr / 4);
   const snrBack = (traceroute?.data.snrBack ?? []).map((snr) => snr / 4);
   const from = getNode(traceroute?.to ?? 0); // The origin of the traceroute = the "to" node of the mesh packet
-  const fromLongName = from
-    ? (getNodeLongName(from) ?? `!${numberToHexUnpadded(from.num).toUpperCase()}`)
-    : t("unknown.longName");
-  const fromShortName = getNodeShortName(from) ?? t("unknown.shortName");
-
   const toUser = getNode(traceroute?.from ?? 0); // The destination of the traceroute = the "from" node of the mesh packet
 
   if (!toUser || !from) {
     return null;
   }
 
-  const rows = [
-    ...[from.num, ...route, toUser.num].map((nodeNum, index) => ({
-      direction: "Forward",
-      nodeNum,
-      snr: snrTowards[index - 1],
-    })),
-    ...[toUser.num, ...routeBack, from.num].map((nodeNum, index) => ({
-      direction: "Back",
-      nodeNum,
-      snr: snrBack[index - 1],
-    })),
-  ].filter((row) => row.nodeNum);
+  const forwardPath = [from.num, ...route, toUser.num].filter(Boolean);
+  const backwardPath = [toUser.num, ...routeBack, from.num].filter(Boolean);
+  const resolvedDurationMs = durationMs ?? getStoredDurationMs(traceroute);
 
   function handleViewOnMap() {
     if (!traceroute) {
@@ -74,46 +62,24 @@ export const TracerouteResponseDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="top-1/2 left-1/2 max-h-[86vh] max-w-[min(92vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]">
-        <DialogClose className="text-zinc-100" />
-        <DialogHeader>
-          <DialogTitle className="text-center text-4xl font-semibold text-zinc-100 max-md:text-3xl">
-            Traceroute
-          </DialogTitle>
-          <p className="text-center text-2xl text-zinc-200 max-md:text-xl">
-            {fromLongName} ({fromShortName})
-          </p>
-        </DialogHeader>
-        <div className="max-h-[55vh] overflow-y-auto">
-          <table className="w-full border-separate border-spacing-y-1 text-left text-sm">
-            <thead className="text-zinc-100">
-              <tr>
-                <th className="px-2 py-2">Dir</th>
-                <th className="px-2 py-2">Node</th>
-                <th className="px-2 py-2">HEX</th>
-                <th className="px-2 py-2 text-right">SNR</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, index) => {
-                const node = getNode(row.nodeNum);
-                const name = node
-                  ? (getNodeShortName(node) ?? getNodeLongName(node) ?? String(row.nodeNum))
-                  : String(row.nodeNum);
-                const hex = node?.user?.id ?? `!${numberToHexUnpadded(row.nodeNum).toUpperCase()}`;
-                return (
-                  <tr key={`${row.direction}-${row.nodeNum}-${index}`} className="bg-[#2b2b2b]">
-                    <td className="px-2 py-2 text-zinc-300">{row.direction}</td>
-                    <td className="px-2 py-2 font-semibold">{name}</td>
-                    <td className="px-2 py-2 font-mono">{hex}</td>
-                    <td className="px-2 py-2 text-right font-semibold text-[#00e531]">
-                      {row.snr === undefined ? "?" : row.snr.toFixed(2)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <DialogContent className="top-1/2 left-1/2 max-h-[86vh] w-[min(86vw,38rem)] max-w-[min(86vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030] max-md:w-[82vw] max-md:max-w-[82vw]">
+        <DialogTitle className="text-left text-3xl font-normal text-zinc-100 max-md:text-2xl">
+          Traceroute
+        </DialogTitle>
+        <div className="mt-5 max-h-[62vh] overflow-y-auto pr-1 text-[1.35rem] leading-tight text-zinc-300 max-md:max-h-[66vh] max-md:text-[1.15rem]">
+          <TracerouteRouteSection
+            title="Route traced toward destination:"
+            path={forwardPath}
+            snrs={snrTowards}
+            getNode={getNode}
+          />
+          <TracerouteRouteSection
+            title="Route traced back to us:"
+            path={backwardPath}
+            snrs={snrBack}
+            getNode={getNode}
+          />
+          <p className="mt-8 text-zinc-300">Duration: {formatDuration(resolvedDurationMs)}</p>
         </div>
         <div className="mt-6 flex justify-end gap-6">
           <Button
@@ -130,10 +96,90 @@ export const TracerouteResponseDialog = ({
             className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)]"
             onClick={onOpenChange}
           >
-            Chiudi
+            CHIUDI
           </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 };
+
+function TracerouteRouteSection({
+  title,
+  path,
+  snrs,
+  getNode,
+}: {
+  title: string;
+  path: number[];
+  snrs: number[];
+  getNode: (nodeNum: number) => Protobuf.Mesh.NodeInfo | undefined;
+}) {
+  return (
+    <section className="mt-6 first:mt-0">
+      <h2 className="mb-5 text-zinc-300">{title}</h2>
+      <ol className="space-y-2">
+        {path.map((nodeNum, index) => (
+          <li key={`${title}-${nodeNum}-${index}`}>
+            <div className="flex gap-2">
+              <span className="mt-[0.42em] size-3 shrink-0 bg-zinc-300 max-md:size-2.5" />
+              <span>{formatTracerouteNode(getNode(nodeNum), nodeNum)}</span>
+            </div>
+            {index < path.length - 1 ? <SnrLine snr={snrs[index]} /> : null}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function SnrLine({ snr }: { snr: number | undefined }) {
+  return (
+    <div className={`ml-0 mt-1 font-semibold ${getSnrClassName(snr)}`}>
+      ⇊ {snr === undefined ? "n/a" : `${formatSnr(snr)} dB`}
+    </div>
+  );
+}
+
+function formatTracerouteNode(node: Protobuf.Mesh.NodeInfo | undefined, nodeNum: number): string {
+  const fallback = `!${numberToHexUnpadded(nodeNum).toUpperCase()}`;
+  if (!node) {
+    return `${fallback} (${fallback.slice(-4)})`;
+  }
+
+  const longName = getNodeLongName(node) ?? fallback;
+  const shortName = getNodeShortName(node) ?? fallback.slice(-4);
+  return `${longName} (${shortName})`;
+}
+
+function formatSnr(snr: number): string {
+  return Number.isInteger(snr) ? snr.toFixed(1) : snr.toFixed(2);
+}
+
+function getSnrClassName(snr: number | undefined): string {
+  if (snr === undefined) {
+    return "text-zinc-400";
+  }
+  return snr >= -10 ? "text-[#00e531]" : "text-yellow-300";
+}
+
+function formatDuration(durationMs: number | undefined): string {
+  if (durationMs === undefined || !Number.isFinite(durationMs) || durationMs < 0) {
+    return "n/a";
+  }
+
+  return `${(durationMs / 1000).toFixed(1).replace(".", ",")} s`;
+}
+
+function getStoredDurationMs(
+  traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> | undefined,
+): number | undefined {
+  const record = traceroute as
+    | (Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> & {
+        durationMs?: number;
+        duration?: number;
+      })
+    | undefined;
+  const duration = record?.durationMs ?? record?.duration;
+  return typeof duration === "number" ? duration : undefined;
+}

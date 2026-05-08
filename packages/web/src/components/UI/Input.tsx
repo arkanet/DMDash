@@ -44,6 +44,8 @@ export interface InputProps
   showCopyButton?: boolean;
   showClearButton?: boolean;
   containerClassName?: string;
+  actionContainerClassName?: string;
+  actionButtonClassName?: string;
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
@@ -61,6 +63,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       showClearButton,
       value,
       onChange,
+      actionContainerClassName,
+      actionButtonClassName,
       ...props
     },
     ref,
@@ -183,6 +187,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 disabled && "border-slate-200 dark:border-slate-700 divide-slate-200",
                 !hasSuffix && "rounded-r-md",
                 "bg-white dark:bg-slate-800",
+                actionContainerClassName,
               )}
             >
               {actions.map((action) => (
@@ -193,6 +198,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     "inline-flex h-full items-center justify-center px-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:ring-offset-0 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200 dark:focus:ring-slate-500 last:hover:rounded-r-md last:dark:hover:rounded-r-md",
                     disabled && "text-slate-300 dark:text-slate-600",
                     action.id === "copy-value" && isCopied && "text-green-600 dark:text-green-500",
+                    actionButtonClassName,
                   )}
                   onClick={action.onClick}
                   aria-label={action.ariaLabel}

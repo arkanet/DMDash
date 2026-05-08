@@ -224,6 +224,18 @@ body {
 }
 
 @layer utilities {
+  .w-screen {
+    width: stretch;
+  }
+
+  .h-dvh {
+    height: stretch;
+  }
+
+  .max-h-dvh {
+    max-height: stretch;
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

@@ -226,6 +226,21 @@ function getNodeChannelSortValue(node: Protobuf.Mesh.NodeInfo): number {
   return channel ?? channelIndex ?? Number.MAX_SAFE_INTEGER;
 }
 
+function getNodeDisplayChannel(node: Protobuf.Mesh.NodeInfo): number | undefined {
+  const channel = (node as Protobuf.Mesh.NodeInfo & { channel?: number; channelIndex?: number })
+    .channel;
+  const channelIndex = (
+    node as Protobuf.Mesh.NodeInfo & { channel?: number; channelIndex?: number }
+  ).channelIndex;
+  const nodeChannel = channel ?? channelIndex;
+
+  if (nodeChannel === undefined || nodeChannel === 0) {
+    return undefined;
+  }
+
+  return nodeChannel;
+}
+
 function formatPosition(position?: Protobuf.Mesh.Position) {
   if (!hasPos(position)) {
     return undefined;
@@ -311,6 +326,12 @@ const NodesPage = (): JSX.Element => {
     Protobuf.Mesh.NeighborInfo | undefined
   >();
   const [pendingTracerouteNode, setPendingTracerouteNode] = useState<number | undefined>();
+  const [pendingTracerouteStartedAt, setPendingTracerouteStartedAt] = useState<
+    number | undefined
+  >();
+  const [selectedTracerouteDurationMs, setSelectedTracerouteDurationMs] = useState<
+    number | undefined
+  >();
   const [pendingNeighborNode, setPendingNeighborNode] = useState<number | undefined>();
   const [pendingNodeInfoNode, setPendingNodeInfoNode] = useState<number | undefined>();
   const [pendingMetadataNode, setPendingMetadataNode] = useState<number | undefined>();
@@ -379,10 +400,16 @@ const NodesPage = (): JSX.Element => {
       if (traceroute.from.valueOf() !== pendingTracerouteNode) {
         return;
       }
+      setSelectedTracerouteDurationMs(
+        pendingTracerouteStartedAt !== undefined
+          ? Date.now() - pendingTracerouteStartedAt
+          : undefined,
+      );
       setSelectedTraceroute(traceroute);
       setPendingTracerouteNode(undefined);
+      setPendingTracerouteStartedAt(undefined);
     },
-    [pendingTracerouteNode],
+    [pendingTracerouteNode, pendingTracerouteStartedAt],
   );
 
   const handleLocation = useCallback(
@@ -543,11 +570,14 @@ const NodesPage = (): JSX.Element => {
       .filter((node) => mobileSort !== "online" || isOnlineNode(node))
       .slice();
 
-    if (myNode && !sorted.some((node) => node.num === myNode.num)) {
-      sorted.push(myNode);
-    }
-
     sorted.sort((a, b) => {
+      if (a.num === hardware.myNodeNum) {
+        return -1;
+      }
+      if (b.num === hardware.myNodeNum) {
+        return 1;
+      }
+
       switch (mobileSort) {
         case "az":
           return getNodeDisplayName(a).localeCompare(getNodeDisplayName(b));
@@ -571,7 +601,7 @@ const NodesPage = (): JSX.Element => {
     });
 
     return sorted;
-  }, [filteredNodes, includeUnknownNodes, mobileSort, myNode]);
+  }, [filteredNodes, hardware.myNodeNum, includeUnknownNodes, mobileSort, myNode]);
 
   const tableHeadings: Heading[] = [
     { title: "", sortable: false },
@@ -900,6 +930,7 @@ const NodesPage = (): JSX.Element => {
     const nameHex = formatNameHex(node.num, node);
     const battery = getBatteryLabel(node);
     const nodeStatus = getNodeStatusText(node);
+    const displayChannel = getNodeDisplayChannel(node);
     const hasPositionRow = Boolean(position || altitude);
     const hasIdentityRow = Boolean(hardwareModel || roleName || nameHex);
     const hasUtilRow =
@@ -996,8 +1027,15 @@ const NodesPage = (): JSX.Element => {
               onClick={() => {
                 setMobileActionNode(undefined);
                 setPendingTracerouteNode(node.num);
-                void runMobileNodeAction("Traceroute avviato", () => {
-                  return startVisualTraceroute(device.id, connection, node.num);
+                setPendingTracerouteStartedAt(Date.now());
+                void runMobileNodeAction("Traceroute avviato", async () => {
+                  try {
+                    return await startVisualTraceroute(device.id, connection, node.num);
+                  } catch (error) {
+                    setPendingTracerouteNode(undefined);
+                    setPendingTracerouteStartedAt(undefined);
+                    throw error;
+                  }
                 });
               }}
             >
@@ -1124,10 +1162,17 @@ const NodesPage = (): JSX.Element => {
           </span>
         </div>
 
-        <div className="mt-1 text-lg">
-          {node.hopsAway !== undefined
-            ? `Distanza in Hop: ${node.hopsAway}`
-            : "Distanza in Hop: n/a"}
+        <div className="mt-1 flex items-center justify-between gap-3 text-lg">
+          <span>
+            {node.hopsAway !== undefined
+              ? `Distanza in Hop: ${node.hopsAway}`
+              : "Distanza in Hop: n/a"}
+          </span>
+          {displayChannel !== undefined ? (
+            <span className="whitespace-nowrap text-right text-text-secondary dark:text-zinc-300">
+              Ch: {displayChannel}
+            </span>
+          ) : null}
         </div>
 
         {showNodeDetails && hasDetailRows ? (
@@ -1245,9 +1290,11 @@ const NodesPage = (): JSX.Element => {
         <div className="flex h-14 min-w-0 flex-1 items-center gap-3 rounded-md border border-zinc-500 px-3 text-zinc-400">
           <SearchIcon className="size-7 shrink-0" />
           <Input
-            placeholder="Filtro"
+            placeholder="Search nodes ..."
             value={filterState.nodeName}
             className="h-full border-0 bg-transparent px-0 text-xl shadow-none focus-visible:ring-0"
+            actionContainerClassName="border-0 bg-transparent dark:border-0 dark:bg-transparent divide-x-0 dark:divide-x-0"
+            actionButtonClassName="hover:bg-transparent dark:hover:bg-transparent"
             showClearButton={!!filterState.nodeName}
             onChange={(e) =>
               setFilterState((prev) => ({
@@ -1278,7 +1325,10 @@ const NodesPage = (): JSX.Element => {
                   key={option.id}
                   type="button"
                   className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-[#242424]"
-                  onClick={() => setMobileSort(option.id)}
+                  onClick={() => {
+                    setMobileSort(option.id);
+                    setMobileFilterOpen(false);
+                  }}
                 >
                   <span className={mobileSort === option.id ? "font-semibold" : undefined}>
                     {option.label}
@@ -1290,7 +1340,10 @@ const NodesPage = (): JSX.Element => {
               <button
                 type="button"
                 className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-[#242424]"
-                onClick={() => setIncludeUnknownNodes((value) => !value)}
+                onClick={() => {
+                  setIncludeUnknownNodes((value) => !value);
+                  setMobileFilterOpen(false);
+                }}
               >
                 <span>Includi sconosciuti</span>
                 {includeUnknownNodes ? <CheckIcon className="size-6" /> : null}
@@ -1298,7 +1351,10 @@ const NodesPage = (): JSX.Element => {
               <button
                 type="button"
                 className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-[#242424]"
-                onClick={() => setShowNodeDetails((value) => !value)}
+                onClick={() => {
+                  setShowNodeDetails((value) => !value);
+                  setMobileFilterOpen(false);
+                }}
               >
                 <span>Mostra dettagli</span>
                 {showNodeDetails ? <CheckIcon className="size-6" /> : null}
@@ -1321,7 +1377,11 @@ const NodesPage = (): JSX.Element => {
       <TracerouteResponseDialog
         traceroute={selectedTraceroute}
         open={!!selectedTraceroute}
-        onOpenChange={() => setSelectedTraceroute(undefined)}
+        durationMs={selectedTracerouteDurationMs}
+        onOpenChange={() => {
+          setSelectedTraceroute(undefined);
+          setSelectedTracerouteDurationMs(undefined);
+        }}
       />
       <LocationResponseDialog
         location={selectedLocation}
