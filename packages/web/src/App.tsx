@@ -9,7 +9,7 @@ import Footer from "@components/UI/Footer.tsx";
 import { SidebarProvider, useAppStore, useDeviceStore } from "@core/stores";
 import { DarkMeshRuntime } from "@app/darkmesh/runtime.tsx";
 import { Connections } from "@pages/Connections/index.tsx";
-import { Outlet, useLocation } from "@tanstack/react-router";
+import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
@@ -73,6 +73,7 @@ function DeviceConnectionProgress({
 export function App() {
   const { getDevice } = useDeviceStore();
   const { selectedDeviceId } = useAppStore();
+  const navigate = useNavigate();
   const pathname = useLocation({
     select: (location) => location.pathname,
   });
@@ -80,6 +81,13 @@ export function App() {
   const device = getDevice(selectedDeviceId);
   const isPublicGuideRoute = pathname === "/guide" || pathname.startsWith("/guide/");
   const isConnectionsRoute = pathname === "/" || pathname === "/connections";
+  const shouldRedirectToConnections = !device && !isPublicGuideRoute && !isConnectionsRoute;
+
+  useEffect(() => {
+    if (shouldRedirectToConnections) {
+      void navigate({ to: "/connections", replace: true });
+    }
+  }, [navigate, shouldRedirectToConnections]);
 
   return (
     // <ThemeProvider defaultTheme="system" storageKey="theme">
@@ -100,7 +108,12 @@ export function App() {
         >
           <SidebarProvider>
             <div className="h-full flex flex-1 flex-col">
-              {device ? (
+              {isConnectionsRoute ? (
+                <div className="h-full w-full overflow-y-auto">
+                  {device ? <DeviceConnectionProgress phase={device.connectionPhase} /> : null}
+                  <Outlet />
+                </div>
+              ) : device ? (
                 <div className="h-full flex w-full">
                   <DeviceConnectionProgress phase={device.connectionPhase} />
                   <DarkMeshRuntime />
@@ -108,18 +121,12 @@ export function App() {
                   <KeyBackupReminder />
                   <CommandPalette />
                   <MapProvider>
-                    {isConnectionsRoute ? (
-                      <div className="h-full w-full overflow-y-auto">
-                        <Outlet />
-                      </div>
-                    ) : (
-                      <Outlet />
-                    )}
+                    <Outlet />
                   </MapProvider>
                 </div>
               ) : isPublicGuideRoute ? (
                 <Outlet />
-              ) : (
+              ) : shouldRedirectToConnections ? null : (
                 <div className="min-h-0 flex-1 overflow-y-auto">
                   <Connections />
                   <Footer />

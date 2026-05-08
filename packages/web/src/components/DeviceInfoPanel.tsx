@@ -149,7 +149,7 @@ export const DeviceInfoPanel = ({
       label: "GUIDE",
       icon: BookOpen,
       onClick: () => {
-        window.open("/guide", "_blank", "noopener,noreferrer");
+        navigate({ to: "/guide" });
       },
     });
   }

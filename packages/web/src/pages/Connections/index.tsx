@@ -27,6 +27,7 @@ import {
 } from "@components/UI/DropdownMenu.tsx";
 import { Separator } from "@components/UI/Separator.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
+import { useDeviceStore } from "@core/stores";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -55,7 +56,7 @@ const DARKMESH_ACTION_COLOR = "#00bcd4";
 export const Connections = () => {
   const {
     connections,
-    addConnectionAndConnect,
+    addConnection,
     connect,
     disconnect,
     removeConnection,
@@ -64,8 +65,25 @@ export const Connections = () => {
     syncConnectionStatuses,
   } = useConnections();
   const { toast } = useToast();
-  const navigate = useNavigate({ from: "/" });
+  const navigate = useNavigate();
   const [addOpen, setAddOpen] = useState(false);
+  const [pendingNavigationConnectionId, setPendingNavigationConnectionId] = useState<
+    Connection["id"] | null
+  >(null);
+  const pendingNavigationConnectionPhase = useDeviceStore((state) => {
+    if (!pendingNavigationConnectionId) {
+      return undefined;
+    }
+
+    const pendingConnection = state.savedConnections.find(
+      (connection) => connection.id === pendingNavigationConnectionId,
+    );
+    if (!pendingConnection?.meshDeviceId) {
+      return undefined;
+    }
+
+    return state.getDevice(pendingConnection.meshDeviceId)?.connectionPhase;
+  });
   const isURLHTTPS = useMemo(() => location.protocol === "https:", []);
   const { t } = useTranslation("connections");
 
@@ -75,6 +93,32 @@ export const Connections = () => {
     refreshStatuses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!pendingNavigationConnectionId) {
+      return;
+    }
+
+    const pendingConnection = connections.find((c) => c.id === pendingNavigationConnectionId);
+    if (!pendingConnection) {
+      setPendingNavigationConnectionId(null);
+      return;
+    }
+
+    if (
+      pendingConnection.status === "connected" ||
+      pendingConnection.status === "configured" ||
+      pendingNavigationConnectionPhase === "configured"
+    ) {
+      setPendingNavigationConnectionId(null);
+      navigate({ to: "/map" });
+      return;
+    }
+
+    if (pendingConnection.status === "error" || pendingConnection.status === "disconnected") {
+      setPendingNavigationConnectionId(null);
+    }
+  }, [connections, navigate, pendingNavigationConnectionId, pendingNavigationConnectionPhase]);
 
   const sorted = useMemo(() => {
     const copy = [...connections];
@@ -165,12 +209,11 @@ export const Connections = () => {
         <div className="flex justify-center">
           <a
             href="/guide"
-            target="_blank"
-            rel="noreferrer"
+            target="_self"
             className="inline-flex items-center gap-2 rounded-full border border-[#7a2424] bg-[#551717] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-[#6c1d1d] hover:text-white"
           >
             GUIDE
-            <ExternalLink className="size-4" />
+            <LinkIcon className="size-4" />
           </a>
         </div>
 
@@ -201,6 +244,7 @@ export const Connections = () => {
                 key={c.id}
                 connection={c}
                 onConnect={async () => {
+                  setPendingNavigationConnectionId(c.id);
                   const ok = await connect(c.id, { allowPrompt: true });
                   toast({
                     title: ok ? t("toasts.connected") : t("toasts.failed"),
@@ -211,8 +255,8 @@ export const Connections = () => {
                         })
                       : t("toasts.checkConnection"),
                   });
-                  if (ok) {
-                    navigate({ to: "/" });
+                  if (!ok) {
+                    setPendingNavigationConnectionId(null);
                   }
                 }}
                 onDisconnect={async () => {
@@ -247,6 +291,7 @@ export const Connections = () => {
                   });
                 }}
                 onRetry={async () => {
+                  setPendingNavigationConnectionId(c.id);
                   const ok = await connect(c.id, { allowPrompt: true });
                   toast({
                     title: ok ? t("toasts.connected") : t("toasts.failed"),
@@ -257,8 +302,8 @@ export const Connections = () => {
                         })
                       : t("toasts.pickConnectionAgain"),
                   });
-                  if (ok) {
-                    navigate({ to: "/" });
+                  if (!ok) {
+                    setPendingNavigationConnectionId(null);
                   }
                 }}
               />
@@ -271,25 +316,15 @@ export const Connections = () => {
           onOpenChange={setAddOpen}
           isHTTPS={isURLHTTPS}
           onSave={async (partial, btDevice) => {
-            const created = await addConnectionAndConnect(partial, btDevice);
-            if (created) {
-              setAddOpen(false);
-              toast({
-                title: t("toasts.added"),
-                description: t("toasts.savedByName", {
-                  name: created.name,
-                  interpolation: { escapeValue: false },
-                }),
-              });
-              if (created.status === "connected" || created.status === "configured") {
-                navigate({ to: "/" });
-              }
-            } else {
-              toast({
-                title: "Unable to connect",
-                description: "savedCantConnect",
-              });
-            }
+            const created = addConnection(partial, btDevice);
+            setAddOpen(false);
+            toast({
+              title: t("toasts.added"),
+              description: t("toasts.savedByName", {
+                name: created.name,
+                interpolation: { escapeValue: false },
+              }),
+            });
           }}
         />
       </div>

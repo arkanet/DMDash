@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 
 type GuideVariant = "landing" | "en" | "it";
 
@@ -74,6 +75,12 @@ function rewriteGuideHtml(html: string, assetBase: string): string {
       return;
     }
 
+    if (rewrittenHref.startsWith("/")) {
+      element.removeAttribute("target");
+      element.setAttribute("data-dmdash-route", rewrittenHref);
+      return;
+    }
+
     element.setAttribute("target", "_top");
     if (/^https?:\/\//.test(rewrittenHref)) {
       element.setAttribute("rel", "noreferrer");
@@ -110,6 +117,10 @@ function rewriteGuideHtml(html: string, assetBase: string): string {
   const anchorScript = documentNode.createElement("script");
   anchorScript.textContent = `
     (() => {
+      const navigateParent = (to) => {
+        window.parent.postMessage({ type: 'dmdash:navigate', to }, '*');
+      };
+
       const resolveAnchorTarget = (hash) => {
         if (!hash || hash === '#') return null;
         const id = decodeURIComponent(hash.slice(1));
@@ -126,6 +137,16 @@ function rewriteGuideHtml(html: string, assetBase: string): string {
       };
 
       document.addEventListener('click', (event) => {
+        const appRouteAnchor = event.target instanceof Element ? event.target.closest('a[data-dmdash-route]') : null;
+        if (appRouteAnchor instanceof HTMLAnchorElement) {
+          const to = appRouteAnchor.dataset.dmdashRoute;
+          if (to) {
+            event.preventDefault();
+            navigateParent(to);
+          }
+          return;
+        }
+
         const anchor = event.target instanceof Element ? event.target.closest('a[href^="#"]') : null;
         if (!(anchor instanceof HTMLAnchorElement)) return;
 
@@ -161,7 +182,29 @@ interface GuidePageProps {
 export default function GuidePage({ variant = "landing" }: GuidePageProps) {
   const [srcDoc, setSrcDoc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
   const config = GUIDE_CONFIG[variant];
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin && event.origin !== "null") {
+        return;
+      }
+
+      const data = event.data as { type?: unknown; to?: unknown };
+      if (data.type !== "dmdash:navigate" || typeof data.to !== "string") {
+        return;
+      }
+      if (!data.to.startsWith("/") || data.to.startsWith("//")) {
+        return;
+      }
+
+      void navigate({ to: data.to });
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [navigate]);
 
   useEffect(() => {
     const previousTitle = document.title;

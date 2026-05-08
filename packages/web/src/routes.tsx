@@ -38,7 +38,7 @@ const indexRoute = createRoute({
   path: "/",
   component: Connections,
   loader: () => {
-    return redirect({ to: "/map", replace: true });
+    return redirect({ to: "/connections", replace: true });
   },
 });
 

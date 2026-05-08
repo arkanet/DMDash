@@ -57,7 +57,10 @@ export function useConnections() {
 
   const removeConnection = useCallback(
     (id: ConnectionId) => {
-      const conn = connections.find((c) => c.id === id);
+      const conn = useDeviceStore
+        .getState()
+        .getSavedConnections()
+        .find((c) => c.id === id);
 
       // Stop heartbeat
       const heartbeatId = heartbeats.get(id);
@@ -115,7 +118,7 @@ export function useConnections() {
 
       removeSavedConnectionFromStore(id);
     },
-    [connections, removeSavedConnectionFromStore],
+    [removeSavedConnectionFromStore],
   );
 
   const setDefaultConnection = useCallback(
@@ -144,7 +147,10 @@ export function useConnections() {
     ): number => {
       // Reuse existing meshDeviceId if available to prevent duplicate nodeDBs,
       // but only if the corresponding nodeDB still exists. Otherwise, generate a new ID.
-      const conn = connections.find((c) => c.id === id);
+      const conn = useDeviceStore
+        .getState()
+        .getSavedConnections()
+        .find((c) => c.id === id);
       let deviceId = conn?.meshDeviceId;
       if (deviceId && !useNodeDBStore.getState().getNodeDB(deviceId)) {
         deviceId = undefined;
@@ -169,6 +175,7 @@ export function useConnections() {
       // Set active connection and link device bidirectionally
       setActiveConnectionId(id);
       device.setConnectionId(id);
+      updateStatus(id, "connected");
 
       // Listen for config complete event (with nonce/ID)
       const unsubConfigComplete = meshDevice.events.onConfigComplete.subscribe(
@@ -194,44 +201,53 @@ export function useConnections() {
       );
       configSubscriptions.set(id, unsubConfigComplete);
 
-      // Start configuration
-      device.setConnectionPhase("configuring");
-      updateStatus(id, "configuring");
-      console.log("[useConnections] Starting configuration");
+      window.setTimeout(() => {
+        const currentConnection = useDeviceStore
+          .getState()
+          .getSavedConnections()
+          .find((connection) => connection.id === id);
+        if (!currentConnection || currentConnection.status !== "connected") {
+          return;
+        }
 
-      meshDevice
-        .configure()
-        .then(() => {
-          console.log("[useConnections] Configuration complete, starting heartbeat");
-          // Send initial heartbeat after configure completes
-          meshDevice
-            .heartbeat()
-            .then(() => {
-              // Start fast heartbeat after first successful heartbeat
-              const configHeartbeatId = setInterval(() => {
-                meshDevice.heartbeat().catch((error) => {
-                  console.warn("[useConnections] Config heartbeat failed:", error);
-                });
-              }, CONFIG_HEARTBEAT_INTERVAL_MS);
-              heartbeats.set(id, configHeartbeatId);
-              console.log(
-                `[useConnections] Heartbeat started for connection ${id} (5s interval during config)`,
-              );
-            })
-            .catch((error) => {
-              console.warn("[useConnections] Initial heartbeat failed:", error);
-            });
-        })
-        .catch((error) => {
-          console.error(`[useConnections] Failed to configure:`, error);
-          updateStatus(id, "error", error.message);
-        });
+        // Start configuration after the UI has observed the connected state.
+        device.setConnectionPhase("configuring");
+        updateStatus(id, "configuring");
+        console.log("[useConnections] Starting configuration");
+
+        meshDevice
+          .configure()
+          .then(() => {
+            console.log("[useConnections] Configuration complete, starting heartbeat");
+            // Send initial heartbeat after configure completes
+            meshDevice
+              .heartbeat()
+              .then(() => {
+                // Start fast heartbeat after first successful heartbeat
+                const configHeartbeatId = setInterval(() => {
+                  meshDevice.heartbeat().catch((error) => {
+                    console.warn("[useConnections] Config heartbeat failed:", error);
+                  });
+                }, CONFIG_HEARTBEAT_INTERVAL_MS);
+                heartbeats.set(id, configHeartbeatId);
+                console.log(
+                  `[useConnections] Heartbeat started for connection ${id} (5s interval during config)`,
+                );
+              })
+              .catch((error) => {
+                console.warn("[useConnections] Initial heartbeat failed:", error);
+              });
+          })
+          .catch((error) => {
+            console.error(`[useConnections] Failed to configure:`, error);
+            updateStatus(id, "error", error.message);
+          });
+      }, 0);
 
       updateSavedConnection(id, { meshDeviceId: deviceId });
       return deviceId;
     },
     [
-      connections,
       addDevice,
       addNodeDB,
       addMessageStore,
@@ -244,7 +260,10 @@ export function useConnections() {
 
   const connect = useCallback(
     async (id: ConnectionId, opts?: { allowPrompt?: boolean }) => {
-      const conn = connections.find((c) => c.id === id);
+      const conn = useDeviceStore
+        .getState()
+        .getSavedConnections()
+        .find((c) => c.id === id);
       if (!conn) {
         return false;
       }
@@ -391,7 +410,7 @@ export function useConnections() {
       }
       return false;
     },
-    [connections, updateStatus, setupMeshDevice],
+    [updateStatus, setupMeshDevice],
   );
 
   const disconnect = useCallback(
@@ -472,9 +491,12 @@ export function useConnections() {
   );
 
   const addConnection = useCallback(
-    (input: NewConnection) => {
+    (input: NewConnection, btDevice?: BluetoothDevice) => {
       const conn = createConnectionFromInput(input);
       addSavedConnection(conn);
+      if (btDevice && conn.type === "bluetooth") {
+        transports.set(conn.id, btDevice);
+      }
       return conn;
     },
     [addSavedConnection],
@@ -482,11 +504,7 @@ export function useConnections() {
 
   const addConnectionAndConnect = useCallback(
     async (input: NewConnection, btDevice?: BluetoothDevice) => {
-      const conn = addConnection(input);
-      // If a Bluetooth device was provided, store it to avoid re-prompting
-      if (btDevice && conn.type === "bluetooth") {
-        transports.set(conn.id, btDevice);
-      }
+      const conn = addConnection(input, btDevice);
       await connect(conn.id, { allowPrompt: true });
       // Get updated connection from store after connect
       if (conn.id) {
