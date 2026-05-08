@@ -207,14 +207,14 @@ export const Connections = () => {
         <Separator className="bg-white/10" />
 
         <div className="flex justify-center">
-          <a
-            href="/guide"
-            target="_self"
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/guide" })}
             className="inline-flex items-center gap-2 rounded-full border border-[#7a2424] bg-[#551717] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-[#6c1d1d] hover:text-white"
           >
             GUIDE
             <LinkIcon className="size-4" />
-          </a>
+          </button>
         </div>
 
         <p className="w-full text-sm leading-6 text-zinc-300 md:text-base">
