@@ -65,7 +65,7 @@ export const PageLayout = ({
           </aside>
         )}
 
-        <div className="flex flex-1 flex-col min-w-0">
+        <div className="flex min-h-0 flex-1 flex-col min-w-0">
           {/* Header */}
           <header
             className={cn(
@@ -119,6 +119,7 @@ export const PageLayout = ({
           <main
             className={cn(
               "flex-1 flex flex-col",
+              "min-h-0",
               "overflow-hidden max-md:overflow-auto",
               !noPadding && "px-2",
               contentClassName,

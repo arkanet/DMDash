@@ -887,7 +887,9 @@ export const MessagesPage = () => {
                     : t("emptyState.title")}
               </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-hidden">{renderChatContent()}</div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              {renderChatContent()}
+            </div>
             <div className="flex-none bg-background-primary p-2 dark:bg-[#101010]">
               <MessageInput
                 to={isDirect ? numericChatId : MessageType.Broadcast}
