@@ -138,6 +138,8 @@ export class TransportIOSBluetooth implements Types.Transport {
   private _toDevice: WritableStream<Uint8Array>;
   private _fromDevice: ReadableStream<Types.DeviceOutput>;
   private fromDeviceController?: ReadableStreamDefaultController<Types.DeviceOutput>;
+  private cleanupNativeEventListeners?: () => void;
+  private readonly ready: Promise<void>;
   private readonly bridge: DMDashIOSBluetoothBridge;
   private readonly deviceId: string;
   private closingByUser = false;
@@ -148,12 +150,20 @@ export class TransportIOSBluetooth implements Types.Transport {
     if (!bridge) {
       throw new Error("DMDash iOS Bluetooth bridge is not available");
     }
-    return new TransportIOSBluetooth(bridge, deviceId);
+    const transport = new TransportIOSBluetooth(bridge, deviceId);
+    await transport.ready;
+    return transport;
   }
 
   private constructor(bridge: DMDashIOSBluetoothBridge, deviceId: string) {
     this.bridge = bridge;
     this.deviceId = deviceId;
+    let resolveReady = () => {};
+    let rejectReady = (_reason?: unknown) => {};
+    this.ready = new Promise<void>((resolve, reject) => {
+      resolveReady = resolve;
+      rejectReady = reject;
+    });
 
     const onPacket = (event: Event) => {
       const detail = (event as CustomEvent<IOSBluetoothPacketEventDetail>).detail;
@@ -171,29 +181,39 @@ export class TransportIOSBluetooth implements Types.Transport {
       this.emitStatus(toDeviceStatus(detail.status), detail.reason);
     };
 
+    this.cleanupNativeEventListeners = () => {
+      window.removeEventListener(IOS_BLUETOOTH_PACKET_EVENT, onPacket);
+      window.removeEventListener(IOS_BLUETOOTH_STATUS_EVENT, onStatus);
+    };
+
     this._fromDevice = new ReadableStream<Types.DeviceOutput>({
-      start: async (ctrl) => {
+      start: (ctrl) => {
         this.fromDeviceController = ctrl;
         window.addEventListener(IOS_BLUETOOTH_PACKET_EVENT, onPacket);
         window.addEventListener(IOS_BLUETOOTH_STATUS_EVENT, onStatus);
 
         this.emitStatus(Types.DeviceStatusEnum.DeviceConnecting);
-        try {
-          await this.bridge.connect(this.deviceId);
-          this.emitStatus(Types.DeviceStatusEnum.DeviceConnected);
-        } catch (error) {
-          this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "connect-error");
-          throw error;
-        }
+        void this.bridge
+          .connect(this.deviceId)
+          .then(() => {
+            this.emitStatus(Types.DeviceStatusEnum.DeviceConnected);
+            resolveReady();
+          })
+          .catch((error) => {
+            this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "connect-error");
+            this.cleanupNativeEventListeners?.();
+            rejectReady(error);
+            ctrl.error(error);
+          });
       },
       cancel: () => {
-        window.removeEventListener(IOS_BLUETOOTH_PACKET_EVENT, onPacket);
-        window.removeEventListener(IOS_BLUETOOTH_STATUS_EVENT, onStatus);
+        this.cleanupNativeEventListeners?.();
       },
     });
 
     this._toDevice = new WritableStream<Uint8Array>({
       write: async (chunk) => {
+        await this.ready;
         try {
           await this.bridge.write(this.deviceId, fromByteArray(chunk));
         } catch (error) {
@@ -218,6 +238,7 @@ export class TransportIOSBluetooth implements Types.Transport {
       await this.bridge.disconnect(this.deviceId);
       this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "user");
     } finally {
+      this.cleanupNativeEventListeners?.();
       this.closingByUser = false;
     }
   }

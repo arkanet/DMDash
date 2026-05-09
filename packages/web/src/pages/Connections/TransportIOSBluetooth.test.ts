@@ -8,6 +8,14 @@ import {
   type DMDashIOSBluetoothBridge,
 } from "./TransportIOSBluetooth.ts";
 
+function deferred() {
+  let resolve = () => {};
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 function installBridge() {
   const deviceId = "ios-device-1";
   let lastWritten: string | undefined;
@@ -40,7 +48,11 @@ function installBridge() {
     dropLink() {
       window.dispatchEvent(
         new CustomEvent(IOS_BLUETOOTH_STATUS_EVENT, {
-          detail: { deviceId, status: "disconnected", reason: "native-disconnected" },
+          detail: {
+            deviceId,
+            status: "disconnected",
+            reason: "native-disconnected",
+          },
         }),
       );
     },
@@ -83,6 +95,39 @@ afterEach(() => {
 });
 
 describe("TransportIOSBluetooth", () => {
+  it("waits for the native bridge to connect before resolving create", async () => {
+    const deviceId = "ios-device-1";
+    const connect = deferred();
+    const bridge: DMDashIOSBluetoothBridge = {
+      isAvailable: () => true,
+      requestDevice: async () => ({ id: deviceId }),
+      connect: () => connect.promise,
+      disconnect: async () => {},
+      write: async () => {},
+    };
+
+    Object.defineProperty(window, "DMDashIOSBluetooth", {
+      configurable: true,
+      writable: true,
+      value: bridge,
+    });
+
+    let resolved = false;
+    const createPromise = TransportIOSBluetooth.create(deviceId).then((transport) => {
+      resolved = true;
+      return transport;
+    });
+
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    connect.resolve();
+    const transport = await createPromise;
+
+    expect(resolved).toBe(true);
+    await transport.disconnect();
+  });
+
   it("reads packets pushed by the native bridge", async () => {
     const bridge = installBridge();
     const transport = await TransportIOSBluetooth.create(bridge.deviceId);

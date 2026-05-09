@@ -42,12 +42,16 @@ public class DMDashIOSBluetoothPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func requestDevice(_ call: CAPPluginCall) {
         ensureCentral()
         guard central?.state == .poweredOn else {
-            call.reject("Bluetooth is not powered on")
+            reject(call, "Bluetooth is not powered on")
             return
         }
 
         pendingRequestDeviceCall = call
+        let activePeripheral = connectedDeviceId.flatMap { peripheralsById[$0] }
         peripheralsById.removeAll()
+        if let connectedDeviceId, let activePeripheral {
+            peripheralsById[connectedDeviceId] = activePeripheral
+        }
         central?.scanForPeripherals(withServices: [serviceUuid], options: [
             CBCentralManagerScanOptionAllowDuplicatesKey: false,
         ])
@@ -59,13 +63,14 @@ public class DMDashIOSBluetoothPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func connect(_ call: CAPPluginCall) {
         ensureCentral()
-        guard let deviceId = call.getString("deviceId") else {
-            call.reject("Missing deviceId")
+        let deviceId = call.getString("deviceId", "")
+        guard !deviceId.isEmpty else {
+            reject(call, "Missing deviceId")
             return
         }
 
         guard let peripheral = resolvePeripheral(deviceId: deviceId) else {
-            call.reject("Bluetooth device is not available. Select it again.")
+            reject(call, "Bluetooth device is not available. Select it again.")
             return
         }
 
@@ -75,41 +80,55 @@ public class DMDashIOSBluetoothPlugin: CAPPlugin, CAPBridgedPlugin {
         fromRadioCharacteristic = nil
         fromNumCharacteristic = nil
         notifyStatus(deviceId: deviceId, status: "connecting")
-        central?.connect(peripheral)
+        if peripheral.state == CBPeripheralState.connected {
+            peripheral.delegate = self
+            peripheral.discoverServices([serviceUuid])
+        } else {
+            central?.connect(peripheral)
+        }
     }
 
     @objc func disconnect(_ call: CAPPluginCall) {
-        guard let deviceId = call.getString("deviceId") else {
-            call.reject("Missing deviceId")
+        let deviceId = call.getString("deviceId", "")
+        guard !deviceId.isEmpty else {
+            reject(call, "Missing deviceId")
             return
         }
         if let peripheral = peripheralsById[deviceId] {
             central?.cancelPeripheralConnection(peripheral)
+        }
+        if connectedDeviceId == deviceId {
+            clearConnectionState()
         }
         notifyStatus(deviceId: deviceId, status: "disconnected", reason: "user")
         call.resolve()
     }
 
     @objc func write(_ call: CAPPluginCall) {
-        guard let deviceId = call.getString("deviceId") else {
-            call.reject("Missing deviceId")
+        let deviceId = call.getString("deviceId", "")
+        guard !deviceId.isEmpty else {
+            reject(call, "Missing deviceId")
             return
         }
         guard deviceId == connectedDeviceId else {
-            call.reject("Device is not connected")
+            reject(call, "Device is not connected")
             return
         }
-        guard let base64Data = call.getString("base64Data"),
-              let data = Data(base64Encoded: base64Data),
+        let base64Data = call.getString("base64Data", "")
+        guard let data = Data(base64Encoded: base64Data),
               let peripheral = peripheralsById[deviceId],
               let toRadioCharacteristic
         else {
-            call.reject("Write characteristic is not ready")
+            reject(call, "Write characteristic is not ready")
             return
         }
 
         pendingWriteCalls.append(call)
-        peripheral.writeValue(data, for: toRadioCharacteristic, type: .withResponse)
+        peripheral.writeValue(
+            data,
+            for: toRadioCharacteristic,
+            type: CBCharacteristicWriteType.withResponse
+        )
     }
 
     private func ensureCentral() {
@@ -131,6 +150,30 @@ public class DMDashIOSBluetoothPlugin: CAPPlugin, CAPBridgedPlugin {
         return peripheral
     }
 
+    private func clearConnectionState() {
+        connectedDeviceId = nil
+        toRadioCharacteristic = nil
+        fromRadioCharacteristic = nil
+        fromNumCharacteristic = nil
+        rejectPendingWrites("Bluetooth connection is not available")
+    }
+
+    private func rejectPendingWrites(_ message: String) {
+        let calls = pendingWriteCalls
+        pendingWriteCalls.removeAll()
+        for call in calls {
+            reject(call, message)
+        }
+    }
+
+    private func reject(_ call: CAPPluginCall?, _ message: String) {
+        call?.unavailable(message)
+    }
+
+    private func isCurrentPeripheral(_ peripheral: CBPeripheral) -> Bool {
+        connectedDeviceId == peripheral.identifier.uuidString
+    }
+
     private func presentDevicePicker() {
         central?.stopScan()
         guard let call = pendingRequestDeviceCall else {
@@ -140,7 +183,7 @@ public class DMDashIOSBluetoothPlugin: CAPPlugin, CAPBridgedPlugin {
 
         let peripherals = Array(peripheralsById.values)
         guard !peripherals.isEmpty else {
-            call.reject("No Meshtastic Bluetooth devices found")
+            reject(call, "No Meshtastic Bluetooth devices found")
             return
         }
 
@@ -156,16 +199,37 @@ public class DMDashIOSBluetoothPlugin: CAPPlugin, CAPBridgedPlugin {
         )
         for peripheral in peripherals {
             alert.addAction(
-                UIAlertAction(title: peripheral.name ?? peripheral.identifier.uuidString, style: .default) { [weak self] _ in
+                UIAlertAction(
+                    title: peripheral.name ?? peripheral.identifier.uuidString,
+                    style: .default
+                ) { [weak self] _ in
                     self?.resolveDevice(call: call, peripheral: peripheral)
                 }
             )
         }
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
-            call.reject("Device selection cancelled")
+            self.reject(call, "Device selection cancelled")
         })
 
-        bridge?.viewController?.present(alert, animated: true)
+        guard let viewController =
+            (bridge as? NSObject)?.value(forKey: "viewController") as? UIViewController
+        else {
+            reject(call, "Unable to present device selector")
+            return
+        }
+
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = viewController.view
+            popover.sourceRect = CGRect(
+                x: viewController.view.bounds.midX,
+                y: viewController.view.bounds.midY,
+                width: 0,
+                height: 0
+            )
+            popover.permittedArrowDirections = []
+        }
+
+        viewController.present(alert, animated: true)
     }
 
     private func resolveDevice(call: CAPPluginCall, peripheral: CBPeripheral) {
@@ -193,10 +257,19 @@ public class DMDashIOSBluetoothPlugin: CAPPlugin, CAPBridgedPlugin {
 extension DMDashIOSBluetoothPlugin: CBCentralManagerDelegate {
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state != .poweredOn {
-            pendingRequestDeviceCall?.reject("Bluetooth is not powered on")
+            central.stopScan()
+            reject(pendingRequestDeviceCall, "Bluetooth is not powered on")
             pendingRequestDeviceCall = nil
-            pendingConnectCall?.reject("Bluetooth is not powered on")
+            reject(pendingConnectCall, "Bluetooth is not powered on")
             pendingConnectCall = nil
+            if let deviceId = connectedDeviceId {
+                notifyStatus(
+                    deviceId: deviceId,
+                    status: "disconnected",
+                    reason: "bluetooth-off"
+                )
+            }
+            clearConnectionState()
         }
     }
 
@@ -210,6 +283,10 @@ extension DMDashIOSBluetoothPlugin: CBCentralManagerDelegate {
     }
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        guard isCurrentPeripheral(peripheral) else {
+            central.cancelPeripheralConnection(peripheral)
+            return
+        }
         peripheral.delegate = self
         peripheral.discoverServices([serviceUuid])
     }
@@ -219,8 +296,13 @@ extension DMDashIOSBluetoothPlugin: CBCentralManagerDelegate {
         didFailToConnect peripheral: CBPeripheral,
         error: Error?
     ) {
-        pendingConnectCall?.reject(error?.localizedDescription ?? "Bluetooth connection failed")
+        guard isCurrentPeripheral(peripheral) else {
+            return
+        }
+
+        reject(pendingConnectCall, error?.localizedDescription ?? "Bluetooth connection failed")
         pendingConnectCall = nil
+        clearConnectionState()
         notifyStatus(
             deviceId: peripheral.identifier.uuidString,
             status: "disconnected",
@@ -233,6 +315,18 @@ extension DMDashIOSBluetoothPlugin: CBCentralManagerDelegate {
         didDisconnectPeripheral peripheral: CBPeripheral,
         error: Error?
     ) {
+        guard isCurrentPeripheral(peripheral) else {
+            return
+        }
+
+        if pendingConnectCall != nil {
+            reject(
+                pendingConnectCall,
+                error?.localizedDescription ?? "Bluetooth disconnected before setup completed"
+            )
+            pendingConnectCall = nil
+        }
+        clearConnectionState()
         notifyStatus(
             deviceId: peripheral.identifier.uuidString,
             status: "disconnected",
@@ -243,17 +337,26 @@ extension DMDashIOSBluetoothPlugin: CBCentralManagerDelegate {
 
 extension DMDashIOSBluetoothPlugin: CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        guard isCurrentPeripheral(peripheral) else {
+            return
+        }
+
         if let error {
-            pendingConnectCall?.reject(error.localizedDescription)
+            reject(pendingConnectCall, error.localizedDescription)
             pendingConnectCall = nil
+            clearConnectionState()
             return
         }
         guard let service = peripheral.services?.first(where: { $0.uuid == serviceUuid }) else {
-            pendingConnectCall?.reject("Meshtastic BLE service not found")
+            reject(pendingConnectCall, "Meshtastic BLE service not found")
             pendingConnectCall = nil
+            clearConnectionState()
             return
         }
-        peripheral.discoverCharacteristics([toRadioUuid, fromRadioUuid, fromNumUuid], for: service)
+        peripheral.discoverCharacteristics(
+            [toRadioUuid, fromRadioUuid, fromNumUuid],
+            for: service
+        )
     }
 
     public func peripheral(
@@ -261,9 +364,14 @@ extension DMDashIOSBluetoothPlugin: CBPeripheralDelegate {
         didDiscoverCharacteristicsFor service: CBService,
         error: Error?
     ) {
+        guard isCurrentPeripheral(peripheral) else {
+            return
+        }
+
         if let error {
-            pendingConnectCall?.reject(error.localizedDescription)
+            reject(pendingConnectCall, error.localizedDescription)
             pendingConnectCall = nil
+            clearConnectionState()
             return
         }
 
@@ -279,13 +387,60 @@ extension DMDashIOSBluetoothPlugin: CBPeripheralDelegate {
             }
         }
 
-        guard let fromNumCharacteristic else {
-            pendingConnectCall?.reject("Meshtastic notify characteristic not found")
+        guard toRadioCharacteristic != nil,
+              fromRadioCharacteristic != nil,
+              let fromNumCharacteristic
+        else {
+            reject(pendingConnectCall, "Meshtastic BLE characteristics not found")
             pendingConnectCall = nil
+            clearConnectionState()
             return
         }
 
         peripheral.setNotifyValue(true, for: fromNumCharacteristic)
+    }
+
+    public func peripheral(
+        _ peripheral: CBPeripheral,
+        didUpdateNotificationStateFor characteristic: CBCharacteristic,
+        error: Error?
+    ) {
+        guard characteristic.uuid == fromNumUuid else {
+            return
+        }
+        guard isCurrentPeripheral(peripheral) else {
+            return
+        }
+
+        if let error {
+            reject(pendingConnectCall, error.localizedDescription)
+            pendingConnectCall = nil
+            notifyStatus(
+                deviceId: peripheral.identifier.uuidString,
+                status: "disconnected",
+                reason: "notify-failed"
+            )
+            central?.cancelPeripheralConnection(peripheral)
+            clearConnectionState()
+            return
+        }
+
+        guard characteristic.isNotifying else {
+            reject(
+                pendingConnectCall,
+                "Meshtastic notify characteristic is not notifying"
+            )
+            pendingConnectCall = nil
+            notifyStatus(
+                deviceId: peripheral.identifier.uuidString,
+                status: "disconnected",
+                reason: "notify-disabled"
+            )
+            central?.cancelPeripheralConnection(peripheral)
+            clearConnectionState()
+            return
+        }
+
         pendingConnectCall?.resolve()
         pendingConnectCall = nil
         notifyStatus(deviceId: peripheral.identifier.uuidString, status: "connected")
@@ -294,19 +449,20 @@ extension DMDashIOSBluetoothPlugin: CBPeripheralDelegate {
 
     public func peripheral(
         _ peripheral: CBPeripheral,
-        didUpdateNotificationStateFor characteristic: CBCharacteristic,
-        error: Error?
-    ) {
-        if error == nil, characteristic.uuid == fromNumUuid {
-            readFromRadio(peripheral)
-        }
-    }
-
-    public func peripheral(
-        _ peripheral: CBPeripheral,
         didUpdateValueFor characteristic: CBCharacteristic,
         error: Error?
     ) {
+        guard isCurrentPeripheral(peripheral) else {
+            return
+        }
+
+        if characteristic.uuid == fromNumUuid {
+            if error == nil {
+                readFromRadio(peripheral)
+            }
+            return
+        }
+
         guard characteristic.uuid == fromRadioUuid else {
             return
         }
@@ -329,11 +485,13 @@ extension DMDashIOSBluetoothPlugin: CBPeripheralDelegate {
         guard characteristic.uuid == toRadioUuid else {
             return
         }
-        let calls = pendingWriteCalls
-        pendingWriteCalls.removeAll()
-        for call in calls {
+        guard isCurrentPeripheral(peripheral) else {
+            return
+        }
+        if !pendingWriteCalls.isEmpty {
+            let call = pendingWriteCalls.removeFirst()
             if let error {
-                call.reject(error.localizedDescription)
+                reject(call, error.localizedDescription)
             } else {
                 call.resolve()
             }
