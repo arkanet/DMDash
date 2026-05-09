@@ -10,8 +10,11 @@ import { createRoot } from "react-dom/client";
 import "./i18n-config.ts";
 import { router } from "@app/routes.tsx";
 import { useAppStore, useMessageStore } from "@core/stores";
+import { installDynamicImportRecovery } from "@core/utils/dynamicImportRecovery.ts";
 import { type createRouter, RouterProvider } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+
+installDynamicImportRecovery();
 
 declare module "@tanstack/react-router" {
   interface Register {

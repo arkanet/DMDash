@@ -80,6 +80,9 @@ export interface NodeDetailProps {
   neighborHighlighted?: boolean;
 }
 
+const MAP_POPUP_TOOLTIP_CONTENT_CLASS =
+  "z-[1000] rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm";
+
 export const NodeDetail = ({
   node,
   onSelectNode,
@@ -334,7 +337,9 @@ export const NodeDetail = ({
                 <TooltipPortal>
                   <TooltipContent
                     side="top"
-                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                    align="center"
+                    sideOffset={6}
+                    className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
                   >
                     {t("nodeDetail.publicKeyButton", "Show public key")}
                   </TooltipContent>
@@ -354,7 +359,9 @@ export const NodeDetail = ({
                 <TooltipPortal>
                   <TooltipContent
                     side="top"
-                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                    align="center"
+                    sideOffset={6}
+                    className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
                   >
                     {t("nodeDetail.message", "Send message")}
                   </TooltipContent>
@@ -374,7 +381,9 @@ export const NodeDetail = ({
                 <TooltipPortal>
                   <TooltipContent
                     side="top"
-                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                    align="center"
+                    sideOffset={6}
+                    className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
                   >
                     {t("nodeDetail.visualTraceroute", "Visual Traceroute")}
                   </TooltipContent>
@@ -395,7 +404,9 @@ export const NodeDetail = ({
                   <TooltipPortal>
                     <TooltipContent
                       side="top"
-                      className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                      align="center"
+                      sideOffset={6}
+                      className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
                     >
                       {t("nodeDetail.neighbor", "Neighbor Info")}
                     </TooltipContent>
@@ -438,7 +449,9 @@ export const NodeDetail = ({
                   <TooltipPortal>
                     <TooltipContent
                       side="top"
-                      className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                      align="center"
+                      sideOffset={6}
+                      className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
                     >
                       {t("nodeDetail.highlightNeighbors", "Highlight Neighbors")}
                     </TooltipContent>
@@ -459,7 +472,9 @@ export const NodeDetail = ({
                 <TooltipPortal>
                   <TooltipContent
                     side="top"
-                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                    align="center"
+                    sideOffset={6}
+                    className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
                   >
                     {t("nodeDetail.metrics.toggle", "Environment")}
                   </TooltipContent>
@@ -492,7 +507,9 @@ export const NodeDetail = ({
                 <TooltipPortal>
                   <TooltipContent
                     side="top"
-                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                    align="center"
+                    sideOffset={6}
+                    className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
                   >
                     {node.isFavorite
                       ? t("nodeDetail.favorite.label")
@@ -528,7 +545,9 @@ export const NodeDetail = ({
                 <TooltipPortal>
                   <TooltipContent
                     side="top"
-                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                    align="center"
+                    sideOffset={6}
+                    className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
                   >
                     {t("nodeDetail.share", "Share contact")}
                   </TooltipContent>
@@ -549,7 +568,9 @@ export const NodeDetail = ({
                   <TooltipPortal>
                     <TooltipContent
                       side="top"
-                      className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                      align="center"
+                      sideOffset={6}
+                      className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
                     >
                       {t("nodeDetail.remoteAdmin", "Remote Admin")}
                     </TooltipContent>
@@ -603,7 +624,9 @@ export const NodeDetail = ({
                 <TooltipPortal>
                   <TooltipContent
                     side="top"
-                    className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm"
+                    align="center"
+                    sideOffset={6}
+                    className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
                   >
                     {t("nodeDetail.requestNodeInfo", "Request Node Info")}
                   </TooltipContent>

@@ -12,7 +12,7 @@ interface MapProps {
   children?: React.ReactNode;
   onLoad?: (map: MapRef) => void;
   onMouseMove?: (event: MapLayerMouseEvent) => void;
-  onMove?: (event: { viewState: { zoom: number } }) => void;
+  onMove?: (event: { viewState: { zoom: number; bearing?: number } }) => void;
   onClick?: (event: MapLayerMouseEvent) => void;
   interactiveLayerIds?: string[];
   initialViewState?: {

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { Types, Protobuf } from "@meshtastic/core";
+import { getPacketRxTimeMs } from "@app/darkmesh/utils.ts";
 
 export type StoredRouteDiscovery = Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> & {
   id: string | number;
@@ -76,7 +77,7 @@ export const useTracerouteStore = create<TracerouteState>()(
             return;
           }
 
-          const id = `${deviceId}-${pkt.from}-${pkt.rxTime?.toISOString?.() ?? now}`;
+          const id = `${deviceId}-${pkt.from}-${getPacketRxTimeMs(pkt.rxTime)}`;
           // compute per-hop derived links including snr info from packet
           const snrTowards = (pkt.data?.snrTowards ?? []).map((s: number) => s / 4);
           const snrBack = (pkt.data?.snrBack ?? []).map((s: number) => s / 4);
@@ -177,7 +178,7 @@ export const useTracerouteStore = create<TracerouteState>()(
         set((s) => ({ traceroutes: s.traceroutes.filter((t) => t.id !== id) })),
       removeOlderThan: (ms: number) =>
         set((s) => ({
-          traceroutes: s.traceroutes.filter((t) => Date.now() - (t.rxTime?.getTime?.() ?? 0) <= ms),
+          traceroutes: s.traceroutes.filter((t) => Date.now() - getPacketRxTimeMs(t.rxTime) <= ms),
         })),
       clear: () => set(() => ({ traceroutes: [] })),
     }),

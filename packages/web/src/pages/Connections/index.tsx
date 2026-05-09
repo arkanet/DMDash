@@ -106,7 +106,6 @@ export const Connections = () => {
     }
 
     if (
-      pendingConnection.status === "connected" ||
       pendingConnection.status === "configured" ||
       pendingNavigationConnectionPhase === "configured"
     ) {
@@ -392,7 +391,8 @@ function ConnectionCard({
               <span className="truncate text-zinc-400">{formatConnectionSubtext(connection)}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+            <ConnectionStatusBadge status={connection.status} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -443,7 +443,6 @@ function ConnectionCard({
                 </AlertDialog>
               </DropdownMenuContent>
             </DropdownMenu>
-            <ConnectionStatusBadge status={connection.status} />
           </div>
         </div>
       </CardHeader>

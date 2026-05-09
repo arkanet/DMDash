@@ -24,6 +24,7 @@ export const NodeMarker = memo(function NodeMarker({
   offset,
   avatarClassName,
   showLabel = false,
+  labelPosition = "above",
   isVisible = true,
   onClick,
 }: {
@@ -38,6 +39,7 @@ export const NodeMarker = memo(function NodeMarker({
   offset?: PxOffset;
   avatarClassName?: string;
   showLabel?: boolean;
+  labelPosition?: "above" | "below";
   isVisible?: boolean;
   onClick: (id: number, e: { originalEvent: MouseEvent }) => void;
 }) {
@@ -103,7 +105,12 @@ export const NodeMarker = memo(function NodeMarker({
       {showLabel && label && (
         <button
           type="button"
-          className="absolute top-16 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-900 backdrop-blur-xs cursor-pointer max-md:top-7 max-md:text-sm"
+          className={cn(
+            "absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-900 backdrop-blur-xs cursor-pointer max-md:text-sm",
+            labelPosition === "below"
+              ? "top-11 translate-y-0 max-md:top-11"
+              : "top-16 -translate-y-full max-md:top-7",
+          )}
           style={style}
           onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
         >

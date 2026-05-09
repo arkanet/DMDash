@@ -18,6 +18,10 @@ export interface TracerouteResponseDialogProps {
   durationMs?: number;
 }
 
+function isMobileResponsiveViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+}
+
 export const TracerouteResponseDialog = ({
   traceroute,
   open,
@@ -28,6 +32,10 @@ export const TracerouteResponseDialog = ({
   const { getNode } = useNodeDB();
   const navigate = useNavigate();
   const setSelectedTraceRoute = useDarkMeshStore((state) => state.setSelectedTraceRoute);
+  const setPendingTraceRouteTarget = useDarkMeshStore((state) => state.setPendingTraceRouteTarget);
+  const setPendingTraceRouteRequest = useDarkMeshStore(
+    (state) => state.setPendingTraceRouteRequest,
+  );
   const route: number[] = traceroute?.data.route ?? [];
   const routeBack: number[] = traceroute?.data.routeBack ?? [];
   const snrTowards = (traceroute?.data.snrTowards ?? []).map((snr) => snr / 4);
@@ -60,8 +68,20 @@ export const TracerouteResponseDialog = ({
     onOpenChange();
   }
 
+  function handleCloseProcess() {
+    if (isMobileResponsiveViewport()) {
+      const deviceId = useAppStore.getState().selectedDeviceId;
+      setSelectedTraceRoute(undefined);
+      if (deviceId !== undefined) {
+        setPendingTraceRouteTarget(deviceId, undefined);
+        setPendingTraceRouteRequest(deviceId, undefined);
+      }
+    }
+    onOpenChange();
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleCloseProcess}>
       <DialogContent className="top-1/2 left-1/2 max-h-[86vh] w-[min(86vw,38rem)] max-w-[min(86vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030] max-md:w-[82vw] max-md:max-w-[82vw]">
         <DialogTitle className="text-left text-3xl font-normal text-zinc-100 max-md:text-2xl">
           Traceroute
@@ -94,7 +114,7 @@ export const TracerouteResponseDialog = ({
             size="sm"
             variant="ghost"
             className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)]"
-            onClick={onOpenChange}
+            onClick={handleCloseProcess}
           >
             CHIUDI
           </Button>

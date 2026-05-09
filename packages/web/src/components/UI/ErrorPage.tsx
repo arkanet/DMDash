@@ -2,7 +2,9 @@ import { Heading } from "@components/UI/Typography/Heading.tsx";
 import { Link } from "@components/UI/Typography/Link.tsx";
 import { P } from "@components/UI/Typography/P.tsx";
 import newGithubIssueUrl from "@core/utils/github.ts";
+import { recoverFromDynamicImportError } from "@core/utils/dynamicImportRecovery.ts";
 import { ExternalLink } from "lucide-react";
+import { useEffect } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 function normalizeError(error: unknown): Error | undefined {
@@ -24,6 +26,10 @@ function normalizeError(error: unknown): Error | undefined {
 export function ErrorPage({ error }: { error: unknown }) {
   const { t } = useTranslation();
   const normalizedError = normalizeError(error);
+
+  useEffect(() => {
+    recoverFromDynamicImportError(error);
+  }, [error]);
 
   if (!normalizedError) {
     return null;

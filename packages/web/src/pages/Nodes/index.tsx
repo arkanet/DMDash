@@ -24,9 +24,15 @@ import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useIgnoreNode } from "@core/hooks/useIgnoreNode.ts";
 import { useToast } from "@core/hooks/useToast.ts";
 import { requestNeighborInfo, startVisualTraceroute } from "@core/services/darkmesh/nodeActions.ts";
-import { useAppStore, useDevice, useNodeDB } from "@core/stores";
+import { useAppStore, useDevice, useDeviceStore, useNodeDB } from "@core/stores";
 import { Protobuf, type Types } from "@meshtastic/core";
-import { buildSharedContactUrl, getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
+import {
+  buildSharedContactUrl,
+  getNodeShortName,
+  getNodeLongName,
+  getPacketRxTimeDate,
+  getPacketRxTimeMs,
+} from "@app/darkmesh/utils.ts";
 import { getColorFromNodeNum, isLightColor } from "@core/utils/color.ts";
 import {
   getDirectMessageNavigationBlockDescription,
@@ -69,9 +75,11 @@ import {
   useDeferredValue,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { type NeighborDiscoveryRecord, useDarkMeshStore } from "@app/darkmesh/store.ts";
+import { fromByteArray } from "base64-js";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { QRCode } from "react-qrcode-logo";
@@ -87,6 +95,10 @@ import {
 
 const NODEDB_DEBOUNCE_MS = 250;
 const ONLINE_NODE_MAX_AGE_SECONDS = 900;
+
+function isMobileResponsiveViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+}
 
 type MobileNodeSort =
   | "recent"
@@ -248,13 +260,10 @@ function formatPosition(position?: Protobuf.Mesh.Position) {
   const validPosition = position as Protobuf.Mesh.Position;
   const latitude = Number(validPosition.latitudeI) / 1e7;
   const longitude = Number(validPosition.longitudeI) / 1e7;
-  const offset = 0.015;
   return {
     latitude,
     longitude,
     label: `${latitude.toFixed(6)} ${longitude.toFixed(6)}`,
-    url: `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`,
-    embedUrl: `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - offset}%2C${latitude - offset}%2C${longitude + offset}%2C${latitude + offset}&layer=mapnik&marker=${latitude}%2C${longitude}`,
   };
 }
 
@@ -290,12 +299,30 @@ function getBatteryLabel(node: Protobuf.Mesh.NodeInfo): { label: string; plugged
   return { label: `${battery}${voltage}`, plugged };
 }
 
-function EncryptionIcon({ node, hasError }: { node: Protobuf.Mesh.NodeInfo; hasError: boolean }) {
+function EncryptionIcon({
+  node,
+  hasError,
+  onCopyPublicKey,
+}: {
+  node: Protobuf.Mesh.NodeInfo;
+  hasError: boolean;
+  onCopyPublicKey?: (publicKey: Uint8Array) => void;
+}) {
   if (hasError) {
     return <LockOpenIcon className="size-6 text-red-500" aria-label="Encryption error" />;
   }
   if (node.user?.publicKey && node.user.publicKey.length > 0) {
-    return <LockIcon className="size-6 text-[#27c847]" aria-label="Encrypted" />;
+    return (
+      <button
+        type="button"
+        className="rounded-full p-1 text-[#27c847] active:bg-white/10"
+        aria-label="Copy public key"
+        title="Copy public key"
+        onClick={() => onCopyPublicKey?.(node.user?.publicKey ?? new Uint8Array())}
+      >
+        <LockIcon className="size-6" />
+      </button>
+    );
   }
   return <LockOpenIcon className="size-6 text-yellow-400" aria-label="Public key missing" />;
 }
@@ -325,10 +352,6 @@ const NodesPage = (): JSX.Element => {
   const [selectedNeighborResponse, setSelectedNeighborResponse] = useState<
     Protobuf.Mesh.NeighborInfo | undefined
   >();
-  const [pendingTracerouteNode, setPendingTracerouteNode] = useState<number | undefined>();
-  const [pendingTracerouteStartedAt, setPendingTracerouteStartedAt] = useState<
-    number | undefined
-  >();
   const [selectedTracerouteDurationMs, setSelectedTracerouteDurationMs] = useState<
     number | undefined
   >();
@@ -345,15 +368,9 @@ const NodesPage = (): JSX.Element => {
   const [showNodeDetails, setShowNodeDetails] = useState(
     () => loadMobileNodePrefs()?.showDetails ?? true,
   );
-  const [gpsOverlay, setGpsOverlay] = useState<
-    | {
-        label: string;
-        url: string;
-        embedUrl: string;
-      }
-    | undefined
-  >();
-
+  const pendingTracerouteNodeRef = useRef<number | undefined>(undefined);
+  const pendingTracerouteStartedAtRef = useRef<number | undefined>(undefined);
+  const pendingNeighborNodeRef = useRef<number | undefined>(undefined);
   const [filterState, setFilterState] = useState<FilterState>(() => defaultFilterValues);
   const deferredFilterState = useDeferredValue(filterState);
 
@@ -390,26 +407,62 @@ const NodesPage = (): JSX.Element => {
   const gateways = useDarkMeshStore((s) => s.gatewaysByDevice);
   const setHighlightedNeighborNode = useDarkMeshStore((s) => s.setHighlightedNeighborNode);
   const addNeighborDiscoveryRecord = useDarkMeshStore((s) => s.addNeighborDiscoveryRecord);
+  const selectedStoreTraceRoute = useDarkMeshStore((s) => s.selectedTraceRoute);
   const neighborDiscoveryRecords =
     useDarkMeshStore((s) => s.neighborDiscoveryByDevice?.[device.id]) ?? {};
-  const handleTraceroute = useCallback(
+  const pendingNeighborInfo = useDeviceStore((s) => {
+    const pendingNode = pendingNeighborNode;
+    if (pendingNode === undefined) {
+      return undefined;
+    }
+    return s.getDevice(device.id)?.neighborInfo.get(pendingNode);
+  });
+
+  const openTracerouteDialog = useCallback(
     (traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>) => {
-      if (pendingTracerouteNode === undefined) {
-        return;
-      }
-      if (traceroute.from.valueOf() !== pendingTracerouteNode) {
-        return;
-      }
       setSelectedTracerouteDurationMs(
-        pendingTracerouteStartedAt !== undefined
-          ? Date.now() - pendingTracerouteStartedAt
+        pendingTracerouteStartedAtRef.current !== undefined
+          ? Date.now() - pendingTracerouteStartedAtRef.current
           : undefined,
       );
       setSelectedTraceroute(traceroute);
-      setPendingTracerouteNode(undefined);
-      setPendingTracerouteStartedAt(undefined);
+      pendingTracerouteNodeRef.current = undefined;
+      pendingTracerouteStartedAtRef.current = undefined;
     },
-    [pendingTracerouteNode, pendingTracerouteStartedAt],
+    [],
+  );
+
+  const openNeighborDialog = useCallback(
+    (nodeNum: number, neighborInfo: Protobuf.Mesh.NeighborInfo) => {
+      addNeighborDiscoveryRecord(device.id, nodeNum, neighborInfo);
+      setSelectedNeighborResponse(neighborInfo);
+      setSelectedNeighborNode(nodeNum);
+      pendingNeighborNodeRef.current = undefined;
+      setPendingNeighborNode(undefined);
+    },
+    [addNeighborDiscoveryRecord, device.id],
+  );
+
+  const closeNeighborDiscoveryProcess = useCallback(() => {
+    setSelectedNeighborNode(undefined);
+    setSelectedNeighborResponse(undefined);
+    if (isMobileResponsiveViewport()) {
+      setHighlightedNeighborNode(undefined);
+    }
+  }, [setHighlightedNeighborNode]);
+
+  const handleTraceroute = useCallback(
+    (traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>) => {
+      const pendingNode = pendingTracerouteNodeRef.current;
+      if (pendingNode === undefined) {
+        return;
+      }
+      if (traceroute.from.valueOf() !== pendingNode) {
+        return;
+      }
+      openTracerouteDialog(traceroute);
+    },
+    [openTracerouteDialog],
   );
 
   const handleLocation = useCallback(
@@ -427,18 +480,13 @@ const NodesPage = (): JSX.Element => {
 
   const handleNeighborInfo = useCallback(
     (neighborInfo: Types.PacketMetadata<Protobuf.Mesh.NeighborInfo>) => {
-      if (
-        pendingNeighborNode === undefined ||
-        neighborInfo.from.valueOf() !== pendingNeighborNode
-      ) {
+      const pendingNode = pendingNeighborNodeRef.current;
+      if (pendingNode === undefined || neighborInfo.from.valueOf() !== pendingNode) {
         return;
       }
-      addNeighborDiscoveryRecord(device.id, pendingNeighborNode, neighborInfo.data);
-      setSelectedNeighborResponse(neighborInfo.data);
-      setSelectedNeighborNode(pendingNeighborNode);
-      setPendingNeighborNode(undefined);
+      openNeighborDialog(pendingNode, neighborInfo.data);
     },
-    [addNeighborDiscoveryRecord, device.id, pendingNeighborNode],
+    [openNeighborDialog],
   );
 
   const handleNodeInfoResponse = useCallback(
@@ -500,6 +548,17 @@ const NodesPage = (): JSX.Element => {
   }, [connection, handleTraceroute]);
 
   useEffect(() => {
+    if (!selectedStoreTraceRoute) {
+      return;
+    }
+    const pendingNode = pendingTracerouteNodeRef.current;
+    if (pendingNode === undefined || selectedStoreTraceRoute.from.valueOf() !== pendingNode) {
+      return;
+    }
+    openTracerouteDialog(selectedStoreTraceRoute);
+  }, [openTracerouteDialog, selectedStoreTraceRoute]);
+
+  useEffect(() => {
     if (!connection) {
       return;
     }
@@ -520,6 +579,14 @@ const NodesPage = (): JSX.Element => {
   }, [connection, handleNeighborInfo]);
 
   useEffect(() => {
+    const pendingNode = pendingNeighborNodeRef.current;
+    if (pendingNode === undefined || pendingNeighborInfo === undefined) {
+      return;
+    }
+    openNeighborDialog(pendingNode, pendingNeighborInfo);
+  }, [openNeighborDialog, pendingNeighborInfo]);
+
+  useEffect(() => {
     if (!connection) {
       return;
     }
@@ -538,6 +605,7 @@ const NodesPage = (): JSX.Element => {
       return;
     }
     const timeout = window.setTimeout(() => {
+      pendingNeighborNodeRef.current = undefined;
       setPendingNeighborNode(undefined);
       toast({
         title: "Neighbor discovery",
@@ -912,6 +980,22 @@ const NodesPage = (): JSX.Element => {
     }
   };
 
+  const copyMobileNodePublicKey = useCallback(
+    async (publicKey: Uint8Array) => {
+      if (publicKey.length === 0) {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(fromByteArray(publicKey));
+        toast({ title: "Public key copiata" });
+      } catch {
+        toast({ title: "Copia public key non riuscita", variant: "destructive" });
+      }
+    },
+    [toast],
+  );
+
   const mobileNodeCards = mobileNodes.map((node) => {
     const shortName = getNodeShortName(node) ?? `!${numberToHexUnpadded(node.num).toUpperCase()}`;
     const longName = getNodeLongName(node) ?? `!${numberToHexUnpadded(node.num).toUpperCase()}`;
@@ -1026,14 +1110,14 @@ const NodesPage = (): JSX.Element => {
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
-                setPendingTracerouteNode(node.num);
-                setPendingTracerouteStartedAt(Date.now());
+                pendingTracerouteNodeRef.current = node.num;
+                pendingTracerouteStartedAtRef.current = Date.now();
                 void runMobileNodeAction("Traceroute avviato", async () => {
                   try {
                     return await startVisualTraceroute(device.id, connection, node.num);
                   } catch (error) {
-                    setPendingTracerouteNode(undefined);
-                    setPendingTracerouteStartedAt(undefined);
+                    pendingTracerouteNodeRef.current = undefined;
+                    pendingTracerouteStartedAtRef.current = undefined;
                     throw error;
                   }
                 });
@@ -1046,6 +1130,7 @@ const NodesPage = (): JSX.Element => {
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
+                pendingNeighborNodeRef.current = node.num;
                 setPendingNeighborNode(node.num);
                 void runMobileNodeAction("Neighbor discovery avviata", () =>
                   requestNeighborInfo(connection, node.num),
@@ -1134,7 +1219,11 @@ const NodesPage = (): JSX.Element => {
             </PopoverContent>
           </Popover>
 
-          <EncryptionIcon node={node} hasError={hasNodeError(node.num)} />
+          <EncryptionIcon
+            node={node}
+            hasError={hasNodeError(node.num)}
+            onCopyPublicKey={copyMobileNodePublicKey}
+          />
 
           <div className="min-w-0 text-xl leading-tight">
             <span className="whitespace-normal break-words">{longName}</span>
@@ -1183,13 +1272,16 @@ const NodesPage = (): JSX.Element => {
                   <button
                     type="button"
                     className="text-left text-cyan-400 underline"
-                    onClick={() =>
-                      setGpsOverlay({
-                        label: position.label,
-                        url: position.url,
-                        embedUrl: position.embedUrl,
-                      })
-                    }
+                    onClick={() => {
+                      navigate({
+                        to: "/map/$long/$lat/$zoom",
+                        params: {
+                          long: String(position.longitude),
+                          lat: String(position.latitude),
+                          zoom: "16",
+                        },
+                      });
+                    }}
                   >
                     {position.label}
                   </button>
@@ -1389,13 +1481,7 @@ const NodesPage = (): JSX.Element => {
         onOpenChange={() => setSelectedLocation(undefined)}
       />
 
-      <Dialog
-        open={!!selectedNeighborNode}
-        onOpenChange={() => {
-          setSelectedNeighborNode(undefined);
-          setSelectedNeighborResponse(undefined);
-        }}
-      >
+      <Dialog open={!!selectedNeighborNode} onOpenChange={closeNeighborDiscoveryProcess}>
         <DialogContent className="top-1/2 left-1/2 max-h-[86vh] max-w-[min(92vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]">
           <DialogHeader>
             <DialogTitle className="text-center text-4xl font-semibold text-zinc-100 max-md:text-3xl">
@@ -1474,10 +1560,7 @@ const NodesPage = (): JSX.Element => {
             <button
               type="button"
               className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)]"
-              onClick={() => {
-                setSelectedNeighborNode(undefined);
-                setSelectedNeighborResponse(undefined);
-              }}
+              onClick={closeNeighborDiscoveryProcess}
             >
               Chiudi
             </button>
@@ -1493,43 +1576,6 @@ const NodesPage = (): JSX.Element => {
               neighborRecords={neighborDiscoveryRecords[selectedNodeInfoNode.num] ?? []}
               onClose={() => setSelectedNodeInfo(undefined)}
             />
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!gpsOverlay} onOpenChange={() => setGpsOverlay(undefined)}>
-        <DialogContent className="inset-0 h-dvh max-h-dvh w-screen max-w-none rounded-none bg-[#111] p-0 text-zinc-100 dark:bg-[#111] sm:max-w-none sm:rounded-none">
-          {gpsOverlay ? (
-            <div className="flex h-full flex-col">
-              <DialogTitle className="sr-only">Coordinate GPS</DialogTitle>
-              <div className="flex items-center gap-3 border-b border-zinc-800 bg-[#202020] px-4 py-3">
-                <button
-                  type="button"
-                  className="rounded-full p-2 text-zinc-100 hover:bg-white/10"
-                  onClick={() => setGpsOverlay(undefined)}
-                  aria-label="Close map"
-                >
-                  <ArrowLeftIcon className="size-6" />
-                </button>
-                <div className="min-w-0">
-                  <p className="truncate text-lg font-semibold">Coordinate GPS</p>
-                  <p className="truncate text-sm text-zinc-400">{gpsOverlay.label}</p>
-                </div>
-              </div>
-              <iframe
-                src={gpsOverlay.embedUrl}
-                title={`Mappa ${gpsOverlay.label}`}
-                className="min-h-0 flex-1 border-0"
-              />
-              <a
-                className="border-t border-zinc-800 px-4 py-3 text-center font-semibold text-cyan-400"
-                href={gpsOverlay.url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Apri in OpenStreetMap
-              </a>
-            </div>
           ) : null}
         </DialogContent>
       </Dialog>
@@ -1913,7 +1959,7 @@ function TraceRouteLog({
               : "Nessuna risposta";
           return (
             <button
-              key={`${route.from}-${route.rxTime.getTime()}-${index}`}
+              key={`${route.from}-${getPacketRxTimeMs(route.rxTime)}-${index}`}
               type="button"
               className="flex w-full items-center gap-4 rounded-md bg-[#252525] p-4 text-left text-xl"
               onClick={() => onOpen(route)}
@@ -2044,7 +2090,7 @@ function NeighborLog({
   );
 }
 
-function formatLogDate(date: Date): string {
+function formatLogDate(date: unknown): string {
   return new Intl.DateTimeFormat("it-IT", {
     day: "2-digit",
     month: "2-digit",
@@ -2052,7 +2098,7 @@ function formatLogDate(date: Date): string {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-  }).format(date);
+  }).format(getPacketRxTimeDate(date));
 }
 
 function InfoLine({

@@ -31,6 +31,7 @@ import {
   createNodeInfoFromSharedContact,
   getNodeDisplayName,
   getNodeLongName,
+  getPacketRxTimeMs,
   parseDmdbContents,
 } from "./utils.ts";
 import { hasPos } from "@core/utils/geo.ts";
@@ -168,7 +169,7 @@ const DarkMeshDashboardPage = () => {
     () =>
       Array.from(traceroutes.values())
         .flat()
-        .sort((left, right) => right.rxTime.getTime() - left.rxTime.getTime())
+        .sort((left, right) => getPacketRxTimeMs(right.rxTime) - getPacketRxTimeMs(left.rxTime))
         .slice(0, 8),
     [traceroutes],
   );
@@ -658,7 +659,7 @@ const DarkMeshDashboardPage = () => {
               ) : (
                 flattenedTraceroutes.map((trace) => (
                   <div
-                    key={`${trace.id}-${trace.from}-${trace.rxTime.toISOString()}`}
+                    key={`${trace.id}-${trace.from}-${getPacketRxTimeMs(trace.rxTime)}`}
                     className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/70"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -675,8 +676,8 @@ const DarkMeshDashboardPage = () => {
                           )}
                         </div>
                         <div className="text-sm text-slate-500 dark:text-slate-400">
-                          {formatSince(trace.rxTime.getTime())} · {trace.data.route.length} forward
-                          hops · {trace.data.routeBack.length} return hops
+                          {formatSince(getPacketRxTimeMs(trace.rxTime))} · {trace.data.route.length}{" "}
+                          forward hops · {trace.data.routeBack.length} return hops
                         </div>
                       </div>
 

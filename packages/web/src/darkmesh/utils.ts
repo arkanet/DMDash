@@ -382,6 +382,29 @@ export function buildHuntPayload<T>(hunterId: string, packet: Types.PacketMetada
   );
 }
 
+export function getPacketRxTimeMs(rxTime: unknown): number {
+  if (rxTime instanceof Date) {
+    const value = rxTime.getTime();
+    return Number.isFinite(value) ? value : Date.now();
+  }
+
+  if (typeof rxTime === "number") {
+    const value = rxTime > 0 && rxTime < 10_000_000_000 ? rxTime * 1000 : rxTime;
+    return Number.isFinite(value) ? value : Date.now();
+  }
+
+  if (typeof rxTime === "string") {
+    const parsed = Date.parse(rxTime);
+    return Number.isFinite(parsed) ? parsed : Date.now();
+  }
+
+  return Date.now();
+}
+
+export function getPacketRxTimeDate(rxTime: unknown): Date {
+  return new Date(getPacketRxTimeMs(rxTime));
+}
+
 export function normalizeHuntTraceroutePacket(
   packet: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
   localNodeNum: number,

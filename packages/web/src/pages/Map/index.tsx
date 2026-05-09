@@ -32,7 +32,7 @@ import { hasPos, toLngLat } from "@core/utils/geo.ts";
 import { Protobuf } from "@meshtastic/core";
 import type { Types } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
-import { FunnelIcon, LocateFixedIcon, MinusIcon, PlusIcon } from "lucide-react";
+import { CompassIcon, FunnelIcon, LocateFixedIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layer, Source, type MapLayerMouseEvent, useMap } from "react-map-gl/maplibre";
@@ -57,6 +57,10 @@ function pathDistanceKm(coords: [number, number][]): number {
     total += distanceKm({ latitude: lat1, longitude: lon1 }, { latitude: lat2, longitude: lon2 });
   }
   return total;
+}
+
+function isMobileResponsiveViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
 }
 
 // Main page component
@@ -100,6 +104,7 @@ const MapPage: React.FC = () => {
 
   const [expandedCluster, setExpandedCluster] = useState<string | undefined>(undefined);
   const [mapZoom, setMapZoom] = useState(1.8);
+  const [mapBearing, setMapBearing] = useState(0);
 
   // map helpers / refs
   const { default: mapRef } = useMap();
@@ -761,6 +766,26 @@ const MapPage: React.FC = () => {
     setPendingTraceRouteRequest(deviceId, undefined);
   }, [clearSelectedTraceRoute, deviceId, setPendingTraceRouteRequest, setPendingTraceRouteTarget]);
 
+  useEffect(
+    () => () => {
+      if (!isMobileResponsiveViewport()) {
+        return;
+      }
+
+      clearSelectedTraceRoute(undefined);
+      setPendingTraceRouteTarget(deviceId, undefined);
+      setPendingTraceRouteRequest(deviceId, undefined);
+      setStoredHighlightedNeighborNode(undefined);
+    },
+    [
+      clearSelectedTraceRoute,
+      deviceId,
+      setPendingTraceRouteRequest,
+      setPendingTraceRouteTarget,
+      setStoredHighlightedNeighborNode,
+    ],
+  );
+
   const selectNodeFromCard = useCallback(
     (nodeNum: number) => {
       const node = getNode(nodeNum);
@@ -846,6 +871,12 @@ const MapPage: React.FC = () => {
   const handleZoomOut = useCallback(() => {
     mapRef?.zoomOut();
   }, [mapRef]);
+
+  const handleReturnNorth = useCallback(() => {
+    mapRef?.easeTo({ bearing: 0, duration: 260 });
+  }, [mapRef]);
+
+  const isNorthMisaligned = Math.abs(mapBearing) > 1;
 
   const markerElements = useMemo(
     () => (
@@ -1045,10 +1076,11 @@ const MapPage: React.FC = () => {
       actions={[]}
       leftBar={<Sidebar />}
       headerContent={<GatewayHeader />}
+      mobileHeaderContent={<GatewayHeader />}
     >
       <div className="relative flex flex-1 overflow-hidden">
         {showTraceroutePanel && (
-          <aside className="absolute bottom-2 left-2 top-2 z-30 w-52 shrink-0 overflow-y-auto rounded-xl border border-slate-300 bg-background/95 px-2 py-3 text-balance shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 md:static md:block md:h-auto md:rounded-none md:border-y-0 md:border-l-0 md:bg-background md:shadow-none md:backdrop-blur-none lg:w-64">
+          <aside className="hidden shrink-0 overflow-y-auto border-slate-300 bg-background/95 px-2 py-3 text-balance dark:border-slate-700 dark:bg-slate-950/95 md:static md:block md:h-auto md:w-52 md:rounded-none md:border-y-0 md:border-l-0 md:bg-background md:shadow-none md:backdrop-blur-none lg:w-64">
             {tracerouteOverlay ? (
               <VisualTracerouteCard
                 traceroute={tracerouteOverlay.trace}
@@ -1100,7 +1132,10 @@ const MapPage: React.FC = () => {
             initialViewState={initialMapView}
             onLoad={getMapBounds}
             onMouseMove={onMouseMove}
-            onMove={(event) => setMapZoom(event.viewState.zoom)}
+            onMove={(event) => {
+              setMapZoom(event.viewState.zoom);
+              setMapBearing(event.viewState.bearing ?? 0);
+            }}
             onClick={onMapBackgroundClick}
             interactiveLayerIds={[
               `${heatmapLayerElementId}-interaction`,
@@ -1472,6 +1507,24 @@ const MapPage: React.FC = () => {
               heatmapMode={heatmapMode}
               setHeatmapMode={setHeatmapMode}
             />
+
+            {isNorthMisaligned && (
+              <button
+                type="button"
+                className={cn(
+                  "rounded align-center",
+                  "w-[29px] px-1 py-1 shadow-l outline-[2px] outline-stone-600/20",
+                  "bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300",
+                  "text-slate-600 hover:text-slate-700",
+                  "dark:text-slate-600 hover:dark:text-slate-700",
+                )}
+                aria-label="Return to north"
+                title="Return to north"
+                onClick={handleReturnNorth}
+              >
+                <CompassIcon className="w-[21px]" />
+              </button>
+            )}
           </div>
         </div>
       </div>

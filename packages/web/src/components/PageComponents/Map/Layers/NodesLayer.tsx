@@ -118,7 +118,8 @@ export const NodesLayer = ({
           hasError={hasNodeError(node.num)}
           isFavorite={node.isFavorite ?? false}
           avatarClassName={getNodeMarkerClassName?.(node)}
-          showLabel={identiconsEnabled}
+          showLabel={identiconsEnabled || isExpanded}
+          labelPosition={isExpanded ? "below" : "above"}
           isVisible={isVisible}
           onClick={(num, e) => {
             e.originalEvent?.stopPropagation();
