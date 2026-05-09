@@ -18,6 +18,9 @@
         "prebuild": "pnpm --filter @meshtastic/protobufs build",
         "build": "vite build",
         "build:analyze": "BUNDLE_ANALYZE=true pnpm run build",
+        "ios:add": "cap add ios",
+        "ios:sync": "pnpm build && cap sync ios",
+        "ios:open": "cap open ios",
         "lint": "oxlint",
         "lint:fix": "oxlint --fix",
         "format": "oxfmt --check .",
@@ -37,6 +40,8 @@
         "package": "gzipper c -i html,js,css,png,ico,svg,json,webmanifest,txt dist dist/output && tar -cvf dist/build.tar -C ./dist/output/ ."
     },
     "dependencies": {
+        "@capacitor/core": "8.3.1",
+        "@capacitor/ios": "8.3.1",
         "@fortawesome/free-solid-svg-icons": "^7.2.0",
         "@fortawesome/react-fontawesome": "^3.3.1",
         "@hookform/resolvers": "^5.2.2",
@@ -103,6 +108,7 @@
         "zustand": "5.0.8"
     },
     "devDependencies": {
+        "@capacitor/cli": "8.3.1",
         "@tanstack/router-plugin": "^1.132.47",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/react": "^16.3.0",

@@ -19,6 +19,26 @@ type IOSBluetoothStatusEventDetail = {
   reason?: string;
 };
 
+type CapacitorListenerHandle = {
+  remove: () => Promise<void>;
+};
+
+type CapacitorIOSBluetoothPluginResult = {
+  value?: boolean;
+};
+
+type RawCapacitorIOSBluetoothPlugin = {
+  isAvailable?: () => Promise<CapacitorIOSBluetoothPluginResult>;
+  requestDevice: () => Promise<IOSBluetoothDeviceInfo>;
+  connect: (options: { deviceId: string }) => Promise<void>;
+  disconnect: (options: { deviceId: string }) => Promise<void>;
+  write: (options: { deviceId: string; base64Data: string }) => Promise<void>;
+  addListener?: (
+    eventName: "packet" | "status",
+    listener: (detail: IOSBluetoothPacketEventDetail | IOSBluetoothStatusEventDetail) => void,
+  ) => Promise<CapacitorListenerHandle>;
+};
+
 export type DMDashIOSBluetoothBridge = {
   isAvailable?: () => boolean | Promise<boolean>;
   requestDevice: () => Promise<IOSBluetoothDeviceInfo>;
@@ -30,14 +50,52 @@ export type DMDashIOSBluetoothBridge = {
 declare global {
   interface Window {
     DMDashIOSBluetooth?: DMDashIOSBluetoothBridge;
+    Capacitor?: {
+      Plugins?: {
+        DMDashIOSBluetooth?: RawCapacitorIOSBluetoothPlugin;
+      };
+    };
   }
 }
 
 export const IOS_BLUETOOTH_PACKET_EVENT = "dmdash-ios-bluetooth-packet";
 export const IOS_BLUETOOTH_STATUS_EVENT = "dmdash-ios-bluetooth-status";
 
+let capacitorListenersInstalled = false;
+
+function installCapacitorEventForwarders(plugin: RawCapacitorIOSBluetoothPlugin): void {
+  if (capacitorListenersInstalled || !plugin.addListener) {
+    return;
+  }
+  capacitorListenersInstalled = true;
+
+  void plugin.addListener("packet", (detail) => {
+    window.dispatchEvent(new CustomEvent(IOS_BLUETOOTH_PACKET_EVENT, { detail }));
+  });
+  void plugin.addListener("status", (detail) => {
+    window.dispatchEvent(new CustomEvent(IOS_BLUETOOTH_STATUS_EVENT, { detail }));
+  });
+}
+
 function getBridge(): DMDashIOSBluetoothBridge | undefined {
-  return globalThis.window?.DMDashIOSBluetooth;
+  const injectedBridge = globalThis.window?.DMDashIOSBluetooth;
+  if (injectedBridge) {
+    return injectedBridge;
+  }
+
+  const capacitorPlugin = globalThis.window?.Capacitor?.Plugins?.DMDashIOSBluetooth;
+  if (capacitorPlugin) {
+    installCapacitorEventForwarders(capacitorPlugin);
+    return {
+      isAvailable: async () => (await capacitorPlugin.isAvailable?.())?.value ?? true,
+      requestDevice: () => capacitorPlugin.requestDevice(),
+      connect: (deviceId) => capacitorPlugin.connect({ deviceId }),
+      disconnect: (deviceId) => capacitorPlugin.disconnect({ deviceId }),
+      write: (deviceId, base64Data) => capacitorPlugin.write({ deviceId, base64Data }),
+    };
+  }
+
+  return undefined;
 }
 
 function normalizePacketData(data: IOSBluetoothPacketEventDetail["data"]): Uint8Array {
