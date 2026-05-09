@@ -338,8 +338,10 @@ function TypeBadge({ type }: { type: Connection["type"] }) {
       ? "Network HTTP"
       : type === "tcp"
         ? "Network TCP"
-        : type === "bluetooth"
-          ? "Bluetooth"
+        : type === "bluetooth" || type === "ios-bluetooth"
+          ? type === "ios-bluetooth"
+            ? "iOS Bluetooth"
+            : "Bluetooth"
           : "Serial";
   return (
     <Badge variant="default" className="gap-1.5 border border-white/10 bg-white/5 text-zinc-100">

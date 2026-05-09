@@ -27,7 +27,7 @@ type DialogVariant = keyof Dialogs;
 type Page = "dashboard" | "messages" | "map" | "settings" | "channels" | "nodes";
 
 export type ConnectionId = number;
-export type ConnectionType = "http" | "tcp" | "bluetooth" | "serial";
+export type ConnectionType = "http" | "tcp" | "bluetooth" | "ios-bluetooth" | "serial";
 export type ConnectionStatus =
   | "connected"
   | "connecting"
@@ -59,6 +59,12 @@ export type NewConnection =
       deviceId?: string;
       deviceName?: string;
       gattServiceUUID?: string;
+    }
+  | {
+      type: "ios-bluetooth";
+      name: string;
+      deviceId: string;
+      deviceName?: string;
     }
   | {
       type: "serial";

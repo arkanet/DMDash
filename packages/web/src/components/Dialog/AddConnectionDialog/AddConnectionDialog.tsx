@@ -10,6 +10,11 @@ import {
   testHttpReachable,
   testTcpReachable,
 } from "@app/pages/Connections/utils";
+import {
+  type IOSBluetoothDeviceInfo,
+  isIOSBluetoothBridgeAvailable,
+  requestIOSBluetoothDevice,
+} from "@app/pages/Connections/TransportIOSBluetooth";
 import { Button } from "@components/UI/Button.tsx";
 import { Input } from "@components/UI/Input.tsx";
 import { Label } from "@components/UI/Label.tsx";
@@ -39,7 +44,7 @@ import { Trans, useTranslation } from "react-i18next";
 import { DialogWrapper } from "../DialogWrapper.tsx";
 import { urlOrIpv4Schema } from "./validation.ts";
 
-type TabKey = "network" | "bluetooth" | "serial";
+type TabKey = "network" | "bluetooth" | "ios-bluetooth" | "serial";
 type TestingStatus = "idle" | "testing" | "success" | "failure";
 type DiscoveryStatus = "idle" | "scanning" | "done" | "failure";
 type DialogState = {
@@ -51,6 +56,7 @@ type DialogState = {
   tcpPort: string;
   testStatus: TestingStatus;
   btSelected: { id: string; name?: string; device?: BluetoothDevice } | undefined;
+  iosSelected: IOSBluetoothDeviceInfo | undefined;
   serialSelected: { vendorId?: number; productId?: number } | undefined;
 };
 
@@ -66,6 +72,10 @@ type DialogAction =
   | {
       type: "SET_BT_SELECTED";
       payload: { id: string; name?: string; device?: BluetoothDevice } | undefined;
+    }
+  | {
+      type: "SET_IOS_SELECTED";
+      payload: IOSBluetoothDeviceInfo | undefined;
     }
   | {
       type: "SET_SERIAL_SELECTED";
@@ -167,6 +177,7 @@ const initialState: DialogState = {
   tcpPort: String(DEFAULT_TCP_PORT),
   testStatus: "idle",
   btSelected: undefined,
+  iosSelected: undefined,
   serialSelected: undefined,
 };
 export const createInitialDialogState = (overrides?: Partial<DialogState>): DialogState => {
@@ -196,6 +207,8 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
       return { ...state, testStatus: action.payload };
     case "SET_BT_SELECTED":
       return { ...state, btSelected: action.payload };
+    case "SET_IOS_SELECTED":
+      return { ...state, iosSelected: action.payload };
     case "SET_SERIAL_SELECTED":
       return { ...state, serialSelected: action.payload };
     case "SET_URL_AND_RESET_TEST":
@@ -238,6 +251,7 @@ function PickerRow({
 const TAB_META: Array<{ key: TabKey; label: string; Icon: LucideIcon }> = [
   { key: "network", label: "Network", Icon: Network },
   { key: "bluetooth", label: "Bluetooth", Icon: Bluetooth },
+  { key: "ios-bluetooth", label: "iOS", Icon: Bluetooth },
   { key: "serial", label: "Serial", Icon: Cable },
 ];
 
@@ -260,6 +274,7 @@ export default function AddConnectionDialog({
   const { t } = useTranslation();
   const [discoveryStatus, setDiscoveryStatus] = useState<DiscoveryStatus>("idle");
   const [discoveredDevices, setDiscoveredDevices] = useState<DiscoveredNetworkDevice[]>([]);
+  const [iosBluetoothSupported, setIosBluetoothSupported] = useState(false);
 
   const bluetoothSupported = typeof navigator !== "undefined" && "bluetooth" in navigator;
   const serialSupported = typeof navigator !== "undefined" && "serial" in navigator;
@@ -276,6 +291,13 @@ export default function AddConnectionDialog({
       setDiscoveredDevices([]);
     }
   }, [reset, open]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    void isIOSBluetoothBridgeAvailable().then(setIosBluetoothSupported);
+  }, [open]);
 
   const makeToastErrorHandler = useCallback(
     (titlePrefix: string) =>
@@ -366,6 +388,36 @@ export default function AddConnectionDialog({
       makeToastErrorHandler("Serial")(err);
     }
   }, [serialSupported, state.name, toast, makeToastErrorHandler, t]);
+
+  const handlePickIOSBluetooth = useCallback(async () => {
+    if (!iosBluetoothSupported) {
+      toast({
+        title: "iOS Bluetooth bridge not available",
+        description:
+          "Open DMDash inside the iOS app container to use native Bluetooth on iPhone or iPad.",
+      });
+      return;
+    }
+    try {
+      const device = await requestIOSBluetoothDevice();
+      dispatch({
+        type: "SET_IOS_SELECTED",
+        payload: device,
+      });
+      if (!state.name || state.name === "") {
+        dispatch({
+          type: "SET_NAME",
+          payload: device.name ? `iOS BLE: ${device.name}` : "iOS Bluetooth node",
+        });
+      }
+      toast({
+        title: "iOS Bluetooth device selected",
+        description: device.name || device.id,
+      });
+    } catch (err) {
+      makeToastErrorHandler("iOS Bluetooth")(err);
+    }
+  }, [iosBluetoothSupported, makeToastErrorHandler, state.name, toast]);
 
   const handleTestHttp = useCallback(async () => {
     const fullUrl = `${state.protocol}://${state.url}`;
@@ -697,6 +749,40 @@ export default function AddConnectionDialog({
           gattServiceUUID: TransportWebBluetooth.ServiceUuid,
         }),
       },
+      "ios-bluetooth": {
+        placeholder: "My iOS Bluetooth Node",
+        children: () => (
+          <>
+            <SupportBadge
+              supported={iosBluetoothSupported}
+              labelSupported="iOS Bluetooth bridge available"
+              labelUnsupported="iOS Bluetooth bridge unavailable"
+            />
+            <PickerRow
+              label="iOS Bluetooth device"
+              buttonText="Select Device"
+              onPick={handlePickIOSBluetooth}
+              disabled={!iosBluetoothSupported}
+              display={
+                state.iosSelected
+                  ? state.iosSelected.name || state.iosSelected.id
+                  : "No iOS Bluetooth device selected"
+              }
+              helper="Uses the native DMDash iOS app bridge. Safari and Chrome for iOS cannot use Web Bluetooth directly."
+            />
+          </>
+        ),
+        validate: () => state.name.trim().length > 0 && !!state.iosSelected,
+        build: () =>
+          state.iosSelected
+            ? {
+                type: "ios-bluetooth",
+                name: state.name.trim(),
+                deviceId: state.iosSelected.id,
+                deviceName: state.iosSelected.name,
+              }
+            : null,
+      },
       serial: {
         placeholder: t("addConnection.serialConnection.namePlaceholder"),
         children: () => (
@@ -740,6 +826,7 @@ export default function AddConnectionDialog({
       serialSupported,
       isURLHTTPS,
       handlePickBluetooth,
+      handlePickIOSBluetooth,
       handlePickSerial,
       handleDiscoverNetwork,
       handleTestHttp,
@@ -748,6 +835,7 @@ export default function AddConnectionDialog({
       discoveredDevices,
       discoveryStatus,
       unsupported,
+      iosBluetoothSupported,
       t,
       tcpHostValid,
       tcpPort,
@@ -786,7 +874,7 @@ export default function AddConnectionDialog({
         value={state.tab}
         onValueChange={(v) => dispatch({ type: "SET_TAB", payload: v as TabKey })}
       >
-        <TabsList className="grid grid-cols-3">
+        <TabsList className="grid grid-cols-4">
           {TAB_META.map(({ key, label, Icon }) => (
             <TabsTrigger key={key} value={key} className="gap-2">
               <Icon className="h-4 w-4" />

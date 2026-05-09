@@ -76,6 +76,15 @@ export function createConnectionFromInput(input: NewConnection): Connection {
       gattServiceUUID: input.gattServiceUUID,
     };
   }
+  if (input.type === "ios-bluetooth") {
+    return {
+      ...base,
+      type: "ios-bluetooth",
+      deviceId: input.deviceId,
+      deviceName: input.deviceName,
+      name: input.name.length === 0 ? (input.deviceName ?? "iOS Bluetooth node") : input.name,
+    };
+  }
   return {
     ...base,
     type: "serial",
@@ -178,6 +187,9 @@ export function connectionTypeIcon(type: ConnectionType): LucideIcon {
   if (type === "bluetooth") {
     return Bluetooth;
   }
+  if (type === "ios-bluetooth") {
+    return Bluetooth;
+  }
   return Cable;
 }
 
@@ -190,6 +202,9 @@ export function formatConnectionSubtext(conn: Connection): string {
   }
   if (conn.type === "bluetooth") {
     return conn.deviceName || conn.deviceId || "No device selected";
+  }
+  if (conn.type === "ios-bluetooth") {
+    return conn.deviceName || conn.deviceId || "No iOS Bluetooth device selected";
   }
   const v = conn.usbVendorId ? conn.usbVendorId.toString(16) : "?";
   const p = conn.usbProductId ? conn.usbProductId.toString(16) : "?";

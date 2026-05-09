@@ -4,6 +4,10 @@ import type {
   ConnectionStatus,
   NewConnection,
 } from "@app/core/stores/deviceStore/types";
+import {
+  isIOSBluetoothBridgeAvailable,
+  TransportIOSBluetooth,
+} from "@app/pages/Connections/TransportIOSBluetooth";
 import { TransportTCPBridge } from "@app/pages/Connections/TransportTCPBridge";
 import {
   createConnectionFromInput,
@@ -20,7 +24,7 @@ import { TransportWebSerial } from "@meshtastic/transport-web-serial";
 import { useCallback } from "react";
 
 // Local storage for cleanup only (not in Zustand)
-const transports = new Map<ConnectionId, BluetoothDevice | SerialPort>();
+const transports = new Map<ConnectionId, BluetoothDevice | SerialPort | TransportIOSBluetooth>();
 const heartbeats = new Map<ConnectionId, ReturnType<typeof setInterval>>();
 const configSubscriptions = new Map<ConnectionId, () => void>();
 
@@ -140,6 +144,7 @@ export function useConnections() {
       transport:
         | Awaited<ReturnType<typeof TransportHTTP.create>>
         | Awaited<ReturnType<typeof TransportTCPBridge.create>>
+        | Awaited<ReturnType<typeof TransportIOSBluetooth.create>>
         | Awaited<ReturnType<typeof TransportWebBluetooth.createFromDevice>>
         | Awaited<ReturnType<typeof TransportWebSerial.createFromPort>>,
       btDevice?: BluetoothDevice,
@@ -341,6 +346,16 @@ export function useConnections() {
           return true;
         }
 
+        if (conn.type === "ios-bluetooth") {
+          if (!(await isIOSBluetoothBridgeAvailable())) {
+            throw new Error("DMDash iOS Bluetooth bridge is not available");
+          }
+          const transport = await TransportIOSBluetooth.create(conn.deviceId);
+          setupMeshDevice(id, transport, undefined, undefined);
+          transports.set(id, transport);
+          return true;
+        }
+
         if (conn.type === "serial") {
           if (!("serial" in navigator)) {
             throw new Error("Web Serial not supported");
@@ -470,6 +485,13 @@ export function useConnections() {
                 } catch (err) {
                   console.warn("Error closing serial port:", err);
                 }
+              }
+            }
+            if (conn.type === "ios-bluetooth") {
+              try {
+                await (transport as TransportIOSBluetooth).disconnect();
+              } catch (err) {
+                console.warn("Error closing iOS Bluetooth bridge transport:", err);
               }
             }
           }
@@ -626,7 +648,27 @@ export function useConnections() {
         }
       });
 
-    await Promise.all([...httpChecks, ...tcpChecks, ...btChecks, ...serialChecks]);
+    const iosBluetoothChecks = connections
+      .filter(
+        (c): c is Connection & { type: "ios-bluetooth"; deviceId: string } =>
+          c.type === "ios-bluetooth" &&
+          c.status !== "connected" &&
+          c.status !== "configured" &&
+          c.status !== "configuring",
+      )
+      .map(async (c) => {
+        updateSavedConnection(c.id, {
+          status: (await isIOSBluetoothBridgeAvailable()) ? "configured" : "disconnected",
+        });
+      });
+
+    await Promise.all([
+      ...httpChecks,
+      ...tcpChecks,
+      ...btChecks,
+      ...serialChecks,
+      ...iosBluetoothChecks,
+    ]);
   }, [connections, updateSavedConnection]);
 
   const syncConnectionStatuses = useCallback(() => {
