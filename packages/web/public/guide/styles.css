@@ -302,4 +302,18 @@ a:hover {
     .footer {
         margin-top: 0;
     }
+
+    .footer {
+        min-height: 2rem;
+        max-height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        line-height: 1;
+        -webkit-text-size-adjust: none;
+        text-size-adjust: none;
+    }
 }

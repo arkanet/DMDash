@@ -273,11 +273,11 @@ export default function GuidePage({ variant = "landing" }: GuidePageProps) {
   }
 
   return (
-    <div className="flex min-h-screen w-screen flex-1 bg-[#090909] max-md:h-dvh max-md:min-h-dvh max-md:w-[calc(100dvw/0.75)]">
+    <div className="guide-viewport flex min-h-screen w-screen flex-1 bg-[#090909]">
       <iframe
         title={config.title}
         srcDoc={srcDoc}
-        className="h-screen w-full border-0 bg-[#090909] max-md:h-[calc(100dvh/0.75)]"
+        className="guide-frame h-screen w-full border-0 bg-[#090909]"
       />
     </div>
   );
