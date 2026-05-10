@@ -82,11 +82,11 @@ export const TracerouteResponseDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleCloseProcess}>
-      <DialogContent className="top-1/2 left-1/2 max-h-[86vh] w-[min(86vw,38rem)] max-w-[min(86vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030] max-md:w-[82vw] max-md:max-w-[82vw]">
-        <DialogTitle className="text-left text-3xl font-normal text-zinc-100 max-md:text-2xl">
+      <DialogContent className="mobile-traceroute-dialog top-1/2 left-1/2 max-h-[86vh] w-[min(86vw,38rem)] max-w-[min(86vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]">
+        <DialogTitle className="text-left text-3xl font-normal text-zinc-100 max-md:text-[1.125rem]">
           Traceroute
         </DialogTitle>
-        <div className="mt-5 max-h-[62vh] overflow-y-auto pr-1 text-[1.35rem] leading-tight text-zinc-300 max-md:max-h-[66vh] max-md:text-[1.15rem]">
+        <div className="mt-5 max-h-[62vh] overflow-y-auto pr-1 text-[1.35rem] leading-tight text-zinc-300 max-md:mt-3 max-md:max-h-[60vh] max-md:text-[0.8625rem]">
           <TracerouteRouteSection
             title="Route traced toward destination:"
             path={forwardPath}
@@ -99,13 +99,15 @@ export const TracerouteResponseDialog = ({
             snrs={snrBack}
             getNode={getNode}
           />
-          <p className="mt-8 text-zinc-300">Duration: {formatDuration(resolvedDurationMs)}</p>
+          <p className="mt-8 text-zinc-300 max-md:mt-4">
+            Duration: {formatDuration(resolvedDurationMs)}
+          </p>
         </div>
-        <div className="mt-6 flex justify-end gap-6">
+        <div className="mt-6 flex justify-end gap-6 max-md:mt-4 max-md:gap-3">
           <Button
             size="sm"
             variant="ghost"
-            className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)]"
+            className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)] max-md:px-2 max-md:text-[0.65625rem]"
             onClick={handleViewOnMap}
           >
             {t("tracerouteResponse.viewOnMap", "View on Map")}
@@ -113,7 +115,7 @@ export const TracerouteResponseDialog = ({
           <Button
             size="sm"
             variant="ghost"
-            className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)]"
+            className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)] max-md:px-2 max-md:text-[0.65625rem]"
             onClick={handleCloseProcess}
           >
             CHIUDI
@@ -136,13 +138,13 @@ function TracerouteRouteSection({
   getNode: (nodeNum: number) => Protobuf.Mesh.NodeInfo | undefined;
 }) {
   return (
-    <section className="mt-6 first:mt-0">
-      <h2 className="mb-5 text-zinc-300">{title}</h2>
-      <ol className="space-y-2">
+    <section className="mt-6 first:mt-0 max-md:mt-4">
+      <h2 className="mb-5 text-zinc-300 max-md:mb-3">{title}</h2>
+      <ol className="space-y-2 max-md:space-y-1.5">
         {path.map((nodeNum, index) => (
           <li key={`${title}-${nodeNum}-${index}`}>
-            <div className="flex gap-2">
-              <span className="mt-[0.42em] size-3 shrink-0 bg-zinc-300 max-md:size-2.5" />
+            <div className="flex gap-2 max-md:gap-1.5">
+              <span className="mt-[0.42em] size-3 shrink-0 bg-zinc-300 max-md:size-2" />
               <span>{formatTracerouteNode(getNode(nodeNum), nodeNum)}</span>
             </div>
             {index < path.length - 1 ? <SnrLine snr={snrs[index]} /> : null}
@@ -155,7 +157,7 @@ function TracerouteRouteSection({
 
 function SnrLine({ snr }: { snr: number | undefined }) {
   return (
-    <div className={`ml-0 mt-1 font-semibold ${getSnrClassName(snr)}`}>
+    <div className={`ml-0 mt-1 font-semibold max-md:mt-0.5 ${getSnrClassName(snr)}`}>
       ⇊ {snr === undefined ? "n/a" : `${formatSnr(snr)} dB`}
     </div>
   );

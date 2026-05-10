@@ -1184,9 +1184,9 @@ const NodesPage = (): JSX.Element => {
     return (
       <div
         key={node.num}
-        className="rounded-md bg-background-secondary p-3 text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#303030] dark:text-zinc-100 dark:shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
+        className="rounded-md bg-background-secondary p-2.5 text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#303030] dark:text-zinc-100 dark:shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
       >
-        <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-2">
+        <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-1.5">
           <Popover
             open={mobileActionNode === node.num}
             onOpenChange={(open) => setMobileActionNode(open ? node.num : undefined)}
@@ -1194,13 +1194,13 @@ const NodesPage = (): JSX.Element => {
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-full px-2 py-1 text-lg"
+                className="inline-flex items-center gap-1.5 rounded-full px-1.5 py-1 text-[0.875rem]"
                 style={getNodeBaseColorStyle(node.num)}
               >
                 <Avatar
                   nodeNum={node.num}
                   size="sm"
-                  className="size-9"
+                  className="size-7"
                   avatarClassName="ring-2 ring-white/70"
                   showError={hasNodeError(node.num)}
                   showFavorite={node.isFavorite}
@@ -1225,33 +1225,33 @@ const NodesPage = (): JSX.Element => {
             onCopyPublicKey={copyMobileNodePublicKey}
           />
 
-          <div className="min-w-0 text-xl leading-tight">
+          <div className="min-w-0 text-[0.9375rem] leading-tight">
             <span className="whitespace-normal break-words">{longName}</span>
             {node.isFavorite ? (
-              <StarIcon className="ml-2 inline size-5 fill-[#8d0606] text-[#8d0606]" />
+              <StarIcon className="ml-1.5 inline size-4 fill-[#8d0606] text-[#8d0606]" />
             ) : null}
           </div>
 
-          <div className="flex items-center justify-end gap-1 whitespace-nowrap text-lg text-text-secondary dark:text-zinc-200">
-            <RadioTowerIcon className="size-5" />
+          <div className="flex items-center justify-end gap-1 whitespace-nowrap text-[0.875rem] text-text-secondary dark:text-zinc-200">
+            <RadioTowerIcon className="size-4" />
             <span>{formatLastHeard(node.lastHeard)}</span>
           </div>
         </div>
 
-        <div className="mt-2 grid grid-cols-[1fr_auto] items-center gap-3 text-lg">
+        <div className="mt-1.5 grid grid-cols-[1fr_auto] items-center gap-2 text-[0.875rem]">
           <span>{formatDistance(distanceVal) ?? "distanza n/a"}</span>
           <span className="flex items-center justify-end gap-1 whitespace-nowrap">
             {battery.plugged ? (
-              <BatteryChargingIcon className="size-5" />
+              <BatteryChargingIcon className="size-4" />
             ) : (
-              <BatteryIcon className="size-5" />
+              <BatteryIcon className="size-4" />
             )}
-            {battery.plugged ? <PlugZapIcon className="size-4 text-[#00e531]" /> : null}
+            {battery.plugged ? <PlugZapIcon className="size-3.5 text-[#00e531]" /> : null}
             {battery.label}
           </span>
         </div>
 
-        <div className="mt-1 flex items-center justify-between gap-3 text-lg">
+        <div className="mt-1 flex items-center justify-between gap-2 text-[0.875rem]">
           <span>
             {node.hopsAway !== undefined
               ? `Distanza in Hop: ${node.hopsAway}`
@@ -1265,9 +1265,9 @@ const NodesPage = (): JSX.Element => {
         </div>
 
         {showNodeDetails && hasDetailRows ? (
-          <div className="mt-3 border-t border-zinc-500/35 pt-3">
+          <div className="mt-2 border-t border-zinc-500/35 pt-2">
             {hasPositionRow ? (
-              <div className="grid grid-cols-[1fr_auto] gap-3 text-lg">
+              <div className="grid grid-cols-[1fr_auto] gap-2 text-[0.875rem]">
                 {position ? (
                   <button
                     type="button"
@@ -1292,14 +1292,14 @@ const NodesPage = (): JSX.Element => {
               </div>
             ) : null}
             {hasIdentityRow ? (
-              <div className="mt-1 grid grid-cols-[1fr_auto_1fr] gap-3 text-lg">
+              <div className="mt-1 grid grid-cols-[1fr_auto_1fr] gap-2 text-[0.875rem]">
                 <span className="truncate">{hardwareModel ?? ""}</span>
                 <span className="text-center">{roleName ?? ""}</span>
                 <span className="text-right">{nameHex}</span>
               </div>
             ) : null}
             {hasUtilRow ? (
-              <div className="mt-2 text-lg">
+              <div className="mt-1.5 text-[0.875rem]">
                 {node.deviceMetrics?.channelUtilization !== undefined ? (
                   <>
                     ChUtil{" "}
@@ -1319,8 +1319,8 @@ const NodesPage = (): JSX.Element => {
               </div>
             ) : null}
             {nodeStatus ? (
-              <div className="mt-3 flex items-start gap-3 text-lg text-text-primary dark:text-zinc-100">
-                <MapPinIcon className="mt-1 size-5 text-[#00e531]" />
+              <div className="mt-2 flex items-start gap-2 text-[0.875rem] text-text-primary dark:text-zinc-100">
+                <MapPinIcon className="mt-1 size-4 text-[#00e531]" />
                 <span className="whitespace-pre-wrap break-words">{nodeStatus}</span>
               </div>
             ) : null}
@@ -1378,7 +1378,7 @@ const NodesPage = (): JSX.Element => {
           />
         </div>
       </div>
-      <div className="flex items-center gap-3 bg-background-primary px-3 py-4 md:hidden dark:bg-[#101010]">
+      <div className="sticky top-0 z-30 flex shrink-0 items-center gap-3 bg-background-primary px-3 py-4 md:hidden dark:bg-[#101010]">
         <div className="flex h-14 min-w-0 flex-1 items-center gap-3 rounded-md border border-zinc-500 px-3 text-zinc-400">
           <SearchIcon className="size-7 shrink-0" />
           <Input
@@ -1409,14 +1409,14 @@ const NodesPage = (): JSX.Element => {
           <PopoverContent
             align="end"
             sideOffset={12}
-            className="w-[min(20rem,calc(100vw-2rem))] border-zinc-900 bg-[#101010] p-0 text-zinc-100 shadow-2xl"
+            className="mobile-sorter-popover border-zinc-900 bg-[#101010] p-0 text-zinc-100 shadow-2xl"
           >
-            <div className="max-h-[70vh] overflow-y-auto py-2 text-xl">
+            <div className="max-h-[70vh] overflow-y-auto py-2 text-[0.9375rem]">
               {MOBILE_NODE_SORT_OPTIONS.map((option) => (
                 <button
                   key={option.id}
                   type="button"
-                  className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-[#242424]"
+                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#242424]"
                   onClick={() => {
                     setMobileSort(option.id);
                     setMobileFilterOpen(false);
@@ -1431,7 +1431,7 @@ const NodesPage = (): JSX.Element => {
               <div className="my-2 border-t border-zinc-700" />
               <button
                 type="button"
-                className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-[#242424]"
+                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#242424]"
                 onClick={() => {
                   setIncludeUnknownNodes((value) => !value);
                   setMobileFilterOpen(false);
@@ -1442,7 +1442,7 @@ const NodesPage = (): JSX.Element => {
               </button>
               <button
                 type="button"
-                className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-[#242424]"
+                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#242424]"
                 onClick={() => {
                   setShowNodeDetails((value) => !value);
                   setMobileFilterOpen(false);
@@ -1462,7 +1462,7 @@ const NodesPage = (): JSX.Element => {
           </div>
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-background-primary px-3 pb-6 md:hidden dark:bg-[#101010]">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto bg-background-primary px-2.5 pb-4 md:hidden dark:bg-[#101010]">
         {mobileNodeCards}
       </div>
 

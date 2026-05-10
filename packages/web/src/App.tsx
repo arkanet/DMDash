@@ -19,21 +19,20 @@ function useMobileViewport() {
   useEffect(() => {
     const root = document.documentElement;
 
-    const updateViewport = () => {
-      const visualViewport = window.visualViewport;
-
-      root.style.setProperty("--app-viewport-height", `${window.innerHeight}px`);
-      root.style.setProperty("--app-viewport-width", `${window.innerWidth}px`);
-      root.classList.toggle("mobile-viewport-zoomed", (visualViewport?.scale ?? 1) > 1.01);
+    const updateViewportHeight = () => {
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      root.style.setProperty("--app-viewport-height", `${viewportHeight}px`);
+      root.classList.toggle("mobile-viewport-zoomed", (window.visualViewport?.scale ?? 1) > 1.01);
     };
 
     let animationFrame = 0;
     const scheduleViewportUpdate = () => {
       window.cancelAnimationFrame(animationFrame);
-      animationFrame = window.requestAnimationFrame(updateViewport);
+      animationFrame = window.requestAnimationFrame(updateViewportHeight);
     };
 
-    updateViewport();
+    root.classList.add("mobile-scale-75");
+    updateViewportHeight();
     window.addEventListener("resize", scheduleViewportUpdate);
     window.addEventListener("orientationchange", scheduleViewportUpdate);
     window.visualViewport?.addEventListener("resize", scheduleViewportUpdate);
@@ -45,9 +44,9 @@ function useMobileViewport() {
       window.removeEventListener("orientationchange", scheduleViewportUpdate);
       window.visualViewport?.removeEventListener("resize", scheduleViewportUpdate);
       window.visualViewport?.removeEventListener("scroll", scheduleViewportUpdate);
+      root.classList.remove("mobile-scale-75");
       root.classList.remove("mobile-viewport-zoomed");
       root.style.removeProperty("--app-viewport-height");
-      root.style.removeProperty("--app-viewport-width");
     };
   }, []);
 }
@@ -85,24 +84,15 @@ function DeviceConnectionProgress({
 
   return (
     <div
-      className="pointer-events-none fixed top-0 right-0 left-0 z-[70] h-1 bg-black/15"
+      className="pointer-events-none fixed top-0 right-0 left-0 z-[70] h-1 overflow-hidden bg-black/15"
       aria-hidden="true"
     >
-      <div
-        className="h-full transition-[width] duration-150 ease-linear"
-        style={{
-          width: `${progress}%`,
-          backgroundColor: "var(--darkmesh-action-color, #00bcd4)",
-        }}
+      <progress
+        className="darkmesh-connection-progress-value h-full w-full"
+        value={progress}
+        max={100}
       />
-      <div
-        className="absolute inset-y-0 left-0 w-1/3 opacity-40"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent, var(--darkmesh-action-color, #00bcd4), transparent)",
-          animation: "darkmesh-connection-progress 1.4s linear infinite",
-        }}
-      />
+      <div className="darkmesh-connection-progress-shine absolute inset-y-0 left-0 w-1/3 opacity-40" />
     </div>
   );
 }
@@ -141,19 +131,21 @@ export function App() {
       <ThemeDocumentController pathname={pathname} />
       <TanStackRouterDevtools position="bottom-right" />
       <DeviceWrapper deviceId={selectedDeviceId}>
-        <div
-          className="mobile-viewport-fill flex h-screen flex-col bg-background-primary text-text-primary"
-          style={{ scrollbarWidth: "thin" }}
-        >
+        <div className="mobile-viewport-fill flex h-full min-h-0 w-full flex-col bg-background-primary text-text-primary">
           <SidebarProvider>
-            <div className="h-full flex flex-1 flex-col">
+            <div className="flex h-full min-h-0 flex-1 flex-col">
               {isConnectionsRoute ? (
-                <div className="h-full w-full overflow-y-auto">
-                  {device ? <DeviceConnectionProgress phase={device.connectionPhase} /> : null}
-                  <Outlet />
+                <div className="flex h-full min-h-0 w-full flex-1 flex-col">
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    {device ? <DeviceConnectionProgress phase={device.connectionPhase} /> : null}
+                    <Outlet />
+                  </div>
+                  <div className="shrink-0">
+                    <Footer />
+                  </div>
                 </div>
               ) : device ? (
-                <div className="h-full flex w-full">
+                <div className="flex h-full min-h-0 w-full flex-1">
                   <DeviceConnectionProgress phase={device.connectionPhase} />
                   <DarkMeshRuntime />
                   <DialogManager />
@@ -166,9 +158,13 @@ export function App() {
               ) : isPublicGuideRoute ? (
                 <Outlet />
               ) : shouldRedirectToConnections ? null : (
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  <Connections />
-                  <Footer />
+                <div className="flex h-full min-h-0 flex-1 flex-col">
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <Connections />
+                  </div>
+                  <div className="shrink-0">
+                    <Footer />
+                  </div>
                 </div>
               )}
             </div>
