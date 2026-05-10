@@ -200,6 +200,15 @@ export const MessageItem = ({
 
   const messageStatusInfo = getMessageStatusInfo(message.state);
   const StatusIconComponent = messageStatusInfo.icon;
+  const mobileStatusClassName = cn(
+    "inline-flex items-center rounded-full border p-1 shadow-sm",
+    message.state === MessageState.Ack &&
+      "border-green-400/70 bg-green-500/15 text-green-600 dark:border-green-400/60 dark:bg-green-500/20 dark:text-green-300",
+    message.state === MessageState.Waiting &&
+      "border-slate-400/50 bg-slate-100/80 text-slate-500 dark:border-zinc-600 dark:bg-zinc-900/80 dark:text-zinc-300",
+    message.state === MessageState.Failed &&
+      "border-red-400/70 bg-red-500/15 text-red-600 dark:border-red-400/60 dark:bg-red-500/20 dark:text-red-300",
+  );
   const mentionNodes = new Map<string, Protobuf.Mesh.NodeInfo>();
   for (const node of getNodes(undefined, true)) {
     const userId = node.user?.id?.toUpperCase();
@@ -479,7 +488,7 @@ export const MessageItem = ({
             )}
             {shouldShowStatusIcon && (
               <StatusTooltip statusInfo={messageStatusInfo}>
-                <span aria-label={messageStatusInfo.ariaLabel} role="img">
+                <span aria-label={messageStatusInfo.ariaLabel} role="img" className="max-md:hidden">
                   <StatusIconComponent
                     className={cn("size-4 shrink-0", messageStatusInfo.iconClassName)}
                     aria-hidden="true"
@@ -603,6 +612,22 @@ export const MessageItem = ({
                   })}
                 </div>
               </SwipeReplyMessage>
+              {shouldShowStatusIcon && (
+                <div className="flex justify-end pt-1 md:hidden">
+                  <StatusTooltip statusInfo={messageStatusInfo}>
+                    <span
+                      aria-label={messageStatusInfo.ariaLabel}
+                      role="img"
+                      className={mobileStatusClassName}
+                    >
+                      <StatusIconComponent
+                        className={cn("size-5 shrink-0", messageStatusInfo.iconClassName)}
+                        aria-hidden="true"
+                      />
+                    </span>
+                  </StatusTooltip>
+                </div>
+              )}
               {(hopLabel || reactionEntries.length > 0) && (
                 <div className="space-y-2 pt-1">
                   {hopLabel && (

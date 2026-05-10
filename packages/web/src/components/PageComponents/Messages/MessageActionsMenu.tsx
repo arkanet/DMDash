@@ -7,8 +7,15 @@ import {
 } from "@components/UI/Tooltip.tsx";
 import { cn } from "@core/utils/cn.ts";
 import { Reply, SmilePlus } from "lucide-react";
+import EmojiPicker, {
+  EmojiClickData,
+  EmojiStyle,
+  Theme as EmojiPickerTheme,
+} from "emoji-picker-react";
+import { useTheme } from "@core/hooks/useTheme.ts";
 import { useTranslation } from "react-i18next";
 import { useState, useRef, useEffect } from "react";
+import { useMobileEmojiPicker } from "./useMobileEmojiPicker.ts";
 
 interface MessageActionsMenuProps {
   onAddReaction?: (emoji?: string) => void;
@@ -25,6 +32,23 @@ export const MessageActionsMenu = ({
 }: MessageActionsMenuProps) => {
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
+  const { theme, preference } = useTheme();
+  const isMobileEmojiPicker = useMobileEmojiPicker();
+  const pickerThemeClass =
+    theme === "dark" ? "epr-dark-theme" : preference === "system" ? "epr-auto-theme" : "";
+  const pickerTheme =
+    theme === "dark"
+      ? EmojiPickerTheme.DARK
+      : preference === "system"
+        ? EmojiPickerTheme.AUTO
+        : EmojiPickerTheme.LIGHT;
+  const isLightTheme = theme === "light";
+  const outerBg = isLightTheme ? undefined : "var(--gateway-bg, #222)";
+  const midBg = isLightTheme ? undefined : "rgba(255,255,255,0.03)";
+  const searchBg = isLightTheme ? undefined : "rgba(255,255,255,0.06)";
+  const darkOuterBg = "var(--gateway-bg, #222)";
+  const darkMidBg = "rgba(255,255,255,0.03)";
+  const darkSearchBg = "rgba(255,255,255,0.06)";
 
   // Close picker when clicking outside
   useEffect(() => {
@@ -48,6 +72,7 @@ export const MessageActionsMenu = ({
     "border border-gray-200 dark:border-zinc-600",
     "rounded-md shadow-sm p-1",
     "opacity-0 group-hover:opacity-100",
+    "max-md:opacity-100",
     "transition-opacity duration-100 ease-in-out",
     "z-10",
   );
@@ -61,6 +86,13 @@ export const MessageActionsMenu = ({
   );
 
   const iconSizeClass = "size-4";
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    if (onAddReaction) {
+      onAddReaction(emojiData.emoji);
+    }
+    setShowPicker(false);
+  };
 
   if (!showReaction && !onReply) {
     return null;
@@ -121,9 +153,22 @@ export const MessageActionsMenu = ({
           role="dialog"
           aria-label={t("messages_actionsMenu_addReactionLabel")}
           className={cn(
-            "absolute right-0 z-20 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-md p-2 flex gap-1",
+            "emoji-picker-wrapper message-emoji-picker-shell message-emoji-picker-popover absolute right-0 z-20 rounded-xl border border-slate-200 p-2 shadow-md backdrop-blur-sm dark:border-zinc-700",
+            pickerThemeClass,
             reactionPickerPlacement === "above" ? "bottom-full mb-2" : "top-full mt-2",
           )}
+          style={
+            {
+              ["--epr-bg-color"]: outerBg ?? undefined,
+              ["--epr-reactions-bg-color"]: midBg ?? undefined,
+              ["--epr-search-input-bg-color"]: searchBg ?? undefined,
+              ["--epr-search-input-bg-color-active"]: searchBg ?? undefined,
+              ["--epr-category-label-bg-color"]: midBg ?? undefined,
+              ["--epr-dark-bg-color"]: darkOuterBg,
+              ["--epr-dark-reactions-bg-color"]: darkMidBg,
+              ["--epr-dark-search-input-bg-color"]: darkSearchBg,
+            } as React.CSSProperties
+          }
           onClick={(e) => e.stopPropagation()}
           tabIndex={-1}
           onKeyDown={(e) => {
@@ -131,19 +176,15 @@ export const MessageActionsMenu = ({
             e.stopPropagation();
           }}
         >
-          {["👍", "❤️", "😂", "😮", "😢", "👏"].map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              className="px-2 py-1 text-lg hover:bg-slate-100 dark:hover:bg-zinc-700 rounded"
-              onClick={() => {
-                if (onAddReaction) onAddReaction(emoji);
-                setShowPicker(false);
-              }}
-            >
-              {emoji}
-            </button>
-          ))}
+          <EmojiPicker
+            onEmojiClick={handleEmojiClick}
+            autoFocusSearch={false}
+            searchDisabled={isMobileEmojiPicker}
+            previewConfig={{ showPreview: false }}
+            emojiStyle={EmojiStyle.NATIVE}
+            theme={pickerTheme}
+            className="message-emoji-picker-compact"
+          />
         </div>
       )}
     </div>

@@ -205,6 +205,28 @@ body {
     var(--backgroundPrimary);
 }
 
+.message-emoji-picker-shell {
+  width: min(18rem, calc(100vw - 2rem));
+  max-width: min(18rem, calc(100vw - 2rem));
+}
+
+.message-emoji-picker-compact.EmojiPickerReact,
+.message-emoji-picker-shell .message-emoji-picker-compact.EmojiPickerReact {
+  width: min(16.5rem, calc(100vw - 3rem)) !important;
+  height: min(21.125rem, calc(var(--app-viewport-height, 100vh) - 8rem)) !important;
+  --epr-category-navigation-button-size: 22.5px;
+  --epr-emoji-size: 22.5px;
+  --epr-emoji-padding: 3.75px;
+  --epr-search-input-height: 30px;
+  --epr-search-input-padding: 0 22.5px;
+  --epr-horizontal-padding: 7.5px;
+  --epr-header-padding: 11.25px var(--epr-horizontal-padding);
+  --epr-emoji-variation-picker-height: 33.75px;
+  --epr-preview-height: 52.5px;
+  --epr-preview-text-size: 10.5px;
+  --epr-category-label-height: 22.5px;
+}
+
 @media (max-width: 950px) {
   html.mobile-scale-75 {
     font-size: 75%;
@@ -277,6 +299,29 @@ body {
     height: 100%;
     min-height: 100%;
     max-height: 100%;
+  }
+
+  .message-emoji-picker-shell {
+    width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 1rem);
+    max-width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 1rem);
+  }
+
+  .message-emoji-picker-popover {
+    position: fixed !important;
+    inset-block-start: auto !important;
+    inset-inline-start: calc(env(safe-area-inset-left, 0px) + 0.5rem) !important;
+    inset-inline-end: calc(env(safe-area-inset-right, 0px) + 0.5rem) !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 5.25rem) !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  .message-emoji-picker-compact.EmojiPickerReact,
+  .message-emoji-picker-shell .message-emoji-picker-compact.EmojiPickerReact {
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   :where(input, textarea, select, [contenteditable="true"], [role="combobox"]) {

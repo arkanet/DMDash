@@ -44,6 +44,21 @@ function normalizeStoredMessage(message: Message): Message {
   };
 }
 
+function mergeStoredMessage(existing: Message | undefined, incoming: Message): Message {
+  if (!existing) {
+    return incoming;
+  }
+
+  return {
+    ...incoming,
+    state:
+      incoming.state === MessageState.Waiting && existing.state !== MessageState.Waiting
+        ? existing.state
+        : incoming.state,
+    reactions: incoming.reactions ?? existing.reactions,
+  };
+}
+
 export function getConversationId(node1: NodeNum, node2: NodeNum): ConversationId {
   return [node1, node2].sort((a, b) => a - b).join(":");
 }
@@ -180,7 +195,10 @@ function messageStoreFactory(
             }
 
             log = state.messages.direct.get(conversationId);
-            log?.set(normalizedMessage.messageId, normalizedMessage);
+            log?.set(
+              normalizedMessage.messageId,
+              mergeStoredMessage(log.get(normalizedMessage.messageId), normalizedMessage),
+            );
           } else if (message.type === MessageType.Broadcast) {
             const channelId = normalizedMessage.channel as ChannelId;
             if (!state.messages.broadcast.has(channelId)) {
@@ -188,7 +206,10 @@ function messageStoreFactory(
             }
 
             log = state.messages.broadcast.get(channelId);
-            log?.set(normalizedMessage.messageId, normalizedMessage);
+            log?.set(
+              normalizedMessage.messageId,
+              mergeStoredMessage(log.get(normalizedMessage.messageId), normalizedMessage),
+            );
           }
 
           if (log) {
