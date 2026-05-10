@@ -10,8 +10,8 @@ export function SupportBadge({
   labelUnsupported: string;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <Badge variant={supported ? "secondary" : "destructive"}>
+    <div className="flex min-w-0 items-center gap-2">
+      <Badge variant={supported ? "secondary" : "destructive"} className="whitespace-normal">
         {supported ? labelSupported : labelUnsupported}
       </Badge>
     </div>

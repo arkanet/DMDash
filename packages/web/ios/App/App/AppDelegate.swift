@@ -8,14 +8,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
-        DispatchQueue.main.async { [weak self] in
-            guard let bridgeViewController = self?.window?.rootViewController as? CAPBridgeViewController,
-                  let bridge = bridgeViewController.value(forKey: "bridge") as? CapacitorBridge
-            else {
-                return
-            }
-            bridge.registerPluginType(DMDashIOSBluetoothPlugin.self)
-        }
+        window?.backgroundColor = .black
+        window?.rootViewController?.view.backgroundColor = .black
+
         return true
     }
 

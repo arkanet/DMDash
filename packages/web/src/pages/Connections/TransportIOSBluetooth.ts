@@ -1,4 +1,5 @@
 import { Types } from "@meshtastic/core";
+import { registerPlugin } from "@capacitor/core";
 import { fromByteArray, toByteArray } from "base64-js";
 
 export type IOSBluetoothDeviceInfo = {
@@ -28,6 +29,7 @@ type CapacitorIOSBluetoothPluginResult = {
 };
 
 type RawCapacitorIOSBluetoothPlugin = {
+  isBridgeAvailable?: () => Promise<CapacitorIOSBluetoothPluginResult>;
   isAvailable?: () => Promise<CapacitorIOSBluetoothPluginResult>;
   requestDevice: () => Promise<IOSBluetoothDeviceInfo>;
   connect: (options: { deviceId: string }) => Promise<void>;
@@ -40,6 +42,7 @@ type RawCapacitorIOSBluetoothPlugin = {
 };
 
 export type DMDashIOSBluetoothBridge = {
+  isBridgeAvailable?: () => boolean | Promise<boolean>;
   isAvailable?: () => boolean | Promise<boolean>;
   requestDevice: () => Promise<IOSBluetoothDeviceInfo>;
   connect: (deviceId: string) => Promise<void>;
@@ -62,6 +65,10 @@ export const IOS_BLUETOOTH_PACKET_EVENT = "dmdash-ios-bluetooth-packet";
 export const IOS_BLUETOOTH_STATUS_EVENT = "dmdash-ios-bluetooth-status";
 
 let capacitorListenersInstalled = false;
+const registeredCapacitorPlugin =
+  typeof window === "undefined"
+    ? undefined
+    : registerPlugin<RawCapacitorIOSBluetoothPlugin>("DMDashIOSBluetooth");
 
 function installCapacitorEventForwarders(plugin: RawCapacitorIOSBluetoothPlugin): void {
   if (capacitorListenersInstalled || !plugin.addListener) {
@@ -83,10 +90,12 @@ function getBridge(): DMDashIOSBluetoothBridge | undefined {
     return injectedBridge;
   }
 
-  const capacitorPlugin = globalThis.window?.Capacitor?.Plugins?.DMDashIOSBluetooth;
+  const capacitorPlugin =
+    globalThis.window?.Capacitor?.Plugins?.DMDashIOSBluetooth ?? registeredCapacitorPlugin;
   if (capacitorPlugin) {
     installCapacitorEventForwarders(capacitorPlugin);
     return {
+      isBridgeAvailable: async () => (await capacitorPlugin.isBridgeAvailable?.())?.value ?? true,
       isAvailable: async () => (await capacitorPlugin.isAvailable?.())?.value ?? true,
       requestDevice: () => capacitorPlugin.requestDevice(),
       connect: (deviceId) => capacitorPlugin.connect({ deviceId }),
@@ -123,7 +132,23 @@ export async function isIOSBluetoothBridgeAvailable(): Promise<boolean> {
   if (!bridge) {
     return false;
   }
-  return bridge.isAvailable ? await bridge.isAvailable() : true;
+  try {
+    return bridge.isBridgeAvailable ? await bridge.isBridgeAvailable() : true;
+  } catch {
+    return false;
+  }
+}
+
+export async function isIOSBluetoothPoweredOn(): Promise<boolean> {
+  const bridge = getBridge();
+  if (!bridge) {
+    return false;
+  }
+  try {
+    return bridge.isAvailable ? await bridge.isAvailable() : true;
+  } catch {
+    return false;
+  }
 }
 
 export async function requestIOSBluetoothDevice(): Promise<IOSBluetoothDeviceInfo> {

@@ -15,6 +15,43 @@ import { useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { MapProvider } from "react-map-gl/maplibre";
 
+function useMobileViewport() {
+  useEffect(() => {
+    const root = document.documentElement;
+
+    const updateViewport = () => {
+      const visualViewport = window.visualViewport;
+
+      root.style.setProperty("--app-viewport-height", `${window.innerHeight}px`);
+      root.style.setProperty("--app-viewport-width", `${window.innerWidth}px`);
+      root.classList.toggle("mobile-viewport-zoomed", (visualViewport?.scale ?? 1) > 1.01);
+    };
+
+    let animationFrame = 0;
+    const scheduleViewportUpdate = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(updateViewport);
+    };
+
+    updateViewport();
+    window.addEventListener("resize", scheduleViewportUpdate);
+    window.addEventListener("orientationchange", scheduleViewportUpdate);
+    window.visualViewport?.addEventListener("resize", scheduleViewportUpdate);
+    window.visualViewport?.addEventListener("scroll", scheduleViewportUpdate);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", scheduleViewportUpdate);
+      window.removeEventListener("orientationchange", scheduleViewportUpdate);
+      window.visualViewport?.removeEventListener("resize", scheduleViewportUpdate);
+      window.visualViewport?.removeEventListener("scroll", scheduleViewportUpdate);
+      root.classList.remove("mobile-viewport-zoomed");
+      root.style.removeProperty("--app-viewport-height");
+      root.style.removeProperty("--app-viewport-width");
+    };
+  }, []);
+}
+
 function DeviceConnectionProgress({
   phase,
 }: {
@@ -71,6 +108,8 @@ function DeviceConnectionProgress({
 }
 
 export function App() {
+  useMobileViewport();
+
   const { getDevice } = useDeviceStore();
   const { selectedDeviceId } = useAppStore();
   const navigate = useNavigate();

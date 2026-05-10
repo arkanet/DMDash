@@ -8,6 +8,7 @@ public class DMDashIOSBluetoothPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "DMDashIOSBluetoothPlugin"
     public let jsName = "DMDashIOSBluetooth"
     public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "isBridgeAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestDevice", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "connect", returnType: CAPPluginReturnPromise),
@@ -32,6 +33,10 @@ public class DMDashIOSBluetoothPlugin: CAPPlugin, CAPBridgedPlugin {
 
     public override func load() {
         central = CBCentralManager(delegate: self, queue: DispatchQueue.main)
+    }
+
+    @objc func isBridgeAvailable(_ call: CAPPluginCall) {
+        call.resolve(["value": true])
     }
 
     @objc func isAvailable(_ call: CAPPluginCall) {
@@ -211,9 +216,7 @@ public class DMDashIOSBluetoothPlugin: CAPPlugin, CAPBridgedPlugin {
             self.reject(call, "Device selection cancelled")
         })
 
-        guard let viewController =
-            (bridge as? NSObject)?.value(forKey: "viewController") as? UIViewController
-        else {
+        guard let viewController = bridge?.viewController else {
             reject(call, "Unable to present device selector")
             return
         }

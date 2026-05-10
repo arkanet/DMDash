@@ -40,7 +40,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 grid w-full bg-white dark:bg-slate-800 dark:text-slate-200 text-slate-900 max-w-[512px] max-h-[100vh] overflow-y-auto scale-100 gap-4 p-6 opacity-100 animate-in fade-in-90 slide-in-from-bottom-10 sm:max-w-lg sm:rounded-lg sm:zoom-in-90 sm:slide-in-from-bottom-0",
+        "fixed z-50 grid w-full bg-white dark:bg-slate-800 dark:text-slate-200 text-slate-900 max-w-[512px] max-h-[var(--app-viewport-height,100vh)] overflow-y-auto scale-100 gap-4 p-6 opacity-100 animate-in fade-in-90 slide-in-from-bottom-10 max-sm:pt-[calc(env(safe-area-inset-top,0px)+1rem)] max-sm:pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] sm:max-w-lg sm:rounded-lg sm:zoom-in-90 sm:slide-in-from-bottom-0",
         className,
       )}
       {...props}
@@ -59,7 +59,7 @@ const DialogClose = ({
     aria-label="Close"
     data-testid="dialog-close-button"
     className={cn(
-      "absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-slate-100 dark:focus:ring-slate-400 dark:focus:ring-offset-slate-900",
+      "absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-slate-100 max-sm:top-[calc(env(safe-area-inset-top,0px)+1rem)] dark:focus:ring-slate-400 dark:focus:ring-offset-slate-900",
       className,
     )}
     {...props}

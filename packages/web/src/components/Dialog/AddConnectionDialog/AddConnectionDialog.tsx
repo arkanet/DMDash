@@ -13,6 +13,7 @@ import {
 import {
   type IOSBluetoothDeviceInfo,
   isIOSBluetoothBridgeAvailable,
+  isIOSBluetoothPoweredOn,
   requestIOSBluetoothDevice,
 } from "@app/pages/Connections/TransportIOSBluetooth";
 import { Button } from "@components/UI/Button.tsx";
@@ -274,7 +275,8 @@ export default function AddConnectionDialog({
   const { t } = useTranslation();
   const [discoveryStatus, setDiscoveryStatus] = useState<DiscoveryStatus>("idle");
   const [discoveredDevices, setDiscoveredDevices] = useState<DiscoveredNetworkDevice[]>([]);
-  const [iosBluetoothSupported, setIosBluetoothSupported] = useState(false);
+  const [iosBluetoothBridgeAvailable, setIosBluetoothBridgeAvailable] = useState(false);
+  const [iosBluetoothPoweredOn, setIosBluetoothPoweredOn] = useState(false);
 
   const bluetoothSupported = typeof navigator !== "undefined" && "bluetooth" in navigator;
   const serialSupported = typeof navigator !== "undefined" && "serial" in navigator;
@@ -296,7 +298,12 @@ export default function AddConnectionDialog({
     if (!open) {
       return;
     }
-    void isIOSBluetoothBridgeAvailable().then(setIosBluetoothSupported);
+    void Promise.all([isIOSBluetoothBridgeAvailable(), isIOSBluetoothPoweredOn()]).then(
+      ([bridgeAvailable, poweredOn]) => {
+        setIosBluetoothBridgeAvailable(bridgeAvailable);
+        setIosBluetoothPoweredOn(poweredOn);
+      },
+    );
   }, [open]);
 
   const makeToastErrorHandler = useCallback(
@@ -390,11 +397,19 @@ export default function AddConnectionDialog({
   }, [serialSupported, state.name, toast, makeToastErrorHandler, t]);
 
   const handlePickIOSBluetooth = useCallback(async () => {
-    if (!iosBluetoothSupported) {
+    if (!iosBluetoothBridgeAvailable) {
       toast({
         title: "iOS Bluetooth bridge not available",
         description:
           "Open DMDash inside the iOS app container to use native Bluetooth on iPhone or iPad.",
+      });
+      return;
+    }
+    if (!iosBluetoothPoweredOn) {
+      toast({
+        title: "iOS Bluetooth unavailable",
+        description:
+          "Bluetooth is not powered on or is unavailable in this iOS runtime. The iOS Simulator cannot use native BLE like a real device.",
       });
       return;
     }
@@ -417,7 +432,13 @@ export default function AddConnectionDialog({
     } catch (err) {
       makeToastErrorHandler("iOS Bluetooth")(err);
     }
-  }, [iosBluetoothSupported, makeToastErrorHandler, state.name, toast]);
+  }, [
+    iosBluetoothBridgeAvailable,
+    iosBluetoothPoweredOn,
+    makeToastErrorHandler,
+    state.name,
+    toast,
+  ]);
 
   const handleTestHttp = useCallback(async () => {
     const fullUrl = `${state.protocol}://${state.url}`;
@@ -723,7 +744,7 @@ export default function AddConnectionDialog({
             <SupportBadge
               supported={bluetoothSupported}
               labelSupported={t("addConnection.bluetoothConnection.supported.title")}
-              labelUnsupported={t("addConnection.bluetoothConnection.notSupported.title")}
+              labelUnsupported="Web Bluetooth not supported"
             />
             <PickerRow
               label={t("addConnection.bluetoothConnection.device")}
@@ -754,7 +775,7 @@ export default function AddConnectionDialog({
         children: () => (
           <>
             <SupportBadge
-              supported={iosBluetoothSupported}
+              supported={iosBluetoothBridgeAvailable}
               labelSupported="iOS Bluetooth bridge available"
               labelUnsupported="iOS Bluetooth bridge unavailable"
             />
@@ -762,13 +783,17 @@ export default function AddConnectionDialog({
               label="iOS Bluetooth device"
               buttonText="Select Device"
               onPick={handlePickIOSBluetooth}
-              disabled={!iosBluetoothSupported}
+              disabled={!iosBluetoothBridgeAvailable || !iosBluetoothPoweredOn}
               display={
                 state.iosSelected
                   ? state.iosSelected.name || state.iosSelected.id
                   : "No iOS Bluetooth device selected"
               }
-              helper="Uses the native DMDash iOS app bridge. Safari and Chrome for iOS cannot use Web Bluetooth directly."
+              helper={
+                iosBluetoothBridgeAvailable && !iosBluetoothPoweredOn
+                  ? "The native bridge is loaded, but Bluetooth is unavailable in this iOS runtime. Test BLE discovery on a real iPhone or iPad with Bluetooth enabled."
+                  : "Uses the native DMDash iOS app bridge. Safari and Chrome for iOS cannot use Web Bluetooth directly."
+              }
             />
           </>
         ),
@@ -835,7 +860,8 @@ export default function AddConnectionDialog({
       discoveredDevices,
       discoveryStatus,
       unsupported,
-      iosBluetoothSupported,
+      iosBluetoothBridgeAvailable,
+      iosBluetoothPoweredOn,
       t,
       tcpHostValid,
       tcpPort,
@@ -874,10 +900,14 @@ export default function AddConnectionDialog({
         value={state.tab}
         onValueChange={(v) => dispatch({ type: "SET_TAB", payload: v as TabKey })}
       >
-        <TabsList className="grid grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
           {TAB_META.map(({ key, label, Icon }) => (
-            <TabsTrigger key={key} value={key} className="gap-2">
-              <Icon className="h-4 w-4" />
+            <TabsTrigger
+              key={key}
+              value={key}
+              className="min-w-0 gap-1.5 px-2 text-xs sm:gap-2 sm:text-sm"
+            >
+              <Icon className="h-4 w-4 shrink-0" />
               {label}
             </TabsTrigger>
           ))}

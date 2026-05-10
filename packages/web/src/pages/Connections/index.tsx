@@ -146,20 +146,20 @@ export const Connections = () => {
   );
 
   return (
-    <div className="min-h-full bg-[radial-gradient(circle_at_top,#611818_0%,#1f0d0d_33%,#090909_74%)] p-6 text-zinc-100">
-      <div className="mx-auto space-y-6">
-        <header className="rounded-[28px] border border-white/10 bg-[#141414]/92 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-          <div className="flex flex-col gap-5">
-            <div className="grid items-start gap-4 md:grid-cols-[auto_1fr_auto]">
+    <div className="min-h-full overflow-x-hidden bg-[radial-gradient(circle_at_top,#611818_0%,#1f0d0d_33%,#090909_74%)] px-3 py-4 text-zinc-100 sm:p-6">
+      <div className="mx-auto w-full max-w-screen-xl space-y-5 sm:space-y-6">
+        <header className="overflow-hidden rounded-2xl border border-white/10 bg-[#141414]/92 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-sm sm:rounded-[28px] sm:p-5">
+          <div className="flex min-w-0 flex-col gap-4 sm:gap-5">
+            <div className="grid min-w-0 items-start gap-4 md:grid-cols-[auto_1fr_auto]">
               <div className="flex justify-center md:justify-start">
                 <img
                   src="/darkmesh-dashboard-logo.png"
                   alt="DarkMesh Dashboard"
-                  className="h-20 w-20 rounded-2xl border border-white/10 bg-black/80 p-2 shadow-[0_0_30px_rgba(255,255,255,0.06)]"
+                  className="h-16 w-16 rounded-2xl border border-white/10 bg-black/80 p-2 shadow-[0_0_30px_rgba(255,255,255,0.06)] sm:h-20 sm:w-20"
                 />
               </div>
               <div className="flex min-w-0 flex-col items-center gap-3">
-                <h1 className="whitespace-nowrap text-center text-[clamp(1.35rem,7vw,2.85rem)] font-semibold uppercase tracking-[0.16em] text-white">
+                <h1 className="w-full max-w-full [overflow-wrap:anywhere] text-center text-[clamp(1.4rem,9vw,2.85rem)] font-semibold uppercase tracking-[0.12em] text-white sm:tracking-[0.16em]">
                   {t("page.title")}
                 </h1>
                 <div className="flex flex-wrap justify-center gap-2">
@@ -186,16 +186,16 @@ export const Connections = () => {
                 <LanguageSwitcher />
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-evenly gap-2">
+            <div className="flex min-w-0 flex-wrap items-center justify-center gap-2">
               {DARKMESH_RETURN_LINKS.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border border-[#7a2424] bg-[#2a0f0f] px-3 py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-[#3a1515]"
+                  className="inline-flex max-w-full items-center gap-2 rounded-full border border-[#7a2424] bg-[#2a0f0f] px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-zinc-100 transition-colors hover:bg-[#3a1515] sm:text-[0.75rem] sm:tracking-[0.14em]"
                 >
-                  {link.label}
+                  <span className="truncate">{link.label}</span>
                   <ExternalLink className="size-3.5" />
                 </a>
               ))}
@@ -221,7 +221,7 @@ export const Connections = () => {
         </p>
 
         {sorted.length === 0 ? (
-          <Card className="border-dashed border-white/15 bg-[#141414]/92 text-zinc-100">
+          <Card className="overflow-hidden border-dashed border-white/15 bg-[#141414]/92 text-zinc-100">
             <CardHeader>
               <CardTitle className="text-lg">{t("noConnections.title")} </CardTitle>
             </CardHeader>
