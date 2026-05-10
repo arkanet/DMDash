@@ -2,6 +2,7 @@ import { defaultHuntConfig, useDarkMeshStore } from "@app/darkmesh/store.ts";
 import LanguageSwitcher from "@components/LanguageSwitcher.tsx";
 import ThemeSwitcher from "@components/ThemeSwitcher.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@components/UI/Popover.tsx";
+import { Spinner } from "@components/UI/Spinner.tsx";
 import { useAppStore, useDevice, useDeviceStore, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { useConnections } from "@pages/Connections/useConnections.ts";
@@ -16,15 +17,29 @@ import {
   SettingsIcon,
   UsersIcon,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+interface MobileActionItem {
+  key: string;
+  icon?: LucideIcon;
+  iconClasses?: string;
+  onClick: () => void;
+  disabled?: boolean;
+  isLoading?: boolean;
+  ariaLabel?: string;
+  label?: string;
+  className?: string;
+}
+
 interface MobileAppNavProps {
+  actions?: MobileActionItem[];
   subNav?: React.ReactNode;
 }
 
-export function MobileAppNav({ subNav }: MobileAppNavProps) {
+export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
   const { unreadCounts } = useDevice();
   const { getNodesLength } = useNodeDB();
   const { connect, disconnect } = useConnections();
@@ -168,6 +183,20 @@ export function MobileAppNav({ subNav }: MobileAppNavProps) {
     setOverflowOpen(false);
   };
 
+  const mobileActions = useMemo(
+    () =>
+      (actions ?? []).filter((action) => {
+        if (action.className?.includes("opacity-0")) {
+          return false;
+        }
+        if (action.key === "save" && action.disabled && !action.isLoading) {
+          return false;
+        }
+        return true;
+      }),
+    [actions],
+  );
+
   return (
     <div className="shrink-0 md:hidden">
       <div className="h-2 shrink-0 bg-[#8d0606]" />
@@ -300,6 +329,43 @@ export function MobileAppNav({ subNav }: MobileAppNavProps) {
 
       {subNav ? (
         <div className="border-t border-zinc-900 bg-[#101010] px-3 py-3">{subNav}</div>
+      ) : null}
+
+      {mobileActions.length > 0 ? (
+        <div className="border-t border-zinc-900 bg-[#101010] px-3 py-2">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {mobileActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={action.key}
+                  type="button"
+                  disabled={action.disabled || action.isLoading}
+                  onClick={action.onClick}
+                  aria-label={action.ariaLabel || action.label || `Action ${action.key}`}
+                  aria-disabled={action.disabled}
+                  aria-busy={action.isLoading}
+                  className={cn(
+                    "inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-100",
+                    "disabled:cursor-not-allowed disabled:opacity-50",
+                    "hover:bg-zinc-900",
+                    action.key === "unsavedChanges" &&
+                      "border-blue-500/60 bg-blue-500 text-slate-950 hover:bg-blue-500",
+                  )}
+                >
+                  {Icon ? (
+                    action.isLoading ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <Icon className={cn("size-4", action.iconClasses)} />
+                    )
+                  ) : null}
+                  {action.label ? <span className="whitespace-nowrap">{action.label}</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       ) : null}
     </div>
   );
