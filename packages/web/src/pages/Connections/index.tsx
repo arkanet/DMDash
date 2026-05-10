@@ -51,8 +51,6 @@ const DARKMESH_RETURN_LINKS = [
   { href: "https://mesh.loracity.it/", label: "BLOG" },
 ] as const;
 
-const DARKMESH_ACTION_COLOR = "#00bcd4";
-
 export const Connections = () => {
   const {
     connections,
@@ -159,7 +157,7 @@ export const Connections = () => {
                 />
               </div>
               <div className="flex min-w-0 flex-col items-center gap-3">
-                <h1 className="whitespace-nowrap text-center text-[clamp(1.35rem,7vw,2.85rem)] font-semibold uppercase tracking-[0.16em] text-white">
+                <h1 className="max-w-full whitespace-normal break-words text-center text-[clamp(1.35rem,7vw,2.85rem)] font-semibold uppercase tracking-[0.16em] text-white">
                   {t("page.title")}
                 </h1>
                 <div className="flex flex-wrap justify-center gap-2">
@@ -527,9 +525,10 @@ function ConnectionProgressBar({ status }: { status: Connection["status"] }) {
         <span>{elapsedSeconds}s</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full transition-[width] duration-150 ease-linear"
-          style={{ width: `${progress}%`, backgroundColor: DARKMESH_ACTION_COLOR }}
+        <progress
+          className="connection-progress-value h-full w-full rounded-full"
+          value={progress}
+          max={100}
         />
       </div>
     </div>

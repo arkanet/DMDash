@@ -668,14 +668,14 @@ export const MessagesPage = () => {
   }, [chatId, type]);
 
   const mobileChannelList = (
-    <div className="flex h-full flex-col overflow-y-auto bg-background-primary px-3 py-4 text-text-primary md:hidden">
-      <div className="space-y-3">
+    <div className="flex h-full flex-col overflow-y-auto bg-background-primary px-2.5 py-3 text-text-primary md:hidden">
+      <div className="space-y-2">
         {directSummaries.map(({ nodeNum, node, latest, unread, label }) => (
           <button
             key={`direct-${nodeNum}`}
             type="button"
             onClick={() => openDirectChannel(nodeNum)}
-            className="grid min-h-24 w-full grid-cols-[4.25rem_1fr_auto] items-center gap-3 rounded-[1.35rem] bg-background-secondary px-4 py-3 text-left text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#2f2f2f] dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)]"
+            className="grid min-h-[4.5rem] w-full grid-cols-[3.25rem_1fr_auto] items-center gap-2 rounded-[1rem] bg-background-secondary px-3 py-2 text-left text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#2f2f2f] dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)]"
           >
             <div className="flex justify-center">
               {node ? (
@@ -686,24 +686,26 @@ export const MessagesPage = () => {
                   size="sm"
                 />
               ) : (
-                <LockIcon className="size-8 text-[#9b1118]" />
+                <LockIcon className="size-6 text-[#9b1118]" />
               )}
             </div>
             <div className="min-w-0">
-              <div className="truncate text-[1.45rem] leading-tight text-text-primary">{label}</div>
+              <div className="truncate text-[1.0875rem] leading-tight text-text-primary">
+                {label}
+              </div>
               {latest ? (
-                <div className="mt-2 line-clamp-2 text-[1.05rem] leading-tight text-text-primary">
+                <div className="mt-1.5 line-clamp-2 text-[0.7875rem] leading-tight text-text-primary">
                   {latest.message}
                 </div>
               ) : (
-                <div className="mt-2 text-[1.05rem] leading-tight text-text-secondary">
+                <div className="mt-1.5 text-[0.7875rem] leading-tight text-text-secondary">
                   Direct Message
                 </div>
               )}
             </div>
-            <div className="self-start whitespace-nowrap text-[1.1rem] text-text-primary">
+            <div className="self-start whitespace-nowrap text-[0.825rem] text-text-primary">
               {unread > 0 ? (
-                <span className="rounded-full bg-[#8d0606] px-2 py-0.5 text-sm text-white">
+                <span className="rounded-full bg-[#8d0606] px-1.5 py-0.5 text-[0.65rem] text-white">
                   {unread}
                 </span>
               ) : latest ? (
@@ -722,23 +724,25 @@ export const MessagesPage = () => {
             key={channel.index}
             type="button"
             onClick={() => openBroadcastChannel(channel.index)}
-            className="grid min-h-24 w-full grid-cols-[4.25rem_1fr_auto] items-center gap-3 rounded-[1.35rem] bg-background-secondary px-4 py-3 text-left text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#2f2f2f] dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)]"
+            className="grid min-h-[4.5rem] w-full grid-cols-[3.25rem_1fr_auto] items-center gap-2 rounded-[1rem] bg-background-secondary px-3 py-2 text-left text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#2f2f2f] dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)]"
           >
             <div className="flex justify-center">
-              <UsersIcon className={cn("size-8", unread ? "text-[#00e531]" : "text-[#9b1118]")} />
+              <UsersIcon className={cn("size-6", unread ? "text-[#00e531]" : "text-[#9b1118]")} />
             </div>
             <div className="min-w-0">
-              <div className="truncate text-[1.45rem] leading-tight text-text-primary">{label}</div>
+              <div className="truncate text-[1.0875rem] leading-tight text-text-primary">
+                {label}
+              </div>
               {latest ? (
-                <div className="mt-2 line-clamp-2 text-[1.05rem] leading-tight text-text-primary">
+                <div className="mt-1.5 line-clamp-2 text-[0.7875rem] leading-tight text-text-primary">
                   {senderName ? `${senderName}: ` : ""}
                   {latest.message}
                 </div>
               ) : null}
             </div>
-            <div className="self-start whitespace-nowrap text-[1.1rem] text-text-primary">
+            <div className="self-start whitespace-nowrap text-[0.825rem] text-text-primary">
               {unread > 0 ? (
-                <span className="rounded-full bg-[#8d0606] px-2 py-0.5 text-sm text-white">
+                <span className="rounded-full bg-[#8d0606] px-1.5 py-0.5 text-[0.65rem] text-white">
                   {unread}
                 </span>
               ) : latest ? (

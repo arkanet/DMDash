@@ -20,7 +20,10 @@ const Footer = ({ className, ...props }: FooterProps) => {
 
   return (
     <footer
-      className={cn("flex mt-auto justify-center py-2 px-4 text-sm lg:text-md", className)}
+      className={cn(
+        "app-footer flex mt-auto shrink-0 justify-center py-2 px-4 text-sm lg:text-md",
+        className,
+      )}
       {...props}
     >
       <div className="px-2">
@@ -30,7 +33,7 @@ const Footer = ({ className, ...props }: FooterProps) => {
           {`#${commitHash}`}
         </span>
       </div>
-      <p className="ml-auto mr-auto text-gray-500 dark:text-gray-400">
+      <p className="app-footer-description ml-auto mr-auto text-gray-500 dark:text-gray-400">
         DarkMesh dashboard derived from Meshtastic Web, kept aligned with the official Meshtastic
         protobufs for radio compatibility.
       </p>
