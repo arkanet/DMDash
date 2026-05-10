@@ -156,7 +156,14 @@ export function App() {
                   </MapProvider>
                 </div>
               ) : isPublicGuideRoute ? (
-                <Outlet />
+                <div className="flex h-full min-h-0 w-full flex-1 flex-col">
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <Outlet />
+                  </div>
+                  <div className="shrink-0">
+                    <Footer />
+                  </div>
+                </div>
               ) : shouldRedirectToConnections ? null : (
                 <div className="flex h-full min-h-0 flex-1 flex-col">
                   <div className="min-h-0 flex-1 overflow-y-auto">
