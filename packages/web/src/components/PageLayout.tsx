@@ -108,7 +108,7 @@ export const PageLayout = ({
               </div>
             </div>
             {headerContent ? <div className="px-2 pt-2 max-md:hidden">{headerContent}</div> : null}
-            <MobileAppNav subNav={mobileSubNav} />
+            <MobileAppNav actions={actions} subNav={mobileSubNav} />
             {mobileHeaderContent ? (
               <div className="hidden max-h-[42dvh] overflow-y-auto bg-[#101010] px-3 py-3 max-md:block">
                 {mobileHeaderContent}

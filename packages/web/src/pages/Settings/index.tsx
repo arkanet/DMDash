@@ -320,16 +320,6 @@ const ConfigPage = () => {
           </button>
         );
       })}
-      {!isRemote ? (
-        <button
-          type="button"
-          onClick={() => setDialogOpen("nodeImport", true)}
-          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-        >
-          <RefreshCwIcon className="size-4" />
-          <span className="whitespace-nowrap">{t("navigation.nodeImport", "Node Import")}</span>
-        </button>
-      ) : null}
     </div>
   );
 
