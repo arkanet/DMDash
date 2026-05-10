@@ -138,6 +138,9 @@ export const MQTT = ({ onFormInit }: MqttModuleConfigProps) => {
               name: "root",
               label: t("mqtt.root.label"),
               description: t("mqtt.root.description"),
+              properties: {
+                className: "h-10 min-h-10 leading-5",
+              },
               disabledBy: [
                 {
                   fieldName: "enabled",

@@ -77,9 +77,10 @@ const Generator = ({
           key: "bit0",
         },
       ];
+  const showBitSelector = passwordRequiredBitSize.length > 1;
 
   return (
-    <>
+    <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-stretch">
       <Input
         type={type}
         id={id}
@@ -92,23 +93,25 @@ const Generator = ({
         showPasswordToggle={showPasswordToggle}
         {...props}
       />
-      <Select
-        value={devicePSKBitCount?.toString()}
-        onValueChange={(e) => selectChange(e)}
-        disabled={disabled}
-      >
-        <SelectTrigger className="w-36 ml-2">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className="w-36">
-          {passwordRequiredBitSize.map(({ text, value, key }) => (
-            <SelectItem key={key} value={value} className="w-36">
-              {text}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <div className="flex ml-2 space-x-2">
+      {showBitSelector ? (
+        <Select
+          value={devicePSKBitCount?.toString()}
+          onValueChange={(e) => selectChange(e)}
+          disabled={disabled}
+        >
+          <SelectTrigger className="w-full sm:w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="w-36">
+            {passwordRequiredBitSize.map(({ text, value, key }) => (
+              <SelectItem key={key} value={value} className="w-36">
+                {text}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
+      <div className="flex flex-wrap gap-2 sm:flex-nowrap">
         {actionButtons?.map(({ text, onClick, variant, className }) => (
           <Button
             key={text}
@@ -122,7 +125,7 @@ const Generator = ({
           </Button>
         ))}
       </div>
-    </>
+    </div>
   );
 };
 Generator.displayName = "Button";
