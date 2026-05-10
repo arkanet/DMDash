@@ -14,11 +14,33 @@ import {
 } from "react";
 // useNodeDB not required in this component
 import MentionAutocomplete from "./MentionAutocomplete";
-import EmojiPicker, { EmojiClickData, EmojiStyle } from "emoji-picker-react";
+import EmojiPicker, {
+  EmojiClickData,
+  EmojiStyle,
+  Theme as EmojiPickerTheme,
+} from "emoji-picker-react";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@core/hooks/useTheme.ts";
+import { useMobileEmojiPicker } from "./useMobileEmojiPicker.ts";
 
 const calculateBytes = (text: string) => new Blob([text]).size;
+
+const getActiveMentionQuery = (value: string, caretPosition: number | null): string | null => {
+  if (caretPosition === null) {
+    return null;
+  }
+
+  const beforeCaret = value.slice(0, caretPosition);
+  const at = beforeCaret.lastIndexOf("@");
+
+  if (at < 0 || (at > 0 && !/\s/.test(beforeCaret.charAt(at - 1)))) {
+    return null;
+  }
+
+  const query = beforeCaret.slice(at + 1);
+
+  return /\s/.test(query) ? null : query;
+};
 
 export interface MessageInputProps {
   onSend: (message: string, opts?: { compress?: boolean }) => void;
@@ -66,9 +88,11 @@ export const MessageInput = forwardRef(
     const [compress, setCompress] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const pickerRef = useRef<HTMLDivElement | null>(null);
     const [caretPos, setCaretPos] = useState<number | null>(null);
     const [forcedMentionQuery, setForcedMentionQuery] = useState<string | null>(null);
     const { theme, preference } = useTheme();
+    const isMobileEmojiPicker = useMobileEmojiPicker();
     const isLightTheme = theme === "light";
     const outerBg = isLightTheme ? undefined : "var(--gateway-bg, #222)";
     const midBg = isLightTheme ? undefined : "rgba(255,255,255,0.03)";
@@ -79,6 +103,12 @@ export const MessageInput = forwardRef(
     const darkSearchBg = "rgba(255,255,255,0.06)";
     const pickerThemeClass =
       theme === "dark" ? "epr-dark-theme" : preference === "system" ? "epr-auto-theme" : "";
+    const pickerTheme =
+      theme === "dark"
+        ? EmojiPickerTheme.DARK
+        : preference === "system"
+          ? EmojiPickerTheme.AUTO
+          : EmojiPickerTheme.LIGHT;
 
     // If the EmojiPicker renders into a portal (body), ensure the theme class and
     // CSS variables are available globally so the picker's internal selectors work.
@@ -248,6 +278,25 @@ export const MessageInput = forwardRef(
       };
     }, [theme, darkOuterBg, darkMidBg, darkSearchBg]);
 
+    useEffect(() => {
+      if (!showPicker) {
+        return;
+      }
+
+      function onDocClick(e: MouseEvent) {
+        if (!pickerRef.current) {
+          return;
+        }
+
+        if (!pickerRef.current.contains(e.target as Node)) {
+          setShowPicker(false);
+        }
+      }
+
+      document.addEventListener("click", onDocClick);
+      return () => document.removeEventListener("click", onDocClick);
+    }, [showPicker]);
+
     const handleEmojiClick = (emojiData: EmojiClickData) => {
       const emojiChar = (emojiData && emojiData.emoji) || "";
       // Insert emoji at cursor position
@@ -384,18 +433,7 @@ export const MessageInput = forwardRef(
         // update caret position if available
         const pos = e.target.selectionStart ?? null;
         setCaretPos(pos);
-        // Detect '@' mention context and open/update the autocomplete immediately.
-        if (pos !== null) {
-          const before = newValue.slice(0, pos);
-          const at = before.lastIndexOf("@");
-          if (at >= 0 && (at === 0 || /\s/.test(before.charAt(at - 1)))) {
-            const q = before.slice(at + 1);
-            setForcedMentionQuery(q);
-          } else {
-            // No active mention context
-            setForcedMentionQuery(null);
-          }
-        }
+        setForcedMentionQuery(getActiveMentionQuery(newValue, pos));
         setMessageBytes(byteLength);
         setDraft(to, newValue);
       }
@@ -408,10 +446,7 @@ export const MessageInput = forwardRef(
 
       // If we're in forced-mention mode, update the query as the user types
       if (forcedMentionQuery !== null) {
-        const before = inputRef.current.value.slice(0, pos ?? 0);
-        const at = before.lastIndexOf("@");
-        const q = at >= 0 ? before.slice(at + 1) : "";
-        setForcedMentionQuery(q);
+        setForcedMentionQuery(getActiveMentionQuery(inputRef.current.value, pos));
         return;
       }
 
@@ -422,10 +457,7 @@ export const MessageInput = forwardRef(
         key = (e as React.KeyboardEvent).key;
       }
       if (key === "@") {
-        const before = inputRef.current.value.slice(0, pos ?? 0);
-        const at = before.lastIndexOf("@");
-        const q = at >= 0 ? before.slice(at + 1) : "";
-        setForcedMentionQuery(q);
+        setForcedMentionQuery(getActiveMentionQuery(inputRef.current.value, pos));
       }
     };
 
@@ -439,10 +471,7 @@ export const MessageInput = forwardRef(
           if (!inputRef.current) return;
           const pos = inputRef.current.selectionStart ?? null;
           setCaretPos(pos);
-          const before = inputRef.current.value.slice(0, pos ?? 0);
-          const at = before.lastIndexOf("@");
-          const q = at >= 0 ? before.slice(at + 1) : "";
-          setForcedMentionQuery(q);
+          setForcedMentionQuery(getActiveMentionQuery(inputRef.current.value, pos));
         });
       }
     };
@@ -453,10 +482,7 @@ export const MessageInput = forwardRef(
         if (!inputRef.current) return;
         const pos = inputRef.current.selectionStart ?? null;
         setCaretPos(pos);
-        const before = inputRef.current.value.slice(0, pos ?? 0);
-        const at = before.lastIndexOf("@");
-        const q = at >= 0 ? before.slice(at + 1) : "";
-        setForcedMentionQuery(q);
+        setForcedMentionQuery(getActiveMentionQuery(inputRef.current.value, pos));
       });
     };
 
@@ -575,8 +601,8 @@ export const MessageInput = forwardRef(
               (() => {
                 const before = localDraft.slice(0, caretPos);
                 const at = before.lastIndexOf("@");
-                if (at >= 0 && (at === 0 || /\s/.test(before.charAt(at - 1)))) {
-                  const query = before.slice(at + 1);
+                const query = getActiveMentionQuery(localDraft, caretPos);
+                if (query !== null && at >= 0) {
                   return (
                     <div className="absolute left-0 top-full w-full mt-1">
                       <MentionAutocomplete
@@ -633,24 +659,29 @@ export const MessageInput = forwardRef(
                 type="button"
                 aria-label={t("openEmojiPicker", { defaultValue: "Open emoji picker" })}
                 aria-expanded={showPicker}
-                onClick={() => setShowPicker((s) => !s)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPicker((s) => !s);
+                }}
                 className="inline-flex items-center justify-center px-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200 cursor-pointer rounded"
               >
                 <span aria-hidden="true">😊</span>
               </button>
 
               {showPicker && (
-                <div className="absolute right-0 bottom-12 z-50">
+                <div
+                  ref={pickerRef}
+                  className="message-emoji-picker-popover absolute right-0 bottom-12 z-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div
                     // apply emoji-picker theme class so internal dark-mode selectors apply
                     className={
-                      "emoji-picker-wrapper border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-2 backdrop-blur-sm " +
+                      "emoji-picker-wrapper message-emoji-picker-shell border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-2 backdrop-blur-sm " +
                       (pickerThemeClass || "")
                     }
                     style={(() => {
                       const pickerVars = {
-                        minWidth: "320px",
-                        minHeight: "300px",
                         // emoji-picker-react CSS variables to create layered backgrounds
                         ["--epr-bg-color"]: outerBg ?? undefined,
                         ["--epr-reactions-bg-color"]: midBg ?? undefined,
@@ -668,9 +699,13 @@ export const MessageInput = forwardRef(
                   >
                     <EmojiPicker
                       onEmojiClick={handleEmojiClick}
+                      autoFocusSearch={false}
+                      searchDisabled={isMobileEmojiPicker}
                       previewConfig={{ showPreview: false }}
                       // force native emoji rendering to avoid external CDN image loads
                       emojiStyle={EmojiStyle.NATIVE}
+                      theme={pickerTheme}
+                      className="message-emoji-picker-compact"
                     />
                   </div>
                 </div>

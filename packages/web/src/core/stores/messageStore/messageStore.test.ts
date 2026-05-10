@@ -186,6 +186,31 @@ describe("MessageStore persistence & rehydrate", () => {
         broadcastMessage1,
       );
     });
+
+    it("preserves a delivered state when a later local echo is still waiting", () => {
+      const storeId = 124;
+      const store = state.addMessageStore(storeId);
+      const deliveredMessage = {
+        ...directMessageToOther1,
+        messageId: 777,
+        state: MessageState.Ack,
+      };
+      const localEcho = {
+        ...deliveredMessage,
+        state: MessageState.Waiting,
+      };
+
+      store.saveMessage(deliveredMessage);
+      store.saveMessage(localEcho);
+
+      const [message] = store.getMessages({
+        type: MessageType.Direct,
+        nodeA: deliveredMessage.from,
+        nodeB: deliveredMessage.to,
+      });
+
+      expect(message?.state).toBe(MessageState.Ack);
+    });
   });
 
   describe("getMessages", async () => {

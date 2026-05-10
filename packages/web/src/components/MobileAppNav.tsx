@@ -251,7 +251,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
           <PopoverContent
             align="end"
             sideOffset={10}
-            className="w-[min(18rem,calc(100vw-1.5rem))] border-zinc-800 bg-[#101010] p-0 text-zinc-100"
+            className="w-[min(18rem,calc(100vw-1.5rem))] border-slate-200 bg-white p-0 text-slate-900 shadow-xl dark:border-zinc-800 dark:bg-[#101010] dark:text-zinc-100"
           >
             <div className="flex flex-col py-2 text-[1.05rem]">
               <button
@@ -260,7 +260,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
                   navigate({ to: "/settings/radio" });
                   setOverflowOpen(false);
                 }}
-                className="px-5 py-3 text-left hover:bg-[#242424]"
+                className="px-5 py-3 text-left text-slate-800 hover:bg-slate-100 dark:text-zinc-100 dark:hover:bg-[#242424]"
               >
                 Settings
               </button>
@@ -270,7 +270,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
                   setCommandPaletteOpen(true);
                   setOverflowOpen(false);
                 }}
-                className="px-5 py-3 text-left hover:bg-[#242424]"
+                className="px-5 py-3 text-left text-slate-800 hover:bg-slate-100 dark:text-zinc-100 dark:hover:bg-[#242424]"
               >
                 Extra Menu
               </button>
@@ -284,12 +284,10 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
                 </button>
               ) : null}
               <div className="px-3 py-1">
-                <div className="px-2 pb-1 text-sm text-zinc-500">Themes</div>
-                <ThemeSwitcher className="h-11 w-full justify-start rounded-none px-2 text-zinc-100 hover:bg-[#242424]" />
+                <ThemeSwitcher className="h-11 w-full justify-start rounded-none px-2 text-slate-800 hover:bg-slate-100 dark:text-zinc-100 dark:hover:bg-[#242424]" />
               </div>
               <div className="px-3 py-1">
-                <div className="px-2 pb-1 text-sm text-zinc-500">Language</div>
-                <LanguageSwitcher className="h-11 w-full justify-start rounded-none px-2 text-zinc-100 hover:bg-[#242424]" />
+                <LanguageSwitcher className="h-11 w-full justify-start rounded-none px-2 text-slate-800 hover:bg-slate-100 dark:text-zinc-100 dark:hover:bg-[#242424]" />
               </div>
             </div>
           </PopoverContent>
