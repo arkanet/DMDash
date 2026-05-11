@@ -123,6 +123,10 @@ const MOBILE_NODE_SORT_OPTIONS: { id: MobileNodeSort; label: string }[] = [
   { id: "online", label: "Online Only" },
 ];
 const MOBILE_NODE_PREFS_KEY = "darkmesh-mobile-node-prefs";
+const MOBILE_NODE_MENU_ITEM_CLASS =
+  "px-5 py-3 text-left text-slate-900 hover:bg-slate-100 dark:text-zinc-100 dark:hover:bg-[#242424]";
+const MOBILE_NODE_FILTER_ITEM_CLASS =
+  "flex w-full items-center justify-between px-4 py-3 text-left text-slate-900 hover:bg-slate-100 dark:text-zinc-100 dark:hover:bg-[#242424]";
 
 function loadMobileNodePrefs() {
   if (typeof window === "undefined") return undefined;
@@ -1024,7 +1028,7 @@ const NodesPage = (): JSX.Element => {
     const actionMenu = (
       <div className="flex max-h-[70vh] flex-col overflow-y-auto py-2 text-lg">
         <button
-          className="px-5 py-3 text-left hover:bg-[#242424]"
+          className={MOBILE_NODE_MENU_ITEM_CLASS}
           type="button"
           onClick={() => {
             setMobileActionNode(undefined);
@@ -1036,7 +1040,7 @@ const NodesPage = (): JSX.Element => {
         {!isLocalNode ? (
           <>
             <button
-              className="px-5 py-3 text-left hover:bg-[#242424]"
+              className={MOBILE_NODE_MENU_ITEM_CLASS}
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
@@ -1062,7 +1066,7 @@ const NodesPage = (): JSX.Element => {
               Messaggio diretto
             </button>
             <button
-              className="px-5 py-3 text-left hover:bg-[#242424]"
+              className={MOBILE_NODE_MENU_ITEM_CLASS}
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
@@ -1073,7 +1077,7 @@ const NodesPage = (): JSX.Element => {
               Richiedi informazioni utente
             </button>
             <button
-              className="px-5 py-3 text-left hover:bg-[#242424]"
+              className={MOBILE_NODE_MENU_ITEM_CLASS}
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
@@ -1089,7 +1093,7 @@ const NodesPage = (): JSX.Element => {
               Request user metadata
             </button>
             <button
-              className="px-5 py-3 text-left hover:bg-[#242424]"
+              className={MOBILE_NODE_MENU_ITEM_CLASS}
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
@@ -1106,7 +1110,7 @@ const NodesPage = (): JSX.Element => {
               Richiedi posizione
             </button>
             <button
-              className="px-5 py-3 text-left hover:bg-[#242424]"
+              className={MOBILE_NODE_MENU_ITEM_CLASS}
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
@@ -1126,7 +1130,7 @@ const NodesPage = (): JSX.Element => {
               Traceroute
             </button>
             <button
-              className="px-5 py-3 text-left hover:bg-[#242424]"
+              className={MOBILE_NODE_MENU_ITEM_CLASS}
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
@@ -1140,7 +1144,7 @@ const NodesPage = (): JSX.Element => {
               Neighbor Discovery
             </button>
             <button
-              className="px-5 py-3 text-left hover:bg-[#242424]"
+              className={MOBILE_NODE_MENU_ITEM_CLASS}
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
@@ -1153,7 +1157,7 @@ const NodesPage = (): JSX.Element => {
               Set Favorite
             </button>
             <button
-              className="px-5 py-3 text-left hover:bg-[#242424]"
+              className={MOBILE_NODE_MENU_ITEM_CLASS}
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
@@ -1166,7 +1170,7 @@ const NodesPage = (): JSX.Element => {
               Ignora
             </button>
             <button
-              className="px-5 py-3 text-left hover:bg-[#242424]"
+              className={MOBILE_NODE_MENU_ITEM_CLASS}
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
@@ -1213,7 +1217,7 @@ const NodesPage = (): JSX.Element => {
               align="start"
               side="right"
               sideOffset={8}
-              className="w-[min(18rem,calc(100vw-2rem))] border-zinc-800 bg-[#101010] p-0 text-zinc-100"
+              className="w-[min(18rem,calc(100vw-2rem))] border-slate-200 bg-white p-0 text-slate-900 shadow-xl dark:border-zinc-800 dark:bg-[#101010] dark:text-zinc-100"
             >
               {actionMenu}
             </PopoverContent>
@@ -1400,7 +1404,7 @@ const NodesPage = (): JSX.Element => {
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="flex size-14 shrink-0 items-center justify-center rounded-md text-zinc-100 hover:bg-white/10"
+              className="flex size-14 shrink-0 items-center justify-center rounded-md text-text-primary hover:bg-slate-100 dark:text-zinc-100 dark:hover:bg-white/10"
               aria-label="Filtro nodi"
             >
               <ListFilterIcon className="size-8" />
@@ -1409,14 +1413,14 @@ const NodesPage = (): JSX.Element => {
           <PopoverContent
             align="end"
             sideOffset={12}
-            className="mobile-sorter-popover border-zinc-900 bg-[#101010] p-0 text-zinc-100 shadow-2xl"
+            className="mobile-sorter-popover border-slate-200 bg-white p-0 text-slate-900 shadow-2xl dark:border-zinc-900 dark:bg-[#101010] dark:text-zinc-100"
           >
             <div className="max-h-[70vh] overflow-y-auto py-2 text-[0.9375rem]">
               {MOBILE_NODE_SORT_OPTIONS.map((option) => (
                 <button
                   key={option.id}
                   type="button"
-                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#242424]"
+                  className={MOBILE_NODE_FILTER_ITEM_CLASS}
                   onClick={() => {
                     setMobileSort(option.id);
                     setMobileFilterOpen(false);
@@ -1428,10 +1432,10 @@ const NodesPage = (): JSX.Element => {
                   {mobileSort === option.id ? <CheckIcon className="size-6" /> : null}
                 </button>
               ))}
-              <div className="my-2 border-t border-zinc-700" />
+              <div className="my-2 border-t border-slate-200 dark:border-zinc-700" />
               <button
                 type="button"
-                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#242424]"
+                className={MOBILE_NODE_FILTER_ITEM_CLASS}
                 onClick={() => {
                   setIncludeUnknownNodes((value) => !value);
                   setMobileFilterOpen(false);
@@ -1442,7 +1446,7 @@ const NodesPage = (): JSX.Element => {
               </button>
               <button
                 type="button"
-                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#242424]"
+                className={MOBILE_NODE_FILTER_ITEM_CLASS}
                 onClick={() => {
                   setShowNodeDetails((value) => !value);
                   setMobileFilterOpen(false);
