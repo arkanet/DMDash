@@ -1875,7 +1875,7 @@ const NodesPage = (): JSX.Element => {
           />
         </div>
       </div>
-      <div className="sticky top-0 z-30 flex shrink-0 items-center gap-3 bg-background-primary px-3 py-4 md:hidden dark:bg-[#101010]">
+      <div className="sticky top-0 z-30 flex shrink-0 items-center gap-3 bg-background-primary px-3 pt-0 pb-1 md:hidden dark:bg-[#101010]">
         <div className="flex h-14 min-w-0 flex-1 items-center gap-3 rounded-md border border-zinc-500 px-3 text-zinc-400">
           <SearchIcon className="size-7 shrink-0" />
           <Input

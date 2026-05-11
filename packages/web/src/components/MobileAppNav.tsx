@@ -295,7 +295,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
       </div>
 
       <div className="shrink-0 bg-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.28)]">
-        <div className="grid h-[5.25rem] grid-cols-5">
+        <div className="grid h-[3.5rem] grid-cols-5">
           {[tabItems[0], nodeTab, tabItems[1], tabItems[2], tabItems[3]].map((item) => {
             if (!item) return null;
             const Icon = item.icon;
