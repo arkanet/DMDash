@@ -45,26 +45,39 @@ import {
   ArrowLeftIcon,
   BatteryIcon,
   BatteryChargingIcon,
+  BoltIcon,
   BriefcaseIcon,
   CheckIcon,
   ChevronRightIcon,
   ClockIcon,
+  CloudRainIcon,
   CopyIcon,
   CpuIcon,
+  DropletsIcon,
+  GaugeIcon,
   HashIcon,
+  LightbulbIcon,
   InfoIcon,
   ListFilterIcon,
   LockIcon,
   LockOpenIcon,
   MapPinIcon,
+  NavigationIcon,
   PlugZapIcon,
+  PowerIcon,
+  RadiationIcon,
   RadioTowerIcon,
   RouteIcon,
+  RulerIcon,
   SearchIcon,
   Share2Icon,
+  ScaleIcon,
   StarIcon,
+  SunIcon,
+  ThermometerIcon,
   UserIcon,
   UsersIcon,
+  WindIcon,
 } from "lucide-react";
 import {
   type ComponentType,
@@ -78,7 +91,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { type NeighborDiscoveryRecord, useDarkMeshStore } from "@app/darkmesh/store.ts";
+import {
+  type GatewaySnapshot,
+  type NeighborDiscoveryRecord,
+  useDarkMeshStore,
+} from "@app/darkmesh/store.ts";
 import { fromByteArray } from "base64-js";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -303,6 +320,92 @@ function getBatteryLabel(node: Protobuf.Mesh.NodeInfo): { label: string; plugged
   return { label: `${battery}${voltage}`, plugged };
 }
 
+function getNodeRxRssi(
+  node: Protobuf.Mesh.NodeInfo,
+  gateway?: GatewaySnapshot,
+): number | undefined {
+  return (node as Protobuf.Mesh.NodeInfo & { rxRssi?: number }).rxRssi ?? gateway?.rxRssi;
+}
+
+function isEnvironmentalValueAvailable(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value !== 0;
+}
+
+function hasEnvironmentMetrics(metrics?: Protobuf.Telemetry.EnvironmentMetrics): boolean {
+  if (!metrics) {
+    return false;
+  }
+
+  return [
+    metrics.temperature,
+    metrics.relativeHumidity,
+    metrics.barometricPressure,
+    metrics.gasResistance,
+    metrics.voltage,
+    metrics.current,
+    metrics.iaq,
+    metrics.distance,
+    metrics.lux,
+    metrics.whiteLux,
+    metrics.irLux,
+    metrics.uvLux,
+    metrics.windSpeed,
+    metrics.weight,
+    metrics.windGust,
+    metrics.windLull,
+    metrics.radiation,
+    metrics.rainfall1h,
+    metrics.rainfall24h,
+    metrics.soilMoisture,
+    metrics.soilTemperature,
+  ].some(isEnvironmentalValueAvailable);
+}
+
+function formatEnvironmentalValue(
+  value: number | undefined,
+  unit = "",
+  decimals = 0,
+  transform?: (raw: number) => number,
+): string | undefined {
+  if (!isEnvironmentalValueAvailable(value)) {
+    return undefined;
+  }
+
+  const normalized = transform ? transform(value) : value;
+  return `${normalized.toFixed(decimals)}${unit}`;
+}
+
+function calculateDewPoint(tempCelsius: number, humidity: number): number {
+  const a = 17.27;
+  const b = 237.7;
+  const alpha = (a * tempCelsius) / (b + tempCelsius) + Math.log(humidity / 100);
+  return (b * alpha) / (a - alpha);
+}
+
+function getEnvironmentSummary(
+  metrics?: Protobuf.Telemetry.EnvironmentMetrics,
+): string | undefined {
+  if (!hasEnvironmentMetrics(metrics)) {
+    return undefined;
+  }
+
+  const values = [
+    formatEnvironmentalValue(metrics?.temperature, "°C"),
+    formatEnvironmentalValue(metrics?.relativeHumidity, "%"),
+    formatEnvironmentalValue(metrics?.barometricPressure, " hPa"),
+    formatEnvironmentalValue(metrics?.windSpeed, " km/h", 0, (value) => value * 3.6),
+    formatEnvironmentalValue(metrics?.iaq),
+  ];
+
+  return values.filter(Boolean).join(" · ") || undefined;
+}
+
+function formatSignalValue(value: number | undefined, unit: string): string {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `${value.toFixed(1)} ${unit}`
+    : "n/a";
+}
+
 function EncryptionIcon({
   node,
   hasError,
@@ -329,6 +432,215 @@ function EncryptionIcon({
     );
   }
   return <LockOpenIcon className="size-6 text-yellow-400" aria-label="Public key missing" />;
+}
+
+function SignalPill({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: ReturnType<typeof getSnrTone>;
+}) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.75rem] font-semibold"
+      style={{ background: tone.background, color: tone.value }}
+    >
+      <span style={{ color: tone.label }}>{label}</span>
+      <span>{value}</span>
+    </span>
+  );
+}
+
+function EnvironmentInfoGrid({ metrics }: { metrics?: Protobuf.Telemetry.EnvironmentMetrics }) {
+  if (!hasEnvironmentMetrics(metrics)) {
+    return null;
+  }
+
+  const temperature = metrics?.temperature;
+  const humidity = metrics?.relativeHumidity;
+  const dewPoint =
+    isEnvironmentalValueAvailable(temperature) && isEnvironmentalValueAvailable(humidity)
+      ? calculateDewPoint(temperature, humidity)
+      : undefined;
+  const windDirection = metrics?.windDirection ?? 0;
+
+  const cards: EnvironmentInfoCardDefinition[] = [
+    {
+      id: "temperature",
+      icon: ThermometerIcon,
+      label: "Temperature",
+      value: formatEnvironmentalValue(temperature, "°C"),
+    },
+    {
+      id: "humidity",
+      icon: DropletsIcon,
+      label: "Humidity",
+      value: formatEnvironmentalValue(humidity, "%"),
+    },
+    {
+      id: "dewPoint",
+      icon: ThermometerIcon,
+      label: "Dew Point",
+      value:
+        typeof dewPoint === "number" && Number.isFinite(dewPoint)
+          ? `${dewPoint.toFixed(0)}°C`
+          : undefined,
+    },
+    {
+      id: "pressure",
+      icon: GaugeIcon,
+      label: "Pressure",
+      value: formatEnvironmentalValue(metrics?.barometricPressure),
+    },
+    {
+      id: "gasResistance",
+      icon: WindIcon,
+      label: "Gas Resistance",
+      value: formatEnvironmentalValue(metrics?.gasResistance),
+    },
+    {
+      id: "voltage",
+      icon: BoltIcon,
+      label: "Voltage",
+      value: formatEnvironmentalValue(metrics?.voltage, "V", 2),
+    },
+    {
+      id: "current",
+      icon: PowerIcon,
+      label: "Current",
+      value: formatEnvironmentalValue(metrics?.current, "mA", 1),
+    },
+    {
+      id: "iaq",
+      icon: WindIcon,
+      label: "IAQ",
+      value: formatEnvironmentalValue(metrics?.iaq),
+    },
+    {
+      id: "distance",
+      icon: RulerIcon,
+      label: "Distance",
+      value: formatEnvironmentalValue(metrics?.distance, " mm"),
+    },
+    {
+      id: "lux",
+      icon: LightbulbIcon,
+      label: "Lux",
+      value: formatEnvironmentalValue(metrics?.lux),
+    },
+    {
+      id: "whiteLux",
+      icon: SunIcon,
+      label: "White Lux",
+      value: formatEnvironmentalValue(metrics?.whiteLux),
+    },
+    {
+      id: "irLux",
+      icon: SunIcon,
+      label: "IR Lux",
+      value: formatEnvironmentalValue(metrics?.irLux),
+    },
+    {
+      id: "uvLux",
+      icon: SunIcon,
+      label: "UV Lux",
+      value: formatEnvironmentalValue(metrics?.uvLux),
+    },
+    {
+      id: "wind",
+      icon: NavigationIcon,
+      label: "Wind",
+      value: formatEnvironmentalValue(metrics?.windSpeed, " km/h", 0, (value) => value * 3.6),
+      rotate: ((windDirection % 360) + 360) % 360,
+    },
+    {
+      id: "windGust",
+      icon: WindIcon,
+      label: "Wind Gust",
+      value: formatEnvironmentalValue(metrics?.windGust, " km/h", 0, (value) => value * 3.6),
+    },
+    {
+      id: "windLull",
+      icon: WindIcon,
+      label: "Wind Lull",
+      value: formatEnvironmentalValue(metrics?.windLull, " km/h", 0, (value) => value * 3.6),
+    },
+    {
+      id: "weight",
+      icon: ScaleIcon,
+      label: "Weight",
+      value: formatEnvironmentalValue(metrics?.weight, " kg", 2),
+    },
+    {
+      id: "radiation",
+      icon: RadiationIcon,
+      label: "Radiation",
+      value: formatEnvironmentalValue(metrics?.radiation, " µR", 1),
+    },
+    {
+      id: "rainfall1h",
+      icon: CloudRainIcon,
+      label: "Rain 1h",
+      value: formatEnvironmentalValue(metrics?.rainfall1h, " mm", 1),
+    },
+    {
+      id: "rainfall24h",
+      icon: CloudRainIcon,
+      label: "Rain 24h",
+      value: formatEnvironmentalValue(metrics?.rainfall24h, " mm", 1),
+    },
+    {
+      id: "soilMoisture",
+      icon: DropletsIcon,
+      label: "Soil Moisture",
+      value: formatEnvironmentalValue(metrics?.soilMoisture, "%"),
+    },
+    {
+      id: "soilTemperature",
+      icon: ThermometerIcon,
+      label: "Soil Temp",
+      value: formatEnvironmentalValue(metrics?.soilTemperature, "°C"),
+    },
+  ];
+  const visibleCards = cards.filter((card): card is EnvironmentInfoCardProps =>
+    Boolean(card.value),
+  );
+
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      {visibleCards.map((card) => (
+        <EnvironmentInfoCard key={card.id} {...card} />
+      ))}
+    </div>
+  );
+}
+
+type EnvironmentInfoCardDefinition = Omit<EnvironmentInfoCardProps, "value"> & {
+  value?: string;
+};
+
+interface EnvironmentInfoCardProps {
+  id: string;
+  icon: ComponentType<{ className?: string; style?: CSSProperties }>;
+  label: string;
+  value: string;
+  rotate?: number;
+}
+
+function EnvironmentInfoCard({ icon: Icon, label, value, rotate = 0 }: EnvironmentInfoCardProps) {
+  return (
+    <div className="flex min-h-28 flex-col items-center justify-center rounded-lg bg-[#252525] px-2 py-4 text-center">
+      <Icon
+        className="mb-2 size-8 text-zinc-100"
+        style={rotate ? { transform: `rotate(${rotate}deg)` } : undefined}
+      />
+      <div className="text-sm font-semibold leading-tight text-zinc-200">{label}</div>
+      <div className="mt-1 break-words text-2xl leading-tight text-zinc-100">{value}</div>
+    </div>
+  );
 }
 
 const NodesPage = (): JSX.Element => {
@@ -1019,6 +1331,14 @@ const NodesPage = (): JSX.Element => {
     const battery = getBatteryLabel(node);
     const nodeStatus = getNodeStatusText(node);
     const displayChannel = getNodeDisplayChannel(node);
+    const environmentMetrics = nodeDB.getEnvironmentMetrics(node.num);
+    const environmentSummary = getEnvironmentSummary(environmentMetrics);
+    const gateway = gateways?.[node.num];
+    const rxRssiVal = getNodeRxRssi(node, gateway);
+    const snrTone = getSnrTone(node.snr);
+    const rssiTone = getRssiTone(rxRssiVal);
+    const shouldShowDistance = !isLocalNode && node.hopsAway !== 0;
+    const shouldShowDirectSignal = !isLocalNode && node.hopsAway === 0;
     const hasPositionRow = Boolean(position || altitude);
     const hasIdentityRow = Boolean(hardwareModel || roleName || nameHex);
     const hasUtilRow =
@@ -1243,7 +1563,20 @@ const NodesPage = (): JSX.Element => {
         </div>
 
         <div className="mt-1.5 grid grid-cols-[1fr_auto] items-center gap-2 text-[0.875rem]">
-          <span>{formatDistance(distanceVal) ?? "distanza n/a"}</span>
+          <div className="min-w-0">
+            {shouldShowDistance ? (
+              <span>{formatDistance(distanceVal) ?? "distanza n/a"}</span>
+            ) : shouldShowDirectSignal ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <SignalPill label="SNR" value={formatSignalValue(node.snr, "dB")} tone={snrTone} />
+                <SignalPill
+                  label="RSSI"
+                  value={formatSignalValue(rxRssiVal, "dBm")}
+                  tone={rssiTone}
+                />
+              </div>
+            ) : null}
+          </div>
           <span className="flex items-center justify-end gap-1 whitespace-nowrap">
             {battery.plugged ? (
               <BatteryChargingIcon className="size-4" />
@@ -1254,6 +1587,13 @@ const NodesPage = (): JSX.Element => {
             {battery.label}
           </span>
         </div>
+
+        {environmentSummary ? (
+          <div className="mt-1 flex items-start gap-1.5 text-[0.875rem] text-text-secondary dark:text-zinc-300">
+            <ThermometerIcon className="mt-0.5 size-4 shrink-0 text-[#00e531]" />
+            <span className="min-w-0 break-words">{environmentSummary}</span>
+          </div>
+        ) : null}
 
         <div className="mt-1 flex items-center justify-between gap-2 text-[0.875rem]">
           <span>
@@ -1599,6 +1939,7 @@ function MobileNodeInfoDialog({
   const navigate = useNavigate();
   const { toast } = useToast();
   const device = useDevice();
+  const nodeDB = useNodeDB();
   const [shareOpen, setShareOpen] = useState(false);
   const [activeLog, setActiveLog] = useState<"traceroute" | "neighbor" | undefined>();
   const [selectedTraceLog, setSelectedTraceLog] = useState<
@@ -1626,6 +1967,8 @@ function MobileNodeInfoDialog({
   const traceRoutes = device.traceroutes.get(node.num) ?? [];
   const point = positionPoint(node.position);
   const sharedContactUrl = buildSharedContactUrl(node);
+  const environmentMetrics = nodeDB.getEnvironmentMetrics(node.num);
+  const hasEnvironmentalMetrics = hasEnvironmentMetrics(environmentMetrics);
 
   const copyValue = async (label: string, value?: string) => {
     if (!value) return;
@@ -1796,6 +2139,12 @@ function MobileNodeInfoDialog({
             <ChevronRightIcon className="size-5" />
           </button>
         </InfoSection>
+
+        {hasEnvironmentalMetrics ? (
+          <InfoSection title="Environment">
+            <EnvironmentInfoGrid metrics={environmentMetrics} />
+          </InfoSection>
+        ) : null}
 
         <InfoSection title="Registri">
           <div className="space-y-1">
