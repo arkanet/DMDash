@@ -1,6 +1,8 @@
 import { LocationResponseDialog } from "@app/components/Dialog/LocationResponseDialog.tsx";
+import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
 import { TracerouteResponseDialog } from "@app/components/Dialog/TracerouteResponseDialog.tsx";
 import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
+import { DeviceImage } from "@components/generic/DeviceImage.tsx";
 import { FilterControl } from "@components/generic/Filter/FilterControl.tsx";
 import { type FilterState, useFilterNode } from "@components/generic/Filter/useFilterNode.ts";
 import { Mono } from "@components/generic/Mono.tsx";
@@ -19,6 +21,14 @@ import {
 } from "@components/UI/Dialog.tsx";
 import { Input } from "@components/UI/Input.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@components/UI/Popover.tsx";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipContent,
+  TooltipPortal,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@components/UI/Tooltip.tsx";
 import useLang from "@core/hooks/useLang.ts";
 import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useIgnoreNode } from "@core/hooks/useIgnoreNode.ts";
@@ -40,7 +50,9 @@ import {
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
 import { distanceBetweenPositions, hasPos, positionPoint } from "@core/utils/geo.ts";
-import { normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
+import { isNodeStatusUnread, normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChartSimple } from "@fortawesome/free-solid-svg-icons";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import {
   ArrowLeftIcon,
@@ -401,10 +413,65 @@ function getEnvironmentSummary(
   return values.filter(Boolean).join(" · ") || undefined;
 }
 
-function formatSignalValue(value: number | undefined, unit: string): string {
-  return typeof value === "number" && Number.isFinite(value)
-    ? `${value.toFixed(1)} ${unit}`
-    : "n/a";
+function isFiniteMetricValue(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function formatSignalValue(value: number, unit: string, decimals = 1): string {
+  return `${value.toFixed(decimals)} ${unit}`;
+}
+
+function getValidatedLinkTarget(rawToken: string): string | undefined {
+  const cleaned = rawToken.replace(/^[("'“]+|[),.!?"'”]+$/g, "");
+  if (!cleaned) {
+    return undefined;
+  }
+
+  try {
+    if (/^(https?:\/\/|ftp:\/\/|www\.)/i.test(cleaned)) {
+      const candidate = cleaned.startsWith("www.") ? `http://${cleaned}` : cleaned;
+      const url = new URL(candidate);
+      const hostWithPort = url.port ? `${url.hostname}:${url.port}` : url.hostname;
+      return urlOrIpv4Schema.safeParse(hostWithPort).success ? candidate : undefined;
+    }
+
+    if (cleaned.includes(".") || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(cleaned)) {
+      return urlOrIpv4Schema.safeParse(cleaned).success ? `http://${cleaned}` : undefined;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+function ValidatedLinkText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\s+)/).map((part, index) => {
+        if (!part || /^\s+$/.test(part)) {
+          return part;
+        }
+
+        const href = getValidatedLinkTarget(part);
+        if (!href) {
+          return part;
+        }
+
+        return (
+          <a
+            key={`${part}-${index}`}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-400 underline decoration-cyan-400/60 underline-offset-2"
+          >
+            {part}
+          </a>
+        );
+      })}
+    </>
+  );
 }
 
 function EncryptionIcon({
@@ -452,6 +519,40 @@ function SignalPill({
       <span style={{ color: tone.label }}>{label}</span>
       <span>{value}</span>
     </span>
+  );
+}
+
+function MobileNodeStatusBadge({ status, unread }: { status: string; unread: boolean }) {
+  const { t } = useTranslation();
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={`absolute -top-1 -left-1 z-10 inline-flex size-4 items-center justify-center rounded-full bg-slate-950/85 text-cyan-300 shadow-sm ring-1 ring-white/70 ${
+              unread ? "motion-safe:animate-pulse" : ""
+            }`}
+            aria-hidden="true"
+          >
+            <FontAwesomeIcon icon={faChartSimple} className="size-2.5" />
+          </span>
+        </TooltipTrigger>
+        <TooltipPortal>
+          <TooltipContent className="max-w-56 rounded bg-slate-800 px-4 py-2 text-white dark:bg-slate-600">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-200">
+                {t("nodeDetail.statusMessage", { ns: "nodes", defaultValue: "Status Message" })}
+              </p>
+              <p className="whitespace-pre-wrap break-words text-xs font-normal italic text-white/95">
+                {status}
+              </p>
+            </div>
+            <TooltipArrow className="fill-slate-800 dark:fill-slate-600" />
+          </TooltipContent>
+        </TooltipPortal>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -654,7 +755,7 @@ const NodesPage = (): JSX.Element => {
   const { toast } = useToast();
   const navigate = useNavigate({ from: "/" });
 
-  const { setNodeNumDetails } = useAppStore();
+  const { identiconsEnabled, setNodeNumDetails } = useAppStore();
   const { nodeFilter, defaultFilterValues, isFilterDirty } = useFilterNode();
 
   const [selectedTraceroute, setSelectedTraceroute] = useState<
@@ -1353,6 +1454,10 @@ const NodesPage = (): JSX.Element => {
     const nameHex = formatNameHex(node.num, node);
     const battery = getBatteryLabel(node);
     const nodeStatus = getNodeStatusText(node);
+    const hasUnreadNodeStatus = isNodeStatusUnread(
+      nodeStatus,
+      (node as Protobuf.Mesh.NodeInfo & { lastReadNodeStatus?: string }).lastReadNodeStatus,
+    );
     const displayChannel = getNodeDisplayChannel(node);
     const environmentMetrics = nodeDB.getEnvironmentMetrics(node.num);
     const environmentSummary = getEnvironmentSummary(environmentMetrics);
@@ -1360,8 +1465,15 @@ const NodesPage = (): JSX.Element => {
     const rxRssiVal = getNodeRxRssi(node, gateway);
     const snrTone = getSnrTone(node.snr);
     const rssiTone = getRssiTone(rxRssiVal);
-    const shouldShowDistance = !isLocalNode && node.hopsAway !== 0;
-    const shouldShowDirectSignal = !isLocalNode && node.hopsAway === 0;
+    const hasSnr = isFiniteMetricValue(node.snr);
+    const hasRssi = isFiniteMetricValue(rxRssiVal) && rxRssiVal !== 0;
+    const shouldShowDistance = !isLocalNode && isFiniteMetricValue(distanceVal);
+    const isDirectNode = !isLocalNode && node.hopsAway === 0;
+    const shouldShowDirectSignal = isDirectNode && (hasSnr || hasRssi);
+    const shouldShowHopDistance =
+      !isLocalNode && typeof node.hopsAway === "number" && node.hopsAway >= 1;
+    const hasConnectionInfoRow =
+      isDirectNode || shouldShowHopDistance || displayChannel !== undefined;
     const hasPositionRow = Boolean(position || altitude);
     const hasIdentityRow = Boolean(hardwareModel || roleName || nameHex);
     const hasUtilRow =
@@ -1530,7 +1642,7 @@ const NodesPage = (): JSX.Element => {
         key={node.num}
         className="rounded-md bg-background-secondary p-2.5 text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#303030] dark:text-zinc-100 dark:shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
       >
-        <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-1.5">
+        <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-1.5">
           <Popover
             open={mobileActionNode === node.num}
             onOpenChange={(open) => setMobileActionNode(open ? node.num : undefined)}
@@ -1541,16 +1653,23 @@ const NodesPage = (): JSX.Element => {
                 className="inline-flex items-center gap-1.5 rounded-full px-1.5 py-1 text-[0.875rem]"
                 style={getNodeBaseColorStyle(node.num)}
               >
-                <Avatar
-                  nodeNum={node.num}
-                  size="sm"
-                  className="size-7"
-                  avatarClassName="ring-2 ring-white/70"
-                  showError={hasNodeError(node.num)}
-                  showFavorite={node.isFavorite}
-                  showStatusIndicator={false}
-                />
-                <span className="max-w-20 truncate">{shortName}</span>
+                {identiconsEnabled ? (
+                  <Avatar
+                    nodeNum={node.num}
+                    size="sm"
+                    className="size-7"
+                    avatarClassName="ring-2 ring-white/70"
+                    showError={hasNodeError(node.num)}
+                    showFavorite={node.isFavorite}
+                    showStatusIndicator={false}
+                  />
+                ) : null}
+                <span className="relative inline-flex max-w-20 items-center">
+                  {!identiconsEnabled && nodeStatus ? (
+                    <MobileNodeStatusBadge status={nodeStatus} unread={hasUnreadNodeStatus} />
+                  ) : null}
+                  <span className="truncate">{shortName}</span>
+                </span>
               </button>
             </PopoverTrigger>
             <PopoverContent
@@ -1584,18 +1703,7 @@ const NodesPage = (): JSX.Element => {
 
         <div className="mt-1.5 grid grid-cols-[1fr_auto] items-center gap-2 text-[0.875rem]">
           <div className="min-w-0">
-            {shouldShowDistance ? (
-              <span>{formatDistance(distanceVal) ?? "distanza n/a"}</span>
-            ) : shouldShowDirectSignal ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <SignalPill label="SNR" value={formatSignalValue(node.snr, "dB")} tone={snrTone} />
-                <SignalPill
-                  label="RSSI"
-                  value={formatSignalValue(rxRssiVal, "dBm")}
-                  tone={rssiTone}
-                />
-              </div>
-            ) : null}
+            {shouldShowDistance ? <span>{formatDistance(distanceVal)}</span> : null}
           </div>
           <span className="flex items-center justify-end gap-1 whitespace-nowrap">
             {battery.plugged ? (
@@ -1608,25 +1716,48 @@ const NodesPage = (): JSX.Element => {
           </span>
         </div>
 
+        {hasConnectionInfoRow ? (
+          <div className="mt-1 flex items-center justify-between gap-2 text-[0.875rem]">
+            <div className="min-w-0">
+              {isDirectNode ? (
+                shouldShowDirectSignal ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {hasSnr ? (
+                      <SignalPill
+                        label="SNR"
+                        value={formatSignalValue(node.snr, "dB")}
+                        tone={snrTone}
+                      />
+                    ) : null}
+                    {hasRssi ? (
+                      <SignalPill
+                        label="RSSI"
+                        value={formatSignalValue(rxRssiVal, "dBm", 0)}
+                        tone={rssiTone}
+                      />
+                    ) : null}
+                  </div>
+                ) : (
+                  <span className="font-semibold text-[#00e531]">Direct Node</span>
+                )
+              ) : shouldShowHopDistance ? (
+                <span>Distanza in Hop: {node.hopsAway}</span>
+              ) : null}
+            </div>
+            {displayChannel !== undefined ? (
+              <span className="whitespace-nowrap text-right text-text-secondary dark:text-zinc-300">
+                Ch: {displayChannel}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
         {environmentSummary ? (
           <div className="mt-1 flex items-start gap-1.5 text-[0.875rem] text-text-secondary dark:text-zinc-300">
             <ThermometerIcon className="mt-0.5 size-4 shrink-0 text-[#00e531]" />
             <span className="min-w-0 break-words">{environmentSummary}</span>
           </div>
         ) : null}
-
-        <div className="mt-1 flex items-center justify-between gap-2 text-[0.875rem]">
-          <span>
-            {node.hopsAway !== undefined
-              ? `Distanza in Hop: ${node.hopsAway}`
-              : "Distanza in Hop: n/a"}
-          </span>
-          {displayChannel !== undefined ? (
-            <span className="whitespace-nowrap text-right text-text-secondary dark:text-zinc-300">
-              Ch: {displayChannel}
-            </span>
-          ) : null}
-        </div>
 
         {showNodeDetails && hasDetailRows ? (
           <div className="mt-2 border-t border-zinc-500/35 pt-2">
@@ -1685,7 +1816,9 @@ const NodesPage = (): JSX.Element => {
             {nodeStatus ? (
               <div className="mt-2 flex items-start gap-2 text-[0.875rem] text-text-primary dark:text-zinc-100">
                 <MapPinIcon className="mt-1 size-4 text-[#00e531]" />
-                <span className="whitespace-pre-wrap break-words">{nodeStatus}</span>
+                <span className="whitespace-pre-wrap break-words">
+                  <ValidatedLinkText text={nodeStatus} />
+                </span>
               </div>
             ) : null}
           </div>
@@ -1960,6 +2093,7 @@ function MobileNodeInfoDialog({
   const { toast } = useToast();
   const device = useDevice();
   const nodeDB = useNodeDB();
+  const identiconsEnabled = useAppStore((s) => s.identiconsEnabled);
   const [shareOpen, setShareOpen] = useState(false);
   const [activeLog, setActiveLog] = useState<"traceroute" | "neighbor" | undefined>();
   const [selectedTraceLog, setSelectedTraceLog] = useState<
@@ -1968,6 +2102,10 @@ function MobileNodeInfoDialog({
   const shortName = getNodeShortName(node) ?? formatNameHex(node.num, node).slice(-4);
   const longName = getNodeLongName(node) ?? formatNameHex(node.num, node);
   const hardwareModel = formatHardwareModel(node.user?.hwModel);
+  const hardwareModelKey =
+    node.user?.hwModel !== undefined && node.user.hwModel !== Protobuf.Mesh.HardwareModel.UNSET
+      ? Protobuf.Mesh.HardwareModel[node.user.hwModel]
+      : undefined;
   const roleName = formatRole(node.user?.role);
   const nodeStatus = getNodeStatusText(node);
   const lastHeard = formatLastHeard(node.lastHeard);
@@ -2066,17 +2204,37 @@ function MobileNodeInfoDialog({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
-        <InfoSection title="Personal Identicon">
-          <div className="flex justify-center rounded-md bg-[#202020] py-4">
-            <div
-              className="inline-flex items-center gap-3 rounded-full px-3 py-2"
-              style={getNodeBaseColorStyle(node.num)}
-            >
-              <Avatar nodeNum={node.num} size="lg" showStatusIndicator={false} />
-              <span className="text-xl font-semibold">{shortName}</span>
+        {identiconsEnabled ? (
+          <InfoSection title="Personal Identicon">
+            <div className="flex justify-center rounded-md bg-[#202020] py-4">
+              <div
+                className="inline-flex items-center gap-3 rounded-full px-3 py-2"
+                style={getNodeBaseColorStyle(node.num)}
+              >
+                <Avatar nodeNum={node.num} size="lg" showStatusIndicator={false} />
+                <span className="text-xl font-semibold">{shortName}</span>
+              </div>
             </div>
-          </div>
-        </InfoSection>
+          </InfoSection>
+        ) : (
+          <InfoSection title="Personal Info">
+            <div className="flex justify-center rounded-md bg-[#202020] py-5">
+              {hardwareModelKey ? (
+                <DeviceImage
+                  className="h-32 max-w-full rounded-lg border-4 border-zinc-700 bg-zinc-100 p-3 object-contain"
+                  deviceType={hardwareModelKey}
+                />
+              ) : (
+                <Avatar
+                  nodeNum={node.num}
+                  size="lg"
+                  showFavorite={node.isFavorite}
+                  showStatusIndicator={false}
+                />
+              )}
+            </div>
+          </InfoSection>
+        )}
 
         {hardwareModel ? (
           <InfoSection title="Device">
@@ -2093,8 +2251,10 @@ function MobileNodeInfoDialog({
 
         {nodeStatus ? (
           <InfoSection title="Status Message">
-            <div className="rounded-md bg-[#202020] p-4">
-              <p className="whitespace-pre-wrap break-words text-zinc-200">{nodeStatus}</p>
+            <div className="flex min-h-24 items-center justify-center rounded-md bg-[#202020] p-4 text-center">
+              <p className="whitespace-pre-wrap break-words italic text-zinc-200">
+                <ValidatedLinkText text={nodeStatus} />
+              </p>
             </div>
           </InfoSection>
         ) : null}
