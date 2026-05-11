@@ -419,6 +419,25 @@ describe("NodeDB – merge semantics, PKI checks & extras", () => {
     expect(err).toBeFalsy();
   });
 
+  it("preserves existing public key when a user packet omits it", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(42);
+
+    db.addNode(makeNode(5, { user: { publicKey: keyOld, longName: "old-5" } }));
+    db.addUser({
+      from: 5,
+      to: 0,
+      id: 123,
+      rxTime: new Date(),
+      data: makeUser({ longName: "new-5", shortName: "n5", publicKey: new Uint8Array() }),
+    } as any);
+
+    const node = db.getNode(5)!;
+    expect(node.user?.longName).toBe("new-5");
+    expect(node.user?.shortName).toBe("n5");
+    expect(node.user?.publicKey).toEqual(keyOld);
+  });
+
   it("unions nodeErrors: preserves old and new, respects existing-on-conflict", async () => {
     const { useNodeDBStore } = await freshStore();
     const st = useNodeDBStore.getState();

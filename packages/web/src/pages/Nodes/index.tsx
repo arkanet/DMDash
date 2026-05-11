@@ -23,9 +23,10 @@ import useLang from "@core/hooks/useLang.ts";
 import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useIgnoreNode } from "@core/hooks/useIgnoreNode.ts";
 import { useToast } from "@core/hooks/useToast.ts";
+import { create, toBinary } from "@bufbuild/protobuf";
 import { requestNeighborInfo, startVisualTraceroute } from "@core/services/darkmesh/nodeActions.ts";
 import { useAppStore, useDevice, useDeviceStore, useNodeDB } from "@core/stores";
-import { Protobuf, type Types } from "@meshtastic/core";
+import { Protobuf, Types } from "@meshtastic/core";
 import {
   buildSharedContactUrl,
   getNodeShortName,
@@ -1281,6 +1282,28 @@ const NodesPage = (): JSX.Element => {
     }
   };
 
+  const requestDeviceMetadata = async (nodeNum: number) => {
+    if (!connection || typeof connection.sendPacket !== "function") {
+      throw new Error("Metadata non disponibile sulla connessione corrente");
+    }
+
+    const message = create(Protobuf.Admin.AdminMessageSchema, {
+      payloadVariant: {
+        case: "getDeviceMetadataRequest",
+        value: true,
+      },
+    });
+
+    await connection.sendPacket(
+      toBinary(Protobuf.Admin.AdminMessageSchema, message),
+      Protobuf.Portnums.PortNum.ADMIN_APP,
+      nodeNum,
+      Types.ChannelNumber.Admin,
+      true,
+      true,
+    );
+  };
+
   const runMobileNodeAction = async (
     successTitle: string,
     action: () => Promise<unknown> | unknown,
@@ -1402,12 +1425,9 @@ const NodesPage = (): JSX.Element => {
               onClick={() => {
                 setMobileActionNode(undefined);
                 setPendingMetadataNode(node.num);
-                void runMobileNodeAction("Richiesta metadata inviata", () => {
-                  if (typeof connection?.getMetadata !== "function") {
-                    throw new Error("Metadata non disponibile sulla connessione corrente");
-                  }
-                  return connection.getMetadata(node.num);
-                });
+                void runMobileNodeAction("Richiesta metadata inviata", () =>
+                  requestDeviceMetadata(node.num),
+                );
               }}
             >
               Request user metadata

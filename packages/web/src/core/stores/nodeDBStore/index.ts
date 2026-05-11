@@ -650,9 +650,21 @@ function nodeDBFactory(
           }
           const current = nodeDB.nodeMap.get(user.from);
           const isNew = !current;
+          const incomingPublicKey = user.data.publicKey;
+          const existingPublicKey = current?.user?.publicKey;
+          const shouldPreservePublicKey =
+            Boolean(existingPublicKey && existingPublicKey.length > 0) &&
+            !(incomingPublicKey && incomingPublicKey.length > 0);
           const updated = {
             ...(current ?? create(Protobuf.Mesh.NodeInfoSchema)),
-            user: user.data,
+            user:
+              current?.user && shouldPreservePublicKey
+                ? {
+                    ...current.user,
+                    ...user.data,
+                    publicKey: existingPublicKey,
+                  }
+                : user.data,
             num: user.from,
           };
 
