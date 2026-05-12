@@ -35,9 +35,21 @@
       "label": "Message delivered",
       "displayText": "Message delivered"
     },
+    "enroute": {
+      "label": "Message enroute",
+      "displayText": "Waiting for acknowledgement"
+    },
     "failed": {
       "label": "Message delivery failed",
       "displayText": "Delivery failed"
+    },
+    "queued": {
+      "label": "Message queued",
+      "displayText": "Queued for radio"
+    },
+    "received": {
+      "label": "Message received",
+      "displayText": "Acknowledged by recipient"
     },
     "unknown": {
       "label": "Message status unknown",

@@ -114,6 +114,15 @@ function getPacketErrorId(error: unknown): number | undefined {
   return typeof id === "number" ? id : undefined;
 }
 
+function getPacketErrorReason(error: unknown): Protobuf.Mesh.Routing_Error | undefined {
+  if (!error || typeof error !== "object" || !("error" in error)) {
+    return undefined;
+  }
+
+  const reason = (error as { error?: unknown }).error;
+  return typeof reason === "number" ? (reason as Protobuf.Mesh.Routing_Error) : undefined;
+}
+
 function isPrimaryChannel(channel: { index: number; role?: Protobuf.Channel.Channel_Role }) {
   return (
     channel.role === Protobuf.Channel.Channel_Role.PRIMARY ||
@@ -473,7 +482,7 @@ export const MessagesPage = () => {
           }
           // `sendMessage` was removed from MeshDevice; use `sendText` instead.
           // For compressed messages we still send text to the same destination/channel.
-          messageId = await connection?.sendText(
+          const sendPromise = connection?.sendText(
             message,
             toValue,
             true,
@@ -482,6 +491,10 @@ export const MessagesPage = () => {
             undefined,
             true,
           );
+          if (sendPromise) {
+            setReplyTo(undefined);
+            messageId = await sendPromise;
+          }
         } else {
           // If user explicitly disabled compression for this contact, remove stored preference
           try {
@@ -491,7 +504,7 @@ export const MessagesPage = () => {
           } catch {
             // ignore
           }
-          messageId = await connection?.sendText(
+          const sendPromise = connection?.sendText(
             message,
             toValue,
             true,
@@ -500,37 +513,27 @@ export const MessagesPage = () => {
             undefined,
             false,
           );
-        }
-        if (messageId !== undefined) {
-          if (chatType === MessageType.Broadcast) {
-            setMessageState({
-              type: MessageType.Broadcast,
-              channelId: channelValue,
-              messageId,
-              newState: MessageState.Ack,
-            });
-          } else if (myNodeNum !== undefined) {
-            setMessageState({
-              type: MessageType.Direct,
-              nodeA: myNodeNum,
-              nodeB: numericChatId,
-              messageId,
-              newState: MessageState.Ack,
-            });
+          if (sendPromise) {
+            setReplyTo(undefined);
+            messageId = await sendPromise;
           }
-          setReplyTo(undefined);
-        } else {
+        }
+        if (messageId === undefined) {
           console.warn("sendText completed but messageId is undefined");
         }
       } catch (e: unknown) {
         console.error("Failed to send message:", e);
         const failedId = messageId ?? getPacketErrorId(e) ?? randId();
+        const failedState =
+          getPacketErrorReason(e) === Protobuf.Mesh.Routing_Error.TIMEOUT
+            ? MessageState.Enroute
+            : MessageState.Failed;
         if (chatType === MessageType.Broadcast) {
           setMessageState({
             type: MessageType.Broadcast,
             channelId: channelValue,
             messageId: failedId,
-            newState: MessageState.Failed,
+            newState: failedState,
           });
         } else if (myNodeNum !== undefined) {
           setMessageState({
@@ -538,7 +541,7 @@ export const MessagesPage = () => {
             nodeA: myNodeNum,
             nodeB: numericChatId,
             messageId: failedId,
-            newState: MessageState.Failed,
+            newState: failedState,
           });
         }
       }

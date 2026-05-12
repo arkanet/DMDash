@@ -7,8 +7,11 @@ import {
   MessageType,
   MessageState,
   type NodeDB,
+  useMessageStore,
 } from "@core/stores";
+import type { Message } from "@core/stores/messageStore/types.ts";
 import { type MeshDevice, Protobuf } from "@meshtastic/core";
+
 export const subscribeAll = (
   device: Device,
   connection: MeshDevice,
@@ -16,6 +19,63 @@ export const subscribeAll = (
   nodeDB: NodeDB,
 ) => {
   let myNodeNum = 0;
+
+  const isQueuePendingState = (state: MessageState) =>
+    state === MessageState.Waiting ||
+    state === MessageState.Queued ||
+    state === MessageState.Enroute;
+
+  const updateMessageStateByPacketId = (
+    messageId: number,
+    resolveState: (message: Message) => MessageState | undefined,
+  ): boolean => {
+    const currentMessageStore =
+      useMessageStore.getState().getMessageStore(messageStore.id) ?? messageStore;
+
+    for (const [convId, map] of currentMessageStore.messages.direct) {
+      const message = map.get(messageId);
+      if (!message) {
+        continue;
+      }
+
+      const newState = resolveState(message);
+      if (!newState) {
+        return false;
+      }
+
+      const [aStr, bStr] = convId.split(":");
+      currentMessageStore.setMessageState({
+        type: MessageType.Direct,
+        nodeA: Number(aStr),
+        nodeB: Number(bStr),
+        messageId,
+        newState,
+      });
+      return true;
+    }
+
+    for (const [channelId, map] of currentMessageStore.messages.broadcast) {
+      const message = map.get(messageId);
+      if (!message) {
+        continue;
+      }
+
+      const newState = resolveState(message);
+      if (!newState) {
+        return false;
+      }
+
+      currentMessageStore.setMessageState({
+        type: MessageType.Broadcast,
+        channelId: Number(channelId),
+        messageId,
+        newState,
+      });
+      return true;
+    }
+
+    return false;
+  };
 
   connection.events.onDeviceMetadataPacket.subscribe((metadataPacket) => {
     device.addMetadata(metadataPacket.from, metadataPacket.data);
@@ -26,40 +86,30 @@ export const subscribeAll = (
     switch (routingPacket.data.variant.case) {
       case "errorReason": {
         // If there's a requestId, map ack/nak to a stored message (if present)
-        const maybeRouting = routingPacket as unknown as { requestId?: number | undefined };
+        const maybeRouting = routingPacket as unknown as {
+          requestId?: number | undefined;
+        };
         const requestId =
           typeof maybeRouting.requestId === "number" ? maybeRouting.requestId : undefined;
         const isAck = routingPacket.data.variant.value === Protobuf.Mesh.Routing_Error.NONE;
 
         if (typeof requestId === "number" && requestId !== 0) {
-          // search direct conversations
-          for (const [convId, map] of messageStore.messages.direct) {
-            if (map.has(requestId)) {
-              const [aStr, bStr] = convId.split(":");
-              const nodeA = Number(aStr);
-              const nodeB = Number(bStr);
-              messageStore.setMessageState({
-                type: MessageType.Direct,
-                nodeA,
-                nodeB,
-                messageId: requestId,
-                newState: isAck ? MessageState.Ack : MessageState.Failed,
-              });
-              return;
+          const updated = updateMessageStateByPacketId(requestId, (message) => {
+            if (!isAck) {
+              return MessageState.Failed;
             }
-          }
 
-          // search broadcast channels
-          for (const [channelId, map] of messageStore.messages.broadcast) {
-            if (map.has(requestId)) {
-              messageStore.setMessageState({
-                type: MessageType.Broadcast,
-                channelId: Number(channelId),
-                messageId: requestId,
-                newState: isAck ? MessageState.Ack : MessageState.Failed,
-              });
-              return;
+            if (message.type === MessageType.Direct) {
+              return routingPacket.from === message.to
+                ? MessageState.Received
+                : MessageState.Delivered;
             }
+
+            return MessageState.Delivered;
+          });
+
+          if (updated) {
+            return;
           }
         }
 
@@ -77,6 +127,21 @@ export const subscribeAll = (
         break;
       }
     }
+  });
+
+  connection.events.onQueueStatus.subscribe((queueStatus) => {
+    const messageId = queueStatus.meshPacketId;
+    if (messageId === 0) {
+      return;
+    }
+
+    updateMessageStateByPacketId(messageId, (message) => {
+      if (!isQueuePendingState(message.state)) {
+        return undefined;
+      }
+
+      return queueStatus.res === 0 ? MessageState.Enroute : MessageState.Failed;
+    });
   });
 
   connection.events.onTelemetryPacket.subscribe((telemetryPacket) => {
@@ -180,7 +245,9 @@ export const subscribeAll = (
     const pendingTarget = darkMeshState.pendingTraceRouteTargetByDevice[device.id];
 
     // Prefer matching by requestId when available (robust for 0-hop responses)
-    const maybeTrace = traceRoutePacket as unknown as { requestId?: number | undefined };
+    const maybeTrace = traceRoutePacket as unknown as {
+      requestId?: number | undefined;
+    };
     if (pendingRequestId !== undefined && typeof maybeTrace.requestId === "number") {
       if (maybeTrace.requestId === pendingRequestId) {
         darkMeshState.setSelectedTraceRoute({ ...traceRoutePacket });

@@ -35,9 +35,21 @@
       "label": "Messaggio inviato",
       "displayText": "Messaggio inviato"
     },
+    "enroute": {
+      "label": "Messaggio in transito",
+      "displayText": "In attesa di ACK"
+    },
     "failed": {
       "label": "Invio messaggio non riuscito",
       "displayText": "Invio fallito"
+    },
+    "queued": {
+      "label": "Messaggio in coda",
+      "displayText": "In coda per la radio"
+    },
+    "received": {
+      "label": "Messaggio ricevuto",
+      "displayText": "ACK del destinatario ricevuto"
     },
     "unknown": {
       "label": "Stato messaggio sconosciuto",

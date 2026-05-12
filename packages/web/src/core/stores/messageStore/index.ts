@@ -25,9 +25,15 @@ const MESSAGESTORE_RETENTION_NUM = 10;
 const MESSAGELOG_RETENTION_NUM = 1000; // Max messages per conversation/channel
 
 export enum MessageState {
+  /** Legacy persisted value; rendered as Delivered. */
   Ack = "ack",
+  /** Legacy persisted value; rendered as Enroute. */
   Waiting = "waiting",
   Failed = "failed",
+  Queued = "queued",
+  Enroute = "enroute",
+  Delivered = "delivered",
+  Received = "received",
 }
 
 export enum MessageType {
@@ -44,6 +50,14 @@ function normalizeStoredMessage(message: Message): Message {
   };
 }
 
+function isPendingMessageState(state: MessageState): boolean {
+  return (
+    state === MessageState.Waiting ||
+    state === MessageState.Queued ||
+    state === MessageState.Enroute
+  );
+}
+
 function mergeStoredMessage(existing: Message | undefined, incoming: Message): Message {
   if (!existing) {
     return incoming;
@@ -52,7 +66,7 @@ function mergeStoredMessage(existing: Message | undefined, incoming: Message): M
   return {
     ...incoming,
     state:
-      incoming.state === MessageState.Waiting && existing.state !== MessageState.Waiting
+      isPendingMessageState(incoming.state) && !isPendingMessageState(existing.state)
         ? existing.state
         : incoming.state,
     reactions: incoming.reactions ?? existing.reactions,
@@ -304,7 +318,7 @@ function messageStoreFactory(
           }
 
           if (targetMessage) {
-            targetMessage.state = params.newState ?? MessageState.Ack;
+            targetMessage.state = params.newState ?? MessageState.Delivered;
           } else {
             console.warn(
               `Message or conversation/channel not found for state update. Params: ${JSON.stringify(

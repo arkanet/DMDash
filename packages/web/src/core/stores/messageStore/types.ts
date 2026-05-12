@@ -42,13 +42,13 @@ type SetMessageStateParams =
       nodeA: NodeNum;
       nodeB: NodeNum;
       messageId: MessageId; // ID of the message within that chat
-      newState?: MessageState; // Optional new state, defaults to Ack
+      newState?: MessageState; // Optional new state, defaults to Delivered
     }
   | {
       type: MessageType.Broadcast;
       channelId: ChannelId;
       messageId: MessageId;
-      newState?: MessageState; // Optional new state, defaults to Ack
+      newState?: MessageState; // Optional new state, defaults to Delivered
     };
 
 type ClearMessageParams =

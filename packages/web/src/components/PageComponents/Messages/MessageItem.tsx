@@ -24,7 +24,15 @@ import { cn } from "@core/utils/cn.ts";
 import { normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
 import { Protobuf } from "@meshtastic/core";
 import type { LucideIcon } from "lucide-react";
-import { Cloud, CloudCheck, CloudOff, FolderArchive, TriangleAlert } from "lucide-react";
+import {
+  Cloud,
+  CloudCheck,
+  CloudOff,
+  CloudUpload,
+  FolderArchive,
+  TriangleAlert,
+  UserCheck,
+} from "lucide-react";
 import { Fragment, type ReactNode, useCallback, useMemo } from "react";
 import SwipeReplyMessage from "./SwipeReplyMessage";
 import { useTranslation } from "react-i18next";
@@ -124,7 +132,7 @@ export const MessageItem = ({
 }: MessageItemProps) => {
   const device = useDevice();
   const messages = useMessages();
-  const { config, setDialogOpen } = device;
+  const { setDialogOpen } = device;
   const { getNode, getNodes } = useNodeDB();
   const setNodeNumDetails = useAppStore((state) => state.setNodeNumDetails);
   const { t, i18n } = useTranslation("messages");
@@ -136,22 +144,74 @@ export const MessageItem = ({
   const MESSAGE_STATUS_MAP = useMemo(
     (): Record<MessageState, MessageStatusInfo> => ({
       [MessageState.Ack]: {
-        displayText: t("deliveryStatus.delivered.displayText"),
+        displayText: t("deliveryStatus.delivered.displayText", {
+          defaultValue: "Message delivered to the mesh",
+        }),
         icon: CloudCheck,
-        ariaLabel: t("deliveryStatus.delivered.label"),
+        ariaLabel: t("deliveryStatus.delivered.label", {
+          defaultValue: "Message delivered",
+        }),
         iconClassName: "text-green-500",
       },
       [MessageState.Waiting]: {
-        displayText: t("deliveryStatus.waiting.displayText"),
+        displayText: t("deliveryStatus.enroute.displayText", {
+          defaultValue: "Waiting for acknowledgement",
+        }),
         icon: Cloud,
-        ariaLabel: t("deliveryStatus.waiting.label"),
+        ariaLabel: t("deliveryStatus.enroute.label", {
+          defaultValue: "Message enroute",
+        }),
         iconClassName: "text-slate-400",
       },
       [MessageState.Failed]: {
-        displayText: t("deliveryStatus.failed.displayText"),
+        displayText: t("deliveryStatus.failed.displayText", {
+          defaultValue: "Delivery failed",
+        }),
         icon: CloudOff,
-        ariaLabel: t("deliveryStatus.failed.label"),
+        ariaLabel: t("deliveryStatus.failed.label", {
+          defaultValue: "Message delivery failed",
+        }),
         iconClassName: "text-red-500 dark:text-red-400",
+      },
+      [MessageState.Queued]: {
+        displayText: t("deliveryStatus.queued.displayText", {
+          defaultValue: "Queued for radio",
+        }),
+        icon: CloudUpload,
+        ariaLabel: t("deliveryStatus.queued.label", {
+          defaultValue: "Message queued",
+        }),
+        iconClassName: "text-slate-400",
+      },
+      [MessageState.Enroute]: {
+        displayText: t("deliveryStatus.enroute.displayText", {
+          defaultValue: "Waiting for acknowledgement",
+        }),
+        icon: Cloud,
+        ariaLabel: t("deliveryStatus.enroute.label", {
+          defaultValue: "Message enroute",
+        }),
+        iconClassName: "text-sky-500 dark:text-sky-300",
+      },
+      [MessageState.Delivered]: {
+        displayText: t("deliveryStatus.delivered.displayText", {
+          defaultValue: "Message delivered to the mesh",
+        }),
+        icon: CloudCheck,
+        ariaLabel: t("deliveryStatus.delivered.label", {
+          defaultValue: "Message delivered",
+        }),
+        iconClassName: "text-green-500",
+      },
+      [MessageState.Received]: {
+        displayText: t("deliveryStatus.received.displayText", {
+          defaultValue: "Acknowledged by recipient",
+        }),
+        icon: UserCheck,
+        ariaLabel: t("deliveryStatus.received.label", {
+          defaultValue: "Message received",
+        }),
+        iconClassName: "text-[#00e531]",
       },
     }),
     [t],
@@ -310,17 +370,7 @@ export const MessageItem = ({
   const messageDate = useMemo(() => (message.date ? new Date(message.date) : null), [message.date]);
   const locale = i18n.language;
 
-  const formattedTime = useMemo(
-    () =>
-      messageDate?.toLocaleTimeString(locale, {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: config?.display?.use12hClock ?? true,
-      }) ?? "",
-    [messageDate, locale, config?.display?.use12hClock],
-  );
-
-  const formattedMobileTime = useMemo(
+  const formattedIndicatorTime = useMemo(
     () =>
       messageDate?.toLocaleTimeString(locale, {
         hour: "2-digit",
@@ -376,7 +426,6 @@ export const MessageItem = ({
     "hover:bg-slate-300/15 dark:hover:bg-slate-600/20",
     "transition-colors duration-100 ease-in-out",
   );
-  const dateTextStyle = "text-xs text-slate-500 dark:text-slate-400";
   const handleAddReaction = useCallback(
     async (emoji?: string) => {
       if (!emoji) {
@@ -448,10 +497,7 @@ export const MessageItem = ({
       <div
         className={cn(
           "grid gap-x-2",
-          "md:grid-cols-[auto_1fr]",
-          isSender
-            ? "max-md:grid-cols-[minmax(0,1fr)_auto] max-md:pl-12"
-            : "max-md:grid-cols-[auto_minmax(0,1fr)_auto]",
+          isSender ? "grid-cols-[minmax(0,1fr)_auto] pl-12" : "grid-cols-[auto_minmax(0,1fr)_auto]",
         )}
       >
         <button
@@ -461,7 +507,7 @@ export const MessageItem = ({
             setDialogOpen("nodeDetails", true);
           }}
           aria-label={`Open node ${nodeNum} details`}
-          className={cn("p-0 m-0", isSender && "max-md:hidden")}
+          className={cn("m-0 p-0", isSender && "hidden")}
         >
           <Avatar
             size="sm"
@@ -474,17 +520,15 @@ export const MessageItem = ({
 
         <div
           className={cn(
-            "flex min-w-0 flex-col gap-0.5",
-            "max-md:rounded-xl max-md:px-3 max-md:py-2 max-md:shadow-[0_2px_8px_rgba(0,0,0,0.24)]",
-            "max-md:bg-slate-100 dark:max-md:bg-[#2f2f2f]",
-            isSender &&
-              "max-md:justify-self-end max-md:rounded-tr max-md:bg-slate-200 dark:max-md:bg-[#292929]",
+            "flex min-w-0 max-w-[min(42rem,100%)] flex-col gap-0.5 rounded-xl px-3 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.24)]",
+            "bg-slate-100 dark:bg-[#2f2f2f]",
+            isSender && "justify-self-end rounded-tr bg-slate-200 dark:bg-[#292929]",
           )}
         >
           <div
             className={cn(
               "flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5",
-              isSender && "max-md:hidden",
+              isSender && "hidden",
             )}
           >
             <span className="font-medium text-sm text-slate-900 dark:text-slate-100 truncate mr-1">
@@ -494,51 +538,6 @@ export const MessageItem = ({
               <span className="min-w-0 break-words text-sm font-normal italic text-slate-600 dark:text-slate-300">
                 {nodeStatus}
               </span>
-            )}
-            {messageDate && (
-              <time
-                dateTime={messageDate.toISOString()}
-                className={cn(dateTextStyle, "max-md:hidden")}
-              >
-                <span aria-hidden="true">{formattedTime}</span>
-                <span className="sr-only">{fullDateTime}</span>
-              </time>
-            )}
-            {message.compressed && (
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span
-                      aria-label={t("compressed.label", {
-                        defaultValue: "Compressed message",
-                      })}
-                      className="inline-flex items-center max-md:hidden"
-                      role="img"
-                    >
-                      <FolderArchive
-                        className="size-4 shrink-0 text-sky-700 max-md:hidden dark:text-sky-300"
-                        aria-hidden="true"
-                      />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-slate-800 dark:bg-slate-600 text-white px-4 py-1 rounded text-xs">
-                    {t("compressed.title", {
-                      defaultValue: "Compressed message",
-                    })}
-                    <TooltipArrow className="fill-slate-800" />
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-            {shouldShowStatusIcon && (
-              <StatusTooltip statusInfo={messageStatusInfo}>
-                <span aria-label={messageStatusInfo.ariaLabel} role="img" className="max-md:hidden">
-                  <StatusIconComponent
-                    className={cn("size-4 shrink-0", messageStatusInfo.iconClassName)}
-                    aria-hidden="true"
-                  />
-                </span>
-              </StatusTooltip>
             )}
           </div>
 
@@ -658,58 +657,11 @@ export const MessageItem = ({
                   })}
                 </div>
               </SwipeReplyMessage>
-              {(hopLabel || reactionEntries.length > 0) && (
-                <div className="space-y-2 pt-1 max-md:hidden">
-                  {hopLabel && (
-                    <div className="flex justify-end text-xs text-slate-500 dark:text-slate-400">
-                      {hopLabel}
-                    </div>
-                  )}
-                  {reactionEntries.length > 0 && (
-                    <TooltipProvider delayDuration={200}>
-                      <div className="flex flex-wrap gap-1">
-                        {reactionEntries.map(([emoji, reaction]) => (
-                          <Tooltip key={emoji}>
-                            <TooltipTrigger asChild>
-                              <div className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-sm dark:bg-zinc-900">
-                                <span className="text-lg leading-none">{emoji}</span>
-                                {reaction.count > 1 && (
-                                  <span className="text-xs text-slate-500 dark:text-zinc-400">
-                                    {reaction.count}
-                                  </span>
-                                )}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-slate-800 dark:bg-slate-600 text-white px-3 py-2 rounded text-xs">
-                              <div className="flex flex-col gap-0.5">
-                                {reaction.senders.length > 0 ? (
-                                  reaction.senders.map((senderNodeNum) => (
-                                    <span key={`${emoji}-${senderNodeNum}`}>
-                                      {getReactionSenderLabel(senderNodeNum)}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span>
-                                    {t("message.reactionUnknown", {
-                                      defaultValue: "Unknown sender",
-                                    })}
-                                  </span>
-                                )}
-                              </div>
-                              <TooltipArrow className="fill-slate-800" />
-                            </TooltipContent>
-                          </Tooltip>
-                        ))}
-                      </div>
-                    </TooltipProvider>
-                  )}
-                </div>
-              )}
-              <div className="flex items-center justify-end gap-2 pt-1 text-xs leading-none text-slate-500 md:hidden dark:text-zinc-200">
+              <div className="flex items-center justify-end gap-2 pt-1 text-xs leading-none text-slate-500 dark:text-zinc-200">
                 {hopLabel && <span>{hopLabel}</span>}
                 {messageDate && (
                   <time dateTime={messageDate.toISOString()}>
-                    <span aria-hidden="true">{formattedMobileTime}</span>
+                    <span aria-hidden="true">{formattedIndicatorTime}</span>
                     <span className="sr-only">{fullDateTime}</span>
                   </time>
                 )}
@@ -753,7 +705,7 @@ export const MessageItem = ({
             </div>
           )}
         </div>
-        <div className="hidden items-start justify-center max-md:flex">
+        <div className="flex items-start justify-center">
           <MessageActionsMenu
             layout="mobile-column"
             onReply={onReply ? () => onReply(message) : undefined}
@@ -767,8 +719,8 @@ export const MessageItem = ({
         <TooltipProvider delayDuration={200}>
           <div
             className={cn(
-              "flex flex-wrap gap-1 pt-1 md:hidden",
-              isSender ? "justify-end pr-3" : "justify-start pl-3",
+              "flex flex-wrap gap-1 pt-1",
+              isSender ? "justify-end pr-3 md:pr-10" : "justify-start pl-3 md:pl-12",
             )}
           >
             {reactionEntries.map(([emoji, reaction]) => (
@@ -806,15 +758,6 @@ export const MessageItem = ({
           </div>
         </TooltipProvider>
       )}
-
-      <div className="absolute top-1 right-1 max-md:hidden">
-        <MessageActionsMenu
-          onReply={onReply ? () => onReply(message) : undefined}
-          showReaction={!isSender}
-          reactionPickerPlacement={isLatestReceived ? "above" : "below"}
-          onAddReaction={handleAddReaction}
-        />
-      </div>
     </li>
   );
 };
