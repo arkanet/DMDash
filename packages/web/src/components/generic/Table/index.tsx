@@ -15,6 +15,7 @@ interface Cell {
 export interface DataRow {
   id: string | number;
   isFavorite?: boolean;
+  isLocal?: boolean;
   cells: Cell[];
 }
 
@@ -58,6 +59,10 @@ export const Table = ({ headings, rows }: TableProps) => {
     }
 
     return [...rows].sort((a, b) => {
+      if (a.isLocal !== b.isLocal) {
+        return a.isLocal ? -1 : 1;
+      }
+
       if (a.isFavorite !== b.isFavorite) {
         return a.isFavorite ? -1 : 1;
       }

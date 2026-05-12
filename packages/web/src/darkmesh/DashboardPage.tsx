@@ -37,9 +37,7 @@ import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import {
   buildDmdbContents,
   createNodeInfoFromSharedContact,
-  getNodeDisplayName,
   getNodeLongName,
-  getPacketRxTimeMs,
   parseDmdbContents,
 } from "./utils.ts";
 import { hasPos } from "@core/utils/geo.ts";
@@ -124,7 +122,7 @@ const DarkMeshDashboardPage = () => {
   const { updateFavorite } = useFavoriteNode();
   const { selectedDeviceId, identiconsEnabled, setIdenticonsEnabled } = useAppStore();
   const deviceId = selectedDeviceId ?? -1;
-  const { channels, traceroutes, sendAdminMessage, connection: _connection } = useDevice();
+  const { channels, sendAdminMessage, connection: _connection } = useDevice();
   const { getMyNode, getNodes, addNode } = useNodeDB();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -137,7 +135,6 @@ const DarkMeshDashboardPage = () => {
     (state) =>
       state.huntDraftByDevice[deviceId] ?? state.huntByDevice[deviceId] ?? defaultHuntConfig,
   );
-  const selectedTraceRoute = useDarkMeshStore((state) => state.selectedTraceRoute);
 
   const removeSchedule = useDarkMeshStore((state) => state.removeSchedule);
   const upsertBeaconConfig = useDarkMeshStore((state) => state.upsertBeaconConfig);
@@ -145,7 +142,6 @@ const DarkMeshDashboardPage = () => {
   const upsertHuntDraft = useDarkMeshStore((state) => state.upsertHuntDraft);
   const setHuntStatus = useDarkMeshStore((state) => state.setHuntStatus);
   const setHuntError = useDarkMeshStore((state) => state.setHuntError);
-  const setSelectedTraceRoute = useDarkMeshStore((state) => state.setSelectedTraceRoute);
 
   const myNode = getMyNode();
   const schedules = useMemo(
@@ -185,14 +181,6 @@ const DarkMeshDashboardPage = () => {
   const destinationOptions = useMemo(
     () => [...channelOptions, ...nodeOptions],
     [channelOptions, nodeOptions],
-  );
-
-  const flattenedTraceroutes = useMemo(
-    () =>
-      Array.from(traceroutes.values())
-        .flat()
-        .sort((left, right) => getPacketRxTimeMs(right.rxTime) - getPacketRxTimeMs(left.rxTime)),
-    [traceroutes],
   );
 
   // schedule UI state is not currently wired in; keep schedules from store
@@ -918,67 +906,6 @@ const DarkMeshDashboardPage = () => {
           description="Review traceroute lists and visual traceroute responses from the current device."
         >
           <TraceroutePanel />
-
-          <div className="border-t border-slate-200 pt-4 dark:border-zinc-800">
-            <div className="mb-3 flex flex-wrap gap-3">
-              <Button
-                icon={<MapIcon className="h-4 w-4" />}
-                onClick={() => navigate({ to: "/map" })}
-              >
-                Open map
-              </Button>
-              {selectedTraceRoute ? (
-                <Button variant="outline" onClick={() => setSelectedTraceRoute(undefined)}>
-                  Clear overlay
-                </Button>
-              ) : null}
-            </div>
-
-            <div className="space-y-3 max-h-80 overflow-y-auto">
-              {flattenedTraceroutes.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-zinc-800 dark:text-zinc-400">
-                  No visual traceroutes captured yet.
-                </div>
-              ) : (
-                flattenedTraceroutes.map((trace) => (
-                  <div
-                    key={`${trace.id}-${trace.from}-${getPacketRxTimeMs(trace.rxTime)}`}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/70"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <div className="font-medium text-slate-900 dark:text-slate-100">
-                          {getNodeDisplayName(
-                            nodes.find((node) => node.num === trace.to),
-                            trace.to,
-                          )}{" "}
-                          {"->"}{" "}
-                          {getNodeDisplayName(
-                            nodes.find((node) => node.num === trace.from),
-                            trace.from,
-                          )}
-                        </div>
-                        <div className="text-sm text-slate-500 dark:text-slate-400">
-                          {formatSince(getPacketRxTimeMs(trace.rxTime))} · {trace.data.route.length}{" "}
-                          forward hops · {trace.data.routeBack.length} return hops
-                        </div>
-                      </div>
-
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setSelectedTraceRoute(trace);
-                          navigate({ to: "/map" });
-                        }}
-                      >
-                        Show on map
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
         </DashboardCard>
       </div>
     </PageLayout>

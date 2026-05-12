@@ -1109,6 +1109,7 @@ const NodesPage = (): JSX.Element => {
 
   const tableRows: DataRow[] = filteredNodes.map((node) => {
     // MAC Address column removed — no client-side MAC formatting here
+    const isLocalNode = node.num === hardware.myNodeNum;
 
     const shortName =
       getNodeShortName(node) ??
@@ -1164,6 +1165,7 @@ const NodesPage = (): JSX.Element => {
     return {
       id: node.num,
       isFavorite: node.isFavorite,
+      isLocal: isLocalNode,
       cells: [
         {
           content: (
@@ -1208,12 +1210,18 @@ const NodesPage = (): JSX.Element => {
               style={{ width: "fit-content", maxWidth: "fit-content" }}
               className="text-[0.75rem]"
             >
-              {typeof distanceVal === "number"
-                ? `${distanceVal.toFixed(2)} km`
-                : t("unknown.shortName")}
+              {isLocalNode
+                ? "Local"
+                : typeof distanceVal === "number"
+                  ? `${distanceVal.toFixed(2)} km`
+                  : t("unknown.shortName")}
             </div>
           ),
-          sortValue: typeof distanceVal === "number" ? distanceVal : Number.POSITIVE_INFINITY,
+          sortValue: isLocalNode
+            ? -1
+            : typeof distanceVal === "number"
+              ? distanceVal
+              : Number.POSITIVE_INFINITY,
         },
         {
           content: (
@@ -1221,7 +1229,9 @@ const NodesPage = (): JSX.Element => {
               style={{ width: "fit-content", maxWidth: "fit-content" }}
               className="text-[0.75rem]"
             >
-              {node.hopsAway !== undefined ? (
+              {isLocalNode ? (
+                "Local"
+              ) : node.hopsAway !== undefined ? (
                 node?.viaMqtt === false && node.hopsAway === 0 ? (
                   t("nodesTable.connectionStatus.direct")
                 ) : (
@@ -1235,7 +1245,7 @@ const NodesPage = (): JSX.Element => {
               )}
             </div>
           ),
-          sortValue: node.hopsAway ?? Number.MAX_SAFE_INTEGER,
+          sortValue: isLocalNode ? -1 : (node.hopsAway ?? Number.MAX_SAFE_INTEGER),
         },
         {
           content: (

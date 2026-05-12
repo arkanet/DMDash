@@ -1150,7 +1150,7 @@ const MapPage: React.FC = () => {
         {showTraceroutePanel && (
           <aside
             className={cn(
-              "absolute inset-y-0 left-0 z-20 w-[min(88vw,22rem)] shrink-0 overflow-y-auto border-r border-slate-300 bg-background/95 px-2 py-3 text-balance shadow-xl backdrop-blur-sm transition-transform duration-500 ease-out dark:border-slate-700 dark:bg-slate-950/95",
+              "absolute inset-y-0 left-0 z-20 w-[min(55vw,13.75rem)] shrink-0 overflow-y-auto border-r border-slate-300 bg-background/95 px-2 py-3 text-balance shadow-xl backdrop-blur-sm transition-transform duration-500 ease-out dark:border-slate-700 dark:bg-slate-950/95",
               showMobileTraceroutePanel
                 ? "darkmesh-mobile-traceroute-panel-enter translate-x-0 pointer-events-auto"
                 : "-translate-x-full pointer-events-none",

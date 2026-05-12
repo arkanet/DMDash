@@ -15,7 +15,6 @@ import {
 import { cn } from "@core/utils/cn.ts";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
-  CircleChevronLeft,
   type LucideIcon,
   LayoutDashboardIcon,
   MapIcon,
@@ -39,47 +38,17 @@ interface NavLink {
   count?: number;
 }
 
-const CollapseToggleButton = () => {
-  const { isCollapsed, toggleSidebar } = useSidebar();
-  const { t } = useTranslation("ui");
-  const buttonLabel = isCollapsed
-    ? t("sidebar.collapseToggle.button.open")
-    : t("sidebar.collapseToggle.button.close");
-
-  return (
-    <button
-      type="button"
-      aria-label={buttonLabel}
-      onClick={toggleSidebar}
-      className={cn(
-        "z-[9999] p-0.5 rounded-full",
-        "transition-colors duration-300 ease-in-out",
-        "border border-slate-300 dark:border-slate-200",
-        "text-slate-500 dark:text-slate-200 hover:text-slate-400 dark:hover:text-slate-400",
-        "focus:outline-none focus:ring-2 focus:ring-accent transition-transform bg-background-primary",
-      )}
-      style={{
-        position: "absolute",
-        top: "1.3rem",
-        left: isCollapsed ? "4rem" : "13.5rem",
-      }}
-    >
-      <CircleChevronLeft
-        size={24}
-        className={cn("transition-transform duration-300 ease-in-out", isCollapsed && "rotate-180")}
-      />
-    </button>
-  );
-};
-
 export const Sidebar = ({ children }: SidebarProps) => {
   const { hardware, metadata, unreadCounts, setDialogOpen } = useDevice();
   const { getNode, getNodesLength } = useNodeDB();
   const { setCommandPaletteOpen } = useAppStore();
   const myNode = getNode(hardware.myNodeNum);
-  const { isCollapsed } = useSidebar();
+  const { isCollapsed, toggleSidebar } = useSidebar();
   const { t } = useTranslation("ui");
   const navigate = useNavigate({ from: "/" });
+  const collapseButtonLabel = isCollapsed
+    ? t("sidebar.collapseToggle.button.open")
+    : t("sidebar.collapseToggle.button.close");
 
   // Get the active connection from selector (connected > default > first)
   const activeConnection =
@@ -147,8 +116,6 @@ export const Sidebar = ({ children }: SidebarProps) => {
         isCollapsed ? "w-24" : "w-52 lg:w-64",
       )}
     >
-      <CollapseToggleButton />
-
       <div
         className={cn(
           "h-14 flex mt-2 gap-2 items-center flex-shrink-0 transition-all duration-300 ease-in-out",
@@ -156,11 +123,18 @@ export const Sidebar = ({ children }: SidebarProps) => {
           isCollapsed && "justify-center px-0",
         )}
       >
-        <img
-          src="/darkmesh-dashboard-logo.png"
-          alt="DarkMesh Dashboard"
-          className="size-10 flex-shrink-0 rounded-xl border border-white/10 bg-black/80 p-1"
-        />
+        <button
+          type="button"
+          aria-label={collapseButtonLabel}
+          onClick={toggleSidebar}
+          className="flex-shrink-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <img
+            src="/darkmesh-dashboard-logo.png"
+            alt="DarkMesh Dashboard"
+            className="size-10 rounded-xl border border-white/10 bg-black/80 p-1"
+          />
+        </button>
         <h2
           className={cn(
             "text-sm font-semibold tracking-[0.08em] text-gray-800 dark:text-gray-100 whitespace-nowrap lg:text-base",
