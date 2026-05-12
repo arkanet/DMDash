@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@components/UI/Card.tsx";
 import { Input } from "@components/UI/Input.tsx";
 import { Button } from "@components/UI/Button.tsx";
 import useTracerouteStore, { StoredRouteDiscovery } from "@core/stores/tracerouteStore";
@@ -19,30 +18,23 @@ export default function TraceroutePanel() {
 
   const filtered = useMemo(() => {
     const q = filterNode.trim();
-    if (!q) return all.slice(0, 40);
+    if (!q) return all;
     const num = Number(q);
-    if (Number.isNaN(num)) return all.slice(0, 40);
-    return all
-      .filter((t) => {
-        try {
-          const r = (t as StoredRouteDiscovery).data?.route ?? [];
-          const rb = (t as StoredRouteDiscovery).data?.routeBack ?? [];
-          return r.includes(num) || rb.includes(num) || t.from === num;
-        } catch {
-          return false;
-        }
-      })
-      .slice(0, 200);
+    if (Number.isNaN(num)) return all;
+    return all.filter((t) => {
+      try {
+        const r = (t as StoredRouteDiscovery).data?.route ?? [];
+        const rb = (t as StoredRouteDiscovery).data?.routeBack ?? [];
+        return r.includes(num) || rb.includes(num) || t.from === num;
+      } catch {
+        return false;
+      }
+    });
   }, [all, filterNode]);
 
   return (
-    <Card className="border-slate-200/80 bg-white/90 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/85">
-      <CardHeader>
-        <CardTitle className="uppercase tracking-[0.18em] text-sm text-slate-900 dark:text-white">
-          Traceroutes
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div className="space-y-4">
+      <div>
         <div className="mb-2 flex gap-2">
           <Input
             placeholder="Filter by node number"
@@ -107,7 +99,7 @@ export default function TraceroutePanel() {
             ))
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

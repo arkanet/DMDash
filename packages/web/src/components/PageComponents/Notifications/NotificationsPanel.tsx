@@ -105,7 +105,7 @@ export function NotificationsPanel() {
       setNotifNodeFilter("");
     }
     // if selected, preserve selection and allow filtering
-  }, [primaryScope, myNode]);
+  }, [primaryScope, myNode?.num, setNotifNodeFilter, setSelectedNotifNodeNum]);
 
   // Immediate auto-selection: when typing a query that matches exactly one node,
   // auto-select that node (mirrors Scheduled Messages behavior).
@@ -121,7 +121,7 @@ export function NotificationsPanel() {
     if (matched.length === 1) {
       setSelectedNotifNodeNum(matched[0]?.num ?? null);
     }
-  }, [notifNodeFilter, nodeOptions, primaryScope]);
+  }, [notifNodeFilter, nodeOptions, primaryScope, setSelectedNotifNodeNum]);
 
   // filtered nodes for selection are computed inline where needed
 
@@ -173,82 +173,79 @@ export function NotificationsPanel() {
   }, [primaryScope, selectedNotifNodeNum]);
 
   return (
-    <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-md shadow-md">
-      <div className="p-4 border-b">
-        <div className="flex items-center justify-between">
-          <div className="text-lg font-semibold">Notifications</div>
-          <div className="flex items-center gap-4">
+    <div className="space-y-4">
+      <div className="border-b border-slate-200 pb-4 dark:border-zinc-800">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-col gap-2">
             <div className="text-sm text-text-secondary">Unread: {unread}</div>
-            <div>
-              <label className="text-sm block">
-                <div className="mb-1 text-slate-500">Scope</div>
-                <select
-                  className="h-8 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  value={primaryScope}
-                  onChange={(e) => setPrimaryScope(e.target.value as "all" | "local" | "selected")}
-                >
-                  <option value="all">All Nodes</option>
-                  <option value="local">Local Node</option>
-                  <option value="selected">Selected Node</option>
-                </select>
-              </label>
-            </div>
-            {primaryScope === "selected" && (
-              <div className="w-56">
-                <label className="text-sm">
-                  <input
-                    aria-label="Search nodes"
-                    className="h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                    placeholder="Search nodes"
-                    value={notifNodeFilter}
-                    onChange={(e) => setNotifNodeFilter(e.target.value)}
-                  />
-                </label>
-                <select
-                  className="mt-1 h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  value={selectedNotifNodeNum !== null ? `direct:${selectedNotifNodeNum}` : ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (!v) setSelectedNotifNodeNum(null);
-                    else setSelectedNotifNodeNum(Number(v.split(":")[1]));
-                  }}
-                >
-                  <option value="">All nodes</option>
-                  {(() => {
-                    // Use the same immediate filtering semantics as the Distress Beacon
-                    const q = notifNodeFilter?.trim();
-                    const direct = nodeOptions.map((n) => ({
-                      label:
-                        n.shortName ??
-                        (n.nameHex ? `!${n.nameHex.toUpperCase()}` : t("unknown.shortName")),
-                      value: `direct:${n.num}`,
-                    }));
-                    if (!q)
-                      return direct.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label} ({o.value.split(":")[1]})
-                        </option>
-                      ));
-                    // build lightweight nodes and run the shared filter
-                    const nodesForFilter = nodeOptions.map((o) => ({
-                      num: o.num,
-                      user: { shortName: o.shortName, longName: o.longName },
-                    }));
-                    const matched = filterNodesByQuery(nodesForFilter, q) as { num: number }[];
-                    const matchedSet = new Set(matched.map((n) => n.num));
-                    // Only include direct node options (no channels)
-                    return direct
-                      .filter((o) => matchedSet.has(Number(o.value.split(":")[1])))
-                      .map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label} ({o.value.split(":")[1]})
-                        </option>
-                      ));
-                  })()}
-                </select>
-              </div>
-            )}
+            <label className="text-sm block">
+              <div className="mb-1 text-slate-500">Scope</div>
+              <select
+                className="h-8 w-56 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                value={primaryScope}
+                onChange={(e) => setPrimaryScope(e.target.value as "all" | "local" | "selected")}
+              >
+                <option value="all">All Nodes</option>
+                <option value="local">Local Node</option>
+                <option value="selected">Selected Node</option>
+              </select>
+            </label>
           </div>
+          {primaryScope === "selected" && (
+            <div className="w-56">
+              <label className="text-sm">
+                <input
+                  aria-label="Search nodes"
+                  className="h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  placeholder="Search nodes"
+                  value={notifNodeFilter}
+                  onChange={(e) => setNotifNodeFilter(e.target.value)}
+                />
+              </label>
+              <select
+                className="mt-1 h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                value={selectedNotifNodeNum !== null ? `direct:${selectedNotifNodeNum}` : ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) setSelectedNotifNodeNum(null);
+                  else setSelectedNotifNodeNum(Number(v.split(":")[1]));
+                }}
+              >
+                <option value="">All nodes</option>
+                {(() => {
+                  // Use the same immediate filtering semantics as the Distress Beacon
+                  const q = notifNodeFilter?.trim();
+                  const direct = nodeOptions.map((n) => ({
+                    label:
+                      n.shortName ??
+                      (n.nameHex ? `!${n.nameHex.toUpperCase()}` : t("unknown.shortName")),
+                    value: `direct:${n.num}`,
+                  }));
+                  if (!q)
+                    return direct.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label} ({o.value.split(":")[1]})
+                      </option>
+                    ));
+                  // build lightweight nodes and run the shared filter
+                  const nodesForFilter = nodeOptions.map((o) => ({
+                    num: o.num,
+                    user: { shortName: o.shortName, longName: o.longName },
+                  }));
+                  const matched = filterNodesByQuery(nodesForFilter, q) as { num: number }[];
+                  const matchedSet = new Set(matched.map((n) => n.num));
+                  // Only include direct node options (no channels)
+                  return direct
+                    .filter((o) => matchedSet.has(Number(o.value.split(":")[1])))
+                    .map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label} ({o.value.split(":")[1]})
+                      </option>
+                    ));
+                })()}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Battery notification controls */}
@@ -274,7 +271,7 @@ export function NotificationsPanel() {
               onChange={(e) =>
                 onBatterySettingChange({ batteryPercentThreshold: Number(e.target.value) })
               }
-              className="w-full"
+              className="h-8 w-56 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             />
           </div>
 
@@ -289,7 +286,7 @@ export function NotificationsPanel() {
               step={0.01}
               value={batteryCfg.voltageThreshold}
               onChange={(e) => onBatterySettingChange({ voltageThreshold: Number(e.target.value) })}
-              className="w-full"
+              className="h-8 w-56 rounded-md border border-slate-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             />
           </div>
 
