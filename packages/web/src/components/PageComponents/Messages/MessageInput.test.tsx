@@ -49,7 +49,9 @@ vi.mock("@core/stores", () => ({
 }));
 
 vi.mock("lucide-react", () => ({
+  ReplyIcon: vi.fn(() => <svg data-testid="reply-icon" />),
   SendIcon: vi.fn(() => <svg data-testid="send-icon" />),
+  XIcon: vi.fn(() => <svg data-testid="x-icon" />),
 }));
 
 describe("MessageInput", () => {
@@ -241,7 +243,9 @@ describe("MessageInput", () => {
     fireEvent.submit(formElement);
 
     await waitFor(() => {
-      expect(mockOnSend).toHaveBeenCalledWith("Compressed hello", { compress: true });
+      expect(mockOnSend).toHaveBeenCalledWith("Compressed hello", {
+        compress: true,
+      });
     });
   });
 });

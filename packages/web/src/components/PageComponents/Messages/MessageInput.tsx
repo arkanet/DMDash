@@ -1,5 +1,4 @@
 import { Button } from "@components/UI/Button.tsx";
-import { Input } from "@components/UI/Input.tsx";
 import { useMessages } from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import type { Types } from "@meshtastic/core";
@@ -11,6 +10,8 @@ import {
   useState,
   forwardRef,
   useImperativeHandle,
+  useCallback,
+  useId,
 } from "react";
 // useNodeDB not required in this component
 import MentionAutocomplete from "./MentionAutocomplete";
@@ -54,6 +55,12 @@ export interface MessageInputProps {
   // When `mentionOpen` is true the input should open the mention selector.
   mentionOpen?: boolean;
   onMentionHandled?: () => void;
+  onCompressionChange?: (compress: boolean) => void;
+}
+
+export interface MessageInputHandle {
+  focus: () => void;
+  setCompression: (compress: boolean) => void;
 }
 
 export const MessageInput = forwardRef(
@@ -69,17 +76,13 @@ export const MessageInput = forwardRef(
       compressionAutoSignal,
       mentionOpen,
       onMentionHandled,
+      onCompressionChange,
     }: MessageInputProps,
-    ref: React.Ref<{ focus: () => void } | null>,
+    ref: React.Ref<MessageInputHandle | null>,
   ) => {
-    // Expose focus() to parent
-    useImperativeHandle(ref, () => ({
-      focus: () => {
-        if (inputRef.current) inputRef.current.focus();
-      },
-    }));
     const { setDraft, getDraft, clearDraft } = useMessages();
     const { t } = useTranslation("messages");
+    const inputId = useId();
     const autoInsertedMentionRef = useRef<string | undefined>(undefined);
 
     const initialDraft = getDraft(to);
@@ -87,7 +90,7 @@ export const MessageInput = forwardRef(
     const [messageBytes, setMessageBytes] = useState(() => calculateBytes(initialDraft));
     const [compress, setCompress] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
-    const inputRef = useRef<HTMLInputElement | null>(null);
+    const inputRef = useRef<HTMLTextAreaElement | null>(null);
     const pickerRef = useRef<HTMLDivElement | null>(null);
     const [caretPos, setCaretPos] = useState<number | null>(null);
     const [forcedMentionQuery, setForcedMentionQuery] = useState<string | null>(null);
@@ -109,6 +112,33 @@ export const MessageInput = forwardRef(
         : preference === "system"
           ? EmojiPickerTheme.AUTO
           : EmojiPickerTheme.LIGHT;
+
+    const resizeTextarea = useCallback(() => {
+      const el = inputRef.current;
+      if (!el) return;
+
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+    }, []);
+
+    const updateCompress = useCallback(
+      (nextCompress: boolean) => {
+        setCompress(nextCompress);
+        onCompressionChange?.(nextCompress);
+      },
+      [onCompressionChange],
+    );
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        focus: () => {
+          inputRef.current?.focus();
+        },
+        setCompression: updateCompress,
+      }),
+      [updateCompress],
+    );
 
     // If the EmojiPicker renders into a portal (body), ensure the theme class and
     // CSS variables are available globally so the picker's internal selectors work.
@@ -193,7 +223,11 @@ export const MessageInput = forwardRef(
         }
 
         // eslint-disable-next-line no-console
-        console.debug("EmojiPicker diagnostics", { linkInfo, cssRuleCounts, sampleInfo });
+        console.debug("EmojiPicker diagnostics", {
+          linkInfo,
+          cssRuleCounts,
+          sampleInfo,
+        });
       } catch (e) {
         // eslint-disable-next-line no-console
         console.debug("EmojiPicker diagnostics failed", e);
@@ -297,6 +331,10 @@ export const MessageInput = forwardRef(
       return () => document.removeEventListener("click", onDocClick);
     }, [showPicker]);
 
+    useEffect(() => {
+      resizeTextarea();
+    }, [localDraft, resizeTextarea]);
+
     const handleEmojiClick = (emojiData: EmojiClickData) => {
       const emojiChar = (emojiData && emojiData.emoji) || "";
       // Insert emoji at cursor position
@@ -329,8 +367,8 @@ export const MessageInput = forwardRef(
     // to querying the DOM for the input element by test id or name.
     useEffect(() => {
       if (inputRef.current) return;
-      const el = document.querySelector<HTMLInputElement>(
-        '[data-testid="message-input-field"], input[name="messageInput"]',
+      const el = document.querySelector<HTMLTextAreaElement>(
+        '[data-testid="message-input-field"], textarea[name="messageInput"]',
       );
       if (el) inputRef.current = el;
     }, []);
@@ -351,16 +389,16 @@ export const MessageInput = forwardRef(
         }
       }
 
-      setCompress(nextCompress);
-    }, [compressionPreferenceKey, getDraft, to]);
+      updateCompress(nextCompress);
+    }, [compressionPreferenceKey, getDraft, to, updateCompress]);
 
     useEffect(() => {
       if (compressionAutoSignal === undefined) {
         return;
       }
 
-      setCompress(true);
-    }, [compressionAutoSignal]);
+      updateCompress(true);
+    }, [compressionAutoSignal, updateCompress]);
 
     useEffect(() => {
       if (!replyMentionToken) {
@@ -399,8 +437,8 @@ export const MessageInput = forwardRef(
 
       requestAnimationFrame(() => {
         if (!inputRef.current) {
-          const el = document.querySelector<HTMLInputElement>(
-            '[data-testid="message-input-field"], input[name="messageInput"]',
+          const el = document.querySelector<HTMLTextAreaElement>(
+            '[data-testid="message-input-field"], textarea[name="messageInput"]',
           );
           if (el) inputRef.current = el;
         }
@@ -419,7 +457,7 @@ export const MessageInput = forwardRef(
       });
     }, [mentionOpen, onMentionHandled]);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newValue = e.target.value;
       const byteLength = calculateBytes(newValue);
 
@@ -464,7 +502,7 @@ export const MessageInput = forwardRef(
     // More reliable keydown handler: open mentions when '@' is typed (covers layouts
     // where key events may fire before value updates). We schedule a tick so the
     // input value reflects the newly typed character.
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "@") {
         // Wait next frame so input value & caret are updated
         requestAnimationFrame(() => {
@@ -477,7 +515,7 @@ export const MessageInput = forwardRef(
     };
 
     // Handle composition end (useful for dead keys / Alt combinations on some layouts)
-    const handleCompositionEnd = (_e: React.CompositionEvent<HTMLInputElement>) => {
+    const handleCompositionEnd = (_e: React.CompositionEvent<HTMLTextAreaElement>) => {
       requestAnimationFrame(() => {
         if (!inputRef.current) return;
         const pos = inputRef.current.selectionStart ?? null;
@@ -535,7 +573,9 @@ export const MessageInput = forwardRef(
               </div>
               <button
                 type="button"
-                aria-label={t("replyPreview.clear", { defaultValue: "Clear reply" })}
+                aria-label={t("replyPreview.clear", {
+                  defaultValue: "Clear reply",
+                })}
                 className="ml-3 shrink-0 text-slate-500 transition-colors hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white"
                 onClick={onClearReply}
               >
@@ -543,22 +583,29 @@ export const MessageInput = forwardRef(
               </button>
             </div>
           )}
-          <div className="flex grow gap-1 items-center relative overflow-visible">
-            <label className="w-full" htmlFor="messageInput">
-              <Input
+          <div className="flex grow items-end gap-1 relative overflow-visible">
+            <div className="w-full">
+              <label className="sr-only" htmlFor={inputId}>
+                {t("sendMessage.placeholder")}
+              </label>
+              <textarea
+                id={inputId}
                 minLength={1}
                 name="messageInput"
                 placeholder={t("sendMessage.placeholder")}
                 autoComplete="off"
                 value={localDraft}
+                rows={1}
                 onChange={handleInputChange}
                 onSelect={handleSelectOrKey}
                 onKeyUp={handleSelectOrKey}
                 onKeyDown={handleKeyDown}
                 onCompositionEnd={handleCompositionEnd}
                 ref={inputRef}
+                data-testid="message-input-field"
+                className="max-h-40 min-h-10 w-full resize-none rounded-3xl border border-slate-300 bg-transparent px-4 py-2.5 text-sm leading-5 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-500 dark:bg-[#2f2f2f] dark:text-slate-100 dark:focus:ring-slate-400 dark:focus:ring-offset-slate-600"
               />
-            </label>
+            </div>
             {/* debug badge removed */}
             {/* Mention autocomplete positioned relative to input. Render when forced or when typing '@' */}
             {forcedMentionQuery !== null ? (
@@ -636,17 +683,17 @@ export const MessageInput = forwardRef(
 
             <label
               data-testid="byte-counter"
-              htmlFor="messageInput"
-              className="flex items-center w-20 p-1 text-sm place-content-end"
+              htmlFor={inputId}
+              className="flex items-center w-20 p-1 text-sm place-content-end max-md:hidden"
             >
               {messageBytes}/{maxBytes}
             </label>
 
-            <label className="flex items-center gap-2 text-sm pr-2">
+            <label className="flex items-center gap-2 text-sm pr-2 max-md:hidden">
               <input
                 type="checkbox"
                 checked={compress}
-                onChange={(e) => setCompress(e.target.checked)}
+                onChange={(e) => updateCompress(e.target.checked)}
                 className="h-4 w-4"
               />
               <span className="select-none">
@@ -654,10 +701,12 @@ export const MessageInput = forwardRef(
               </span>
             </label>
 
-            <div className="relative">
+            <div className="relative max-md:hidden">
               <button
                 type="button"
-                aria-label={t("openEmojiPicker", { defaultValue: "Open emoji picker" })}
+                aria-label={t("openEmojiPicker", {
+                  defaultValue: "Open emoji picker",
+                })}
                 aria-expanded={showPicker}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -671,8 +720,14 @@ export const MessageInput = forwardRef(
               {showPicker && (
                 <div
                   ref={pickerRef}
+                  role="dialog"
+                  aria-label={t("openEmojiPicker", {
+                    defaultValue: "Open emoji picker",
+                  })}
+                  tabIndex={-1}
                   className="message-emoji-picker-popover absolute right-0 bottom-12 z-50"
                   onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
                 >
                   <div
                     // apply emoji-picker theme class so internal dark-mode selectors apply
@@ -712,7 +767,11 @@ export const MessageInput = forwardRef(
               )}
             </div>
 
-            <Button type="submit" variant="default">
+            <Button
+              type="submit"
+              variant="default"
+              className="max-md:size-12 max-md:shrink-0 max-md:rounded-full max-md:bg-[#c82124] max-md:p-0 max-md:text-black max-md:hover:bg-[#d5282b] dark:max-md:bg-[#c82124] dark:max-md:text-black dark:max-md:hover:bg-[#d5282b]"
+            >
               <SendIcon size={16} />
             </Button>
           </div>

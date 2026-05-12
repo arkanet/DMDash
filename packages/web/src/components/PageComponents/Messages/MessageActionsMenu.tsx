@@ -22,6 +22,7 @@ interface MessageActionsMenuProps {
   onReply?: () => void;
   showReaction?: boolean;
   reactionPickerPlacement?: "above" | "below";
+  layout?: "floating" | "mobile-column";
 }
 
 export const MessageActionsMenu = ({
@@ -29,6 +30,7 @@ export const MessageActionsMenu = ({
   onReply,
   showReaction = true,
   reactionPickerPlacement = "below",
+  layout = "floating",
 }: MessageActionsMenuProps) => {
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
@@ -49,6 +51,7 @@ export const MessageActionsMenu = ({
   const darkOuterBg = "var(--gateway-bg, #222)";
   const darkMidBg = "rgba(255,255,255,0.03)";
   const darkSearchBg = "rgba(255,255,255,0.06)";
+  const isMobileColumn = layout === "mobile-column";
 
   // Close picker when clicking outside
   useEffect(() => {
@@ -65,25 +68,33 @@ export const MessageActionsMenu = ({
     return;
   }, [showPicker]);
   const { t } = useTranslation("messages");
-  const hoverIconBarClass = cn(
-    "absolute top-2 right-2",
-    "flex items-center gap-x-1",
-    "bg-white dark:bg-zinc-800",
-    "border border-gray-200 dark:border-zinc-600",
-    "rounded-md shadow-sm p-1",
-    "opacity-0 group-hover:opacity-100",
-    "max-md:opacity-100",
-    "transition-opacity duration-100 ease-in-out",
-    "z-10",
-  );
+  const hoverIconBarClass = isMobileColumn
+    ? cn("relative z-10 flex flex-col items-center gap-1 bg-transparent p-0 opacity-100")
+    : cn(
+        "absolute top-2 right-2",
+        "flex items-center gap-x-1",
+        "bg-white dark:bg-zinc-800",
+        "border border-gray-200 dark:border-zinc-600",
+        "rounded-md shadow-sm p-1",
+        "opacity-0 group-hover:opacity-100",
+        "max-md:opacity-100",
+        "transition-opacity duration-100 ease-in-out",
+        "z-10",
+      );
 
-  const hoverIconButtonClass = cn(
-    "p-1 rounded",
-    "text-gray-500 dark:text-gray-400",
-    "hover:text-gray-700 dark:hover:text-gray-300",
-    "hover:bg-gray-100 dark:hover:bg-zinc-700",
-    "cursor-pointer",
-  );
+  const hoverIconButtonClass = isMobileColumn
+    ? cn(
+        "inline-flex size-8 items-center justify-center rounded-full",
+        "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100",
+        "cursor-pointer",
+      )
+    : cn(
+        "p-1 rounded",
+        "text-gray-500 dark:text-gray-400",
+        "hover:text-gray-700 dark:hover:text-gray-300",
+        "hover:bg-gray-100 dark:hover:bg-zinc-700",
+        "cursor-pointer",
+      );
 
   const iconSizeClass = "size-4";
 
@@ -155,7 +166,11 @@ export const MessageActionsMenu = ({
           className={cn(
             "emoji-picker-wrapper message-emoji-picker-shell message-emoji-picker-popover absolute right-0 z-20 rounded-xl border border-slate-200 p-2 shadow-md backdrop-blur-sm dark:border-zinc-700",
             pickerThemeClass,
-            reactionPickerPlacement === "above" ? "bottom-full mb-2" : "top-full mt-2",
+            isMobileColumn
+              ? "top-full mt-2"
+              : reactionPickerPlacement === "above"
+                ? "bottom-full mb-2"
+                : "top-full mt-2",
           )}
           style={
             {

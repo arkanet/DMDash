@@ -24,7 +24,7 @@ import { cn } from "@core/utils/cn.ts";
 import { normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
 import { Protobuf } from "@meshtastic/core";
 import type { LucideIcon } from "lucide-react";
-import { AlertCircle, CheckCircle2, CircleEllipsis, FileArchive } from "lucide-react";
+import { Cloud, CloudCheck, CloudOff, FolderArchive, TriangleAlert } from "lucide-react";
 import { Fragment, type ReactNode, useCallback, useMemo } from "react";
 import SwipeReplyMessage from "./SwipeReplyMessage";
 import { useTranslation } from "react-i18next";
@@ -137,19 +137,19 @@ export const MessageItem = ({
     (): Record<MessageState, MessageStatusInfo> => ({
       [MessageState.Ack]: {
         displayText: t("deliveryStatus.delivered.displayText"),
-        icon: CheckCircle2,
+        icon: CloudCheck,
         ariaLabel: t("deliveryStatus.delivered.label"),
         iconClassName: "text-green-500",
       },
       [MessageState.Waiting]: {
         displayText: t("deliveryStatus.waiting.displayText"),
-        icon: CircleEllipsis,
+        icon: Cloud,
         ariaLabel: t("deliveryStatus.waiting.label"),
         iconClassName: "text-slate-400",
       },
       [MessageState.Failed]: {
         displayText: t("deliveryStatus.failed.displayText"),
-        icon: AlertCircle,
+        icon: CloudOff,
         ariaLabel: t("deliveryStatus.failed.label"),
         iconClassName: "text-red-500 dark:text-red-400",
       },
@@ -160,7 +160,7 @@ export const MessageItem = ({
   const UNKNOWN_STATUS = useMemo(
     (): MessageStatusInfo => ({
       displayText: t("deliveryStatus.unknown.displayText"),
-      icon: AlertCircle,
+      icon: TriangleAlert,
       ariaLabel: t("deliveryStatus.unknown.label"),
       iconClassName: "text-red-500 dark:text-red-400",
     }),
@@ -200,15 +200,6 @@ export const MessageItem = ({
 
   const messageStatusInfo = getMessageStatusInfo(message.state);
   const StatusIconComponent = messageStatusInfo.icon;
-  const mobileStatusClassName = cn(
-    "inline-flex items-center rounded-full border p-1 shadow-sm",
-    message.state === MessageState.Ack &&
-      "border-green-400/70 bg-green-500/15 text-green-600 dark:border-green-400/60 dark:bg-green-500/20 dark:text-green-300",
-    message.state === MessageState.Waiting &&
-      "border-slate-400/50 bg-slate-100/80 text-slate-500 dark:border-zinc-600 dark:bg-zinc-900/80 dark:text-zinc-300",
-    message.state === MessageState.Failed &&
-      "border-red-400/70 bg-red-500/15 text-red-600 dark:border-red-400/60 dark:bg-red-500/20 dark:text-red-300",
-  );
   const mentionNodes = new Map<string, Protobuf.Mesh.NodeInfo>();
   for (const node of getNodes(undefined, true)) {
     const userId = node.user?.id?.toUpperCase();
@@ -317,6 +308,16 @@ export const MessageItem = ({
     [messageDate, locale, config?.display?.use12hClock],
   );
 
+  const formattedMobileTime = useMemo(
+    () =>
+      messageDate?.toLocaleTimeString(locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }) ?? "",
+    [messageDate, locale],
+  );
+
   const fullDateTime = useMemo(
     () =>
       messageDate?.toLocaleString(locale, {
@@ -352,7 +353,7 @@ export const MessageItem = ({
   );
 
   const messageItemWrapperClass = cn(
-    "group w-full py-2 relative list-none",
+    "group w-full py-2 relative list-none max-md:py-1.5",
     "rounded-md",
     // reply target highlight (subtle)
     isReplyTarget ? "bg-slate-100/80 dark:bg-zinc-900/70" : "",
@@ -378,8 +379,11 @@ export const MessageItem = ({
           await device.connection.sendPacket(
             emojiBytes,
             Number(
-              (Protobuf.Portnums as unknown as { PortNum: Record<string, number> }).PortNum
-                .TEXT_MESSAGE_APP,
+              (
+                Protobuf.Portnums as unknown as {
+                  PortNum: Record<string, number>;
+                }
+              ).PortNum.TEXT_MESSAGE_APP,
             ),
             message.to,
             message.channel,
@@ -429,7 +433,15 @@ export const MessageItem = ({
         if (onMention) onMention(message);
       }}
     >
-      <div className="grid grid-cols-[auto_1fr] gap-x-2">
+      <div
+        className={cn(
+          "grid gap-x-2",
+          "md:grid-cols-[auto_1fr]",
+          isSender
+            ? "max-md:grid-cols-[minmax(0,1fr)_auto] max-md:pl-12"
+            : "max-md:grid-cols-[auto_minmax(0,1fr)_auto]",
+        )}
+      >
         <button
           type="button"
           onClick={() => {
@@ -437,7 +449,7 @@ export const MessageItem = ({
             setDialogOpen("nodeDetails", true);
           }}
           aria-label={`Open node ${nodeNum} details`}
-          className="p-0 m-0"
+          className={cn("p-0 m-0", isSender && "max-md:hidden")}
         >
           <Avatar
             size="sm"
@@ -448,8 +460,21 @@ export const MessageItem = ({
           />
         </button>
 
-        <div className="flex flex-col gap-0.5 min-w-0">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+        <div
+          className={cn(
+            "flex min-w-0 flex-col gap-0.5",
+            "max-md:rounded-xl max-md:px-3 max-md:py-2 max-md:shadow-[0_2px_8px_rgba(0,0,0,0.24)]",
+            "max-md:bg-slate-100 dark:max-md:bg-[#2f2f2f]",
+            isSender &&
+              "max-md:justify-self-end max-md:rounded-tr max-md:bg-slate-200 dark:max-md:bg-[#292929]",
+          )}
+        >
+          <div
+            className={cn(
+              "flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5",
+              isSender && "max-md:hidden",
+            )}
+          >
             <span className="font-medium text-sm text-slate-900 dark:text-slate-100 truncate mr-1">
               {displayName}
             </span>
@@ -459,7 +484,10 @@ export const MessageItem = ({
               </span>
             )}
             {messageDate && (
-              <time dateTime={messageDate.toISOString()} className={dateTextStyle}>
+              <time
+                dateTime={messageDate.toISOString()}
+                className={cn(dateTextStyle, "max-md:hidden")}
+              >
                 <span aria-hidden="true">{formattedTime}</span>
                 <span className="sr-only">{fullDateTime}</span>
               </time>
@@ -469,18 +497,22 @@ export const MessageItem = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
-                      aria-label={t("compressed.label", { defaultValue: "Compressed message" })}
-                      className="inline-flex items-center"
+                      aria-label={t("compressed.label", {
+                        defaultValue: "Compressed message",
+                      })}
+                      className="inline-flex items-center max-md:hidden"
                       role="img"
                     >
-                      <FileArchive
-                        className="size-4 shrink-0 text-sky-700 dark:text-sky-300"
+                      <FolderArchive
+                        className="size-4 shrink-0 text-sky-700 max-md:hidden dark:text-sky-300"
                         aria-hidden="true"
                       />
                     </span>
                   </TooltipTrigger>
                   <TooltipContent className="bg-slate-800 dark:bg-slate-600 text-white px-4 py-1 rounded text-xs">
-                    {t("compressed.title", { defaultValue: "Compressed message" })}
+                    {t("compressed.title", {
+                      defaultValue: "Compressed message",
+                    })}
                     <TooltipArrow className="fill-slate-800" />
                   </TooltipContent>
                 </Tooltip>
@@ -505,7 +537,9 @@ export const MessageItem = ({
                   type="button"
                   onClick={() => onJumpToMessage?.(repliedMessage.messageId)}
                   className="rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 py-2 text-xs text-slate-500 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-400 cursor-pointer text-left w-full"
-                  aria-label={t("jumpToOriginal", { defaultValue: "Jump to original message" })}
+                  aria-label={t("jumpToOriginal", {
+                    defaultValue: "Jump to original message",
+                  })}
                 >
                   <div className="font-medium text-slate-700 dark:text-zinc-200">
                     {t("replyingTo", { defaultValue: "Replying to" })}
@@ -612,24 +646,8 @@ export const MessageItem = ({
                   })}
                 </div>
               </SwipeReplyMessage>
-              {shouldShowStatusIcon && (
-                <div className="flex justify-end pt-1 md:hidden">
-                  <StatusTooltip statusInfo={messageStatusInfo}>
-                    <span
-                      aria-label={messageStatusInfo.ariaLabel}
-                      role="img"
-                      className={mobileStatusClassName}
-                    >
-                      <StatusIconComponent
-                        className={cn("size-5 shrink-0", messageStatusInfo.iconClassName)}
-                        aria-hidden="true"
-                      />
-                    </span>
-                  </StatusTooltip>
-                </div>
-              )}
               {(hopLabel || reactionEntries.length > 0) && (
-                <div className="space-y-2 pt-1">
+                <div className="space-y-2 pt-1 max-md:hidden">
                   {hopLabel && (
                     <div className="flex justify-end text-xs text-slate-500 dark:text-slate-400">
                       {hopLabel}
@@ -675,12 +693,104 @@ export const MessageItem = ({
                   )}
                 </div>
               )}
+              {reactionEntries.length > 0 && (
+                <TooltipProvider delayDuration={200}>
+                  <div className="flex flex-wrap gap-1 pt-1 md:hidden">
+                    {reactionEntries.map(([emoji, reaction]) => (
+                      <Tooltip key={emoji}>
+                        <TooltipTrigger asChild>
+                          <div className="inline-flex items-center gap-1 rounded-full bg-black/10 px-2 py-0.5 text-sm dark:bg-black/20">
+                            <span className="text-base leading-none">{emoji}</span>
+                            {reaction.count > 1 && (
+                              <span className="text-xs text-slate-500 dark:text-zinc-300">
+                                {reaction.count}
+                              </span>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-slate-800 dark:bg-slate-600 text-white px-3 py-2 rounded text-xs">
+                          <div className="flex flex-col gap-0.5">
+                            {reaction.senders.length > 0 ? (
+                              reaction.senders.map((senderNodeNum) => (
+                                <span key={`${emoji}-${senderNodeNum}`}>
+                                  {getReactionSenderLabel(senderNodeNum)}
+                                </span>
+                              ))
+                            ) : (
+                              <span>
+                                {t("message.reactionUnknown", {
+                                  defaultValue: "Unknown sender",
+                                })}
+                              </span>
+                            )}
+                          </div>
+                          <TooltipArrow className="fill-slate-800" />
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </TooltipProvider>
+              )}
+              <div className="flex items-center justify-end gap-2 pt-1 text-xs leading-none text-slate-500 md:hidden dark:text-zinc-200">
+                {hopLabel && <span>{hopLabel}</span>}
+                {messageDate && (
+                  <time dateTime={messageDate.toISOString()}>
+                    <span aria-hidden="true">{formattedMobileTime}</span>
+                    <span className="sr-only">{fullDateTime}</span>
+                  </time>
+                )}
+                {message.compressed && (
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          aria-label={t("compressed.label", {
+                            defaultValue: "Compressed message",
+                          })}
+                          className="inline-flex items-center"
+                          role="img"
+                        >
+                          <FolderArchive
+                            className="size-4 shrink-0 text-zinc-500 dark:text-zinc-200"
+                            aria-hidden="true"
+                          />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-slate-800 dark:bg-slate-600 text-white px-4 py-1 rounded text-xs">
+                        {t("compressed.title", {
+                          defaultValue: "Compressed message",
+                        })}
+                        <TooltipArrow className="fill-slate-800" />
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {shouldShowStatusIcon && (
+                  <StatusTooltip statusInfo={messageStatusInfo}>
+                    <span aria-label={messageStatusInfo.ariaLabel} role="img">
+                      <StatusIconComponent
+                        className={cn("size-4 shrink-0", messageStatusInfo.iconClassName)}
+                        aria-hidden="true"
+                      />
+                    </span>
+                  </StatusTooltip>
+                )}
+              </div>
             </div>
           )}
         </div>
+        <div className="hidden items-start justify-center max-md:flex">
+          <MessageActionsMenu
+            layout="mobile-column"
+            onReply={onReply ? () => onReply(message) : undefined}
+            showReaction={!isSender}
+            reactionPickerPlacement={isLatestReceived ? "above" : "below"}
+            onAddReaction={handleAddReaction}
+          />
+        </div>
       </div>
 
-      <div className="absolute top-1 right-1">
+      <div className="absolute top-1 right-1 max-md:hidden">
         <MessageActionsMenu
           onReply={onReply ? () => onReply(message) : undefined}
           showReaction={!isSender}

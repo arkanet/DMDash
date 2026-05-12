@@ -1,7 +1,10 @@
 import { messagesWithParamsRoute } from "@app/routes.tsx";
 import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { ChannelChat } from "@components/PageComponents/Messages/ChannelChat.tsx";
-import { MessageInput } from "@components/PageComponents/Messages/MessageInput.tsx";
+import {
+  MessageInput,
+  type MessageInputHandle,
+} from "@components/PageComponents/Messages/MessageInput.tsx";
 // mention auto-insert disabled; buildNodeMention intentionally unused
 import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
@@ -10,6 +13,7 @@ import { Input } from "@components/UI/Input.tsx";
 import { LeftSidebarButton } from "@components/UI/Sidebar/LeftSidebarButton.tsx";
 import { MessageSidebarButton } from "@components/UI/Sidebar/MessageSidebarButton.tsx";
 import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
+import { Switch } from "@components/UI/Switch.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
 import { ToastAction } from "@components/UI/Toast.tsx";
 import {
@@ -35,7 +39,14 @@ import { Protobuf, Types, Constants } from "@meshtastic/core";
 import { getNodeLongName } from "@app/darkmesh/utils.ts";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeftIcon, HashIcon, LockIcon, LockOpenIcon, UsersIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  FolderArchive,
+  HashIcon,
+  LockIcon,
+  LockOpenIcon,
+  UsersIcon,
+} from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getChannelName } from "../components/PageComponents/Channels/Channels.tsx";
@@ -109,7 +120,7 @@ export const MessagesPage = () => {
 
   const { setMessageState } = useMessages();
   const { deviceId } = useDeviceContext();
-  const messageInputRef = useRef<{ focus: () => void } | null>(null);
+  const messageInputRef = useRef<MessageInputHandle | null>(null);
 
   const { type, chatId } = useParams({ from: messagesWithParamsRoute.id });
 
@@ -119,6 +130,7 @@ export const MessagesPage = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [replyTo, setReplyTo] = useState<Message | undefined>();
   const [mentionOpen, setMentionOpen] = useState<boolean>(false);
+  const [mobileCompressionEnabled, setMobileCompressionEnabled] = useState(false);
   const [showMobileChannelList, setShowMobileChannelList] = useState(true);
   const { t } = useTranslation(["messages", "channels", "ui"]);
   const deferredSearch = useDeferredValue(searchTerm);
@@ -661,6 +673,11 @@ export const MessagesPage = () => {
     setShowMobileChannelList(false);
   };
 
+  const handleMobileCompressionChange = (checked: boolean) => {
+    setMobileCompressionEnabled(checked);
+    messageInputRef.current?.setCompression(checked);
+  };
+
   useEffect(() => {
     if (type === "direct" && chatId !== undefined) {
       setShowMobileChannelList(false);
@@ -860,6 +877,7 @@ export const MessagesPage = () => {
               onMentionHandled={() => setMentionOpen(false)}
               compressionPreferenceKey={compressionPreferenceKey}
               compressionAutoSignal={compressionAutoSignal}
+              onCompressionChange={setMobileCompressionEnabled}
             />
           ) : (
             <div className="p-4 text-center text-slate-400 italic">
@@ -882,13 +900,22 @@ export const MessagesPage = () => {
               >
                 <ArrowLeftIcon className="size-6" />
               </button>
-              <div className="min-w-0 truncate text-lg font-semibold">
+              <div className="min-w-0 flex-1 truncate text-lg font-semibold">
                 {isBroadcast && currentChannel
                   ? getChannelName(currentChannel)
                   : isDirect && otherNode
                     ? (getNodeLongName(otherNode) ??
                       `!${numberToHexUnpadded(otherNode.num).toUpperCase()}`)
                     : t("emptyState.title")}
+              </div>
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <FolderArchive className="size-6 text-zinc-400" aria-hidden="true" />
+                <Switch
+                  checked={mobileCompressionEnabled}
+                  onCheckedChange={handleMobileCompressionChange}
+                  aria-label={t("sendMessage.compress", { ns: "messages" })}
+                  className="data-[state=checked]:border-[#00e531] data-[state=checked]:bg-zinc-500 dark:data-[state=checked]:bg-zinc-500"
+                />
               </div>
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -906,6 +933,7 @@ export const MessagesPage = () => {
                 onMentionHandled={() => setMentionOpen(false)}
                 compressionPreferenceKey={compressionPreferenceKey}
                 compressionAutoSignal={compressionAutoSignal}
+                onCompressionChange={setMobileCompressionEnabled}
               />
             </div>
           </>
