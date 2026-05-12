@@ -11,6 +11,7 @@ import {
 import { Input } from "@components/UI/Input.tsx";
 import { Label } from "@components/UI/Label.tsx";
 import { Separator } from "@components/UI/Separator.tsx";
+import { toast } from "@core/hooks/useToast.ts";
 import { useDevice } from "@core/stores";
 import { ClockIcon, OctagonXIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
@@ -22,6 +23,7 @@ export interface RebootDialogProps {
 }
 
 const DEFAULT_REBOOT_DELAY = 5; // seconds
+const REBOOT_NOW_DELAY = 5; // seconds, matching the Android admin reboot request
 
 export const RebootDialog = ({ open, onOpenChange }: RebootDialogProps) => {
   const { t } = useTranslation("dialog");
@@ -34,14 +36,37 @@ export const RebootDialog = ({ open, onOpenChange }: RebootDialogProps) => {
 
   const handleReboot = (delay: number) => {
     if (!connection) {
-      return;
+      toast({
+        title: t("reboot.noConnection", {
+          defaultValue: "No active connection to device",
+        }),
+        variant: "destructive",
+      });
+      return false;
     }
 
-    if (isOTA) {
-      connection.rebootOta(delay);
-    } else {
-      connection.reboot(delay);
+    const rebootCommand = isOTA ? connection.rebootOta : connection.reboot;
+    if (typeof rebootCommand !== "function") {
+      toast({
+        title: t("reboot.unavailable", {
+          defaultValue: "Reboot is not available on this connection",
+        }),
+        variant: "destructive",
+      });
+      return false;
     }
+
+    void Promise.resolve(rebootCommand.call(connection, delay)).catch((error) => {
+      toast({
+        title: t("reboot.failed", {
+          defaultValue: "Failed to send reboot command",
+        }),
+        variant: "destructive",
+      });
+      console.error("Failed to send reboot command:", error);
+    });
+
+    return true;
   };
 
   const handleSetTime = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,11 +85,12 @@ export const RebootDialog = ({ open, onOpenChange }: RebootDialogProps) => {
   };
 
   const handleRebootWithTimeout = async () => {
-    setIsScheduled(true);
-
     const delay = time > 0 ? time : DEFAULT_REBOOT_DELAY;
 
-    handleReboot(delay);
+    if (!handleReboot(delay)) {
+      return;
+    }
+    setIsScheduled(true);
 
     const id = setTimeout(() => {
       setIsScheduled(false);
@@ -76,13 +102,15 @@ export const RebootDialog = ({ open, onOpenChange }: RebootDialogProps) => {
 
   const handleCancel = () => {
     clearTimeout(timeoutId);
-    setIsScheduled(false);
-    handleReboot(-1);
+    if (handleReboot(-1)) {
+      setIsScheduled(false);
+    }
   };
 
   const handleInstantReboot = async () => {
-    handleReboot(0);
-    onOpenChange(false);
+    if (handleReboot(REBOOT_NOW_DELAY)) {
+      onOpenChange(false);
+    }
   };
 
   return (

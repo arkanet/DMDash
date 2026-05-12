@@ -8,8 +8,8 @@ const rebootMock = vi.fn();
 const rebootOtaMock = vi.fn();
 let mockConnection:
   | {
-      rebootOta: (delay: number) => void;
-      reboot: (delay: number) => void;
+      rebootOta: (delay: number) => Promise<number>;
+      reboot: (delay: number) => Promise<number>;
     }
   | undefined = {
   reboot: rebootMock,
@@ -60,10 +60,15 @@ vi.mock("@components/UI/Dialog.tsx", () => {
 describe("RebootDialog", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    rebootOtaMock.mockClear();
+    rebootMock.mockReset();
+    rebootOtaMock.mockReset();
+    rebootMock.mockResolvedValue(1);
+    rebootOtaMock.mockResolvedValue(1);
+    mockConnection = { reboot: rebootMock, rebootOta: rebootOtaMock };
   });
 
   afterEach(() => {
+    vi.clearAllTimers();
     vi.useRealTimers();
   });
 
@@ -133,7 +138,7 @@ describe("RebootDialog", () => {
     expect(onOpenChangeMock).toHaveBeenCalledWith(false);
   });
 
-  it("triggers an instant reboot", async () => {
+  it("triggers a reboot-now request with the firmware-safe delay", async () => {
     const onOpenChangeMock = vi.fn();
     render(<RebootDialog open onOpenChange={onOpenChangeMock} />);
 
@@ -141,7 +146,7 @@ describe("RebootDialog", () => {
       fireEvent.click(screen.getByRole("button", { name: /reboot now/i }));
     });
 
-    expect(rebootMock).toHaveBeenCalledWith(0);
+    expect(rebootMock).toHaveBeenCalledWith(5);
     expect(onOpenChangeMock).toHaveBeenCalledWith(false);
   });
 
@@ -162,8 +167,8 @@ describe("RebootDialog", () => {
 
     expect(rebootMock).not.toHaveBeenCalled();
     expect(rebootOtaMock).not.toHaveBeenCalled();
-
-    mockConnection = { reboot: rebootMock, rebootOta: rebootOtaMock };
+    expect(onOpenChangeMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/reboot has been scheduled/i)).not.toBeInTheDocument();
   });
 
   it("cancels a scheduled reboot and calls rebootOta with -1", async () => {
