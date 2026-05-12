@@ -42,11 +42,12 @@ import {
   requestNeighborInfo,
   startVisualTraceroute,
 } from "@core/services/darkmesh/nodeActions.ts";
+import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { positionPoint } from "@core/utils/geo.ts";
 import { create } from "@bufbuild/protobuf";
-import { Protobuf } from "@meshtastic/core";
+import { Protobuf, Types } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { fromByteArray } from "base64-js";
@@ -77,12 +78,12 @@ import {
 } from "../../../darkmesh/utils.ts";
 import NodeMetricsChart from "@components/NodeMetricsChart.tsx";
 import NodeSignalChart from "@components/NodeSignalChart.tsx";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { logger } from "@core/utils/logger";
 import { useTranslation } from "react-i18next";
-// useDarkMeshStore not needed here after switching to node's rxRssi
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
 import { normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
+import { TracerouteResponseDialog } from "@components/Dialog/TracerouteResponseDialog.tsx";
 
 export interface NodeDetailsDialogProps {
   open: boolean;
@@ -158,6 +159,35 @@ export const NodeDetailsDialog = ({
     nodeDB.markNodeStatusRead(nodeForRender.num);
   }, [nodeForRender, nodeDB, nodeStatus, open]);
 
+  const selectedStoreTraceRoute = useDarkMeshStore((state) => state.selectedTraceRoute);
+  const [selectedTraceroute, setSelectedTraceroute] = useState<
+    Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> | undefined
+  >();
+  const [selectedTracerouteDurationMs, setSelectedTracerouteDurationMs] = useState<
+    number | undefined
+  >();
+  const pendingTracerouteNodeRef = useRef<number | undefined>(undefined);
+  const pendingTracerouteStartedAtRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    const pendingNode = pendingTracerouteNodeRef.current;
+    if (!selectedStoreTraceRoute || pendingNode === undefined) {
+      return;
+    }
+    if (selectedStoreTraceRoute.from.valueOf() !== pendingNode) {
+      return;
+    }
+
+    setSelectedTracerouteDurationMs(
+      pendingTracerouteStartedAtRef.current !== undefined
+        ? Date.now() - pendingTracerouteStartedAtRef.current
+        : undefined,
+    );
+    setSelectedTraceroute(selectedStoreTraceRoute);
+    pendingTracerouteNodeRef.current = undefined;
+    pendingTracerouteStartedAtRef.current = undefined;
+  }, [selectedStoreTraceRoute]);
+
   // Ensure we have the node we intend to render. useEffect and hooks above
   // must stay before any early return, so check `nodeForRender` here.
   if (!nodeForRender) {
@@ -169,6 +199,11 @@ export const NodeDetailsDialog = ({
   const computedShortName = getNodeShortName(currentNode) ?? t("unknown.shortName");
   const currentNodeError = nodeDB.getNodeError(currentNode.num);
   const neighborInfo = getNeighborInfo(currentNode?.num ?? effectiveNodeNum);
+
+  function closeTracerouteDialog() {
+    setSelectedTraceroute(undefined);
+    setSelectedTracerouteDurationMs(undefined);
+  }
 
   function handleDirectMessage() {
     const nodeError = nodeDB.getNodeError(currentNode.num);
@@ -246,6 +281,9 @@ export const NodeDetailsDialog = ({
   }
 
   async function handleVisualTraceroute() {
+    pendingTracerouteNodeRef.current = currentNode.num;
+    pendingTracerouteStartedAtRef.current = Date.now();
+
     try {
       toast({
         title: t("toast.sendingTraceroute.title", { ns: "ui" }),
@@ -254,8 +292,12 @@ export const NodeDetailsDialog = ({
       toast({
         title: t("toast.tracerouteSent.title", { ns: "ui" }),
       });
-      navigate({ to: "/map" });
+      if (propNodeNum === undefined) {
+        onOpenChange(false);
+      }
     } catch (error) {
+      pendingTracerouteNodeRef.current = undefined;
+      pendingTracerouteStartedAtRef.current = undefined;
       /*
        Silenced non-blocking visual traceroute warning in dialog.
        Original line (commented):
@@ -265,8 +307,6 @@ export const NodeDetailsDialog = ({
       toast({
         title: t("toast.tracerouteError.title", { ns: "ui" }),
       });
-    } finally {
-      setDialogOpen("nodeDetails", false);
     }
   }
 
@@ -468,14 +508,22 @@ export const NodeDetailsDialog = ({
                         const hostWithPort = u.port ? `${u.hostname}:${u.port}` : u.hostname;
                         if (urlOrIpv4Schema.safeParse(hostWithPort).success) {
                           const idx = text.indexOf(token);
-                          return { url: candidate, start: idx, end: idx + token.length };
+                          return {
+                            url: candidate,
+                            start: idx,
+                            end: idx + token.length,
+                          };
                         }
                       }
 
                       if (cleaned.includes(".") || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(cleaned)) {
                         if (urlOrIpv4Schema.safeParse(cleaned).success) {
                           const idx = text.indexOf(token);
-                          return { url: cleaned, start: idx, end: idx + token.length };
+                          return {
+                            url: cleaned,
+                            start: idx,
+                            end: idx + token.length,
+                          };
                         }
                       }
                     } catch {
@@ -813,7 +861,9 @@ export const NodeDetailsDialog = ({
                                 title: t("nodeDetails.shareCopied", "Copied URL to clipboard"),
                               });
                             } catch {
-                              toast({ title: t("nodeDetails.shareCopyError", "Failed to copy") });
+                              toast({
+                                title: t("nodeDetails.shareCopyError", "Failed to copy"),
+                              });
                             }
                           }}
                         >
@@ -935,8 +985,11 @@ export const NodeDetailsDialog = ({
                 <NodeSignalChart
                   snr={currentNode.snr}
                   rssi={
-                    (currentNode as unknown as Protobuf.Mesh.NodeInfo & { rxRssi?: number })
-                      .rxRssi ?? undefined
+                    (
+                      currentNode as unknown as Protobuf.Mesh.NodeInfo & {
+                        rxRssi?: number;
+                      }
+                    ).rxRssi ?? undefined
                   }
                   invertOrder={true}
                 />
@@ -1007,7 +1060,10 @@ export const NodeDetailsDialog = ({
                               function updateOverride(patch: Partial<typeof myOverride>) {
                                 const next = {
                                   ...(overrides || {}),
-                                  [currentNode.num]: { ...(myOverride || {}), ...patch },
+                                  [currentNode.num]: {
+                                    ...(myOverride || {}),
+                                    ...patch,
+                                  },
                                 } as typeof overrides;
 
                                 setConfig({
@@ -1045,7 +1101,9 @@ export const NodeDetailsDialog = ({
                                       cfg.batteryMonitoring.voltageThreshold
                                     }
                                     onChange={(e) =>
-                                      updateOverride({ voltageThreshold: Number(e.target.value) })
+                                      updateOverride({
+                                        voltageThreshold: Number(e.target.value),
+                                      })
                                     }
                                     className="w-28"
                                   />
@@ -1087,6 +1145,12 @@ export const NodeDetailsDialog = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <TracerouteResponseDialog
+        traceroute={selectedTraceroute}
+        open={!!selectedTraceroute}
+        durationMs={selectedTracerouteDurationMs}
+        onOpenChange={closeTracerouteDialog}
+      />
     </>
   );
 };
