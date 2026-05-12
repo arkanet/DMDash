@@ -79,6 +79,18 @@ const DateDelimiter = ({ label }: { label: string }) => (
   </li>
 );
 
+const UnreadDelimiter = ({ id, label }: { id: string; label: string }) => (
+  <li id={id} aria-label={label} className="scroll-mt-4">
+    <div className="my-3 flex items-center justify-center">
+      <Separator className="bg-red-500/70 dark:bg-red-500/70" />
+      <div className="mx-4 whitespace-nowrap rounded-full border border-red-500/50 bg-red-500/10 px-3 py-0.5 text-center text-[11px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-300">
+        {label}
+      </div>
+      <Separator className="bg-red-500/70 dark:bg-red-500/70" />
+    </div>
+  </li>
+);
+
 const MessageSkeleton = () => {
   return (
     <li className="group w-full py-2 relative list-none rounded-md">
@@ -169,7 +181,14 @@ export const ChannelChat = ({
   const listRef = useRef<HTMLUListElement | null>(null);
   const unreadAnchorTargetRef = useRef<number | undefined>(undefined);
   const unreadAnchorScrolledRef = useRef(false);
+  const [unreadDividerMessageId, setUnreadDividerMessageId] = useState<number | undefined>(
+    undefined,
+  );
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | undefined>(undefined);
+  const visibleUnreadDividerMessageId = firstUnreadMessageId ?? unreadDividerMessageId;
+  const unreadDividerLabel = i18n.language?.toLowerCase().startsWith("it")
+    ? "Messaggi non letti"
+    : "Unread messages";
 
   const jumpToMessage = useCallback((messageId: number) => {
     setHighlightedMessageId(messageId);
@@ -191,7 +210,14 @@ export const ChannelChat = ({
   useLayoutEffect(() => {
     unreadAnchorTargetRef.current = undefined;
     unreadAnchorScrolledRef.current = false;
+    setUnreadDividerMessageId(undefined);
   }, [chatKey]);
+
+  useLayoutEffect(() => {
+    if (firstUnreadMessageId !== undefined) {
+      setUnreadDividerMessageId(firstUnreadMessageId);
+    }
+  }, [firstUnreadMessageId]);
 
   // Auto-scroll to show newest message when messages change.
   // Because the list uses `flex-col-reverse`, scrolling to `top: 0` shows newest messages.
@@ -213,7 +239,9 @@ export const ChannelChat = ({
       }
 
       requestAnimationFrame(() => {
-        const target = document.getElementById(`message-${unreadAnchorTarget}`);
+        const target =
+          document.getElementById(`unread-anchor-${unreadAnchorTarget}`) ??
+          document.getElementById(`message-${unreadAnchorTarget}`);
         target?.scrollIntoView({ block: "center", behavior: "auto" });
       });
       unreadAnchorScrolledRef.current = true;
@@ -239,23 +267,31 @@ export const ChannelChat = ({
       {groups.map(({ dayKey, label, items }) => (
         <Fragment key={dayKey}>
           {/* Render messages first, then delimiter — with flex-col-reverse this shows the delimiter above that day's messages */}
-          {items.map((message) => (
-            <Suspense
-              key={message.messageId ?? `${message.from}-${message.date}`}
-              fallback={<MessageSkeleton />}
-            >
-              <MessageItem
-                message={message}
-                repliedMessage={message.replyId ? messageIndex.get(message.replyId) : undefined}
-                isReplyTarget={replyTargets.has(message.messageId)}
-                isHighlighted={highlightedMessageId === message.messageId}
-                isLatestReceived={message.messageId === latestReceivedMessageId}
-                onJumpToMessage={jumpToMessage}
-                onReply={onReply}
-                onMention={onMention}
-              />
-            </Suspense>
-          ))}
+          {items.map((message) => {
+            const messageKey = message.messageId ?? `${message.from}-${message.date}`;
+            return (
+              <Fragment key={messageKey}>
+                <Suspense fallback={<MessageSkeleton />}>
+                  <MessageItem
+                    message={message}
+                    repliedMessage={message.replyId ? messageIndex.get(message.replyId) : undefined}
+                    isReplyTarget={replyTargets.has(message.messageId)}
+                    isHighlighted={highlightedMessageId === message.messageId}
+                    isLatestReceived={message.messageId === latestReceivedMessageId}
+                    onJumpToMessage={jumpToMessage}
+                    onReply={onReply}
+                    onMention={onMention}
+                  />
+                </Suspense>
+                {message.messageId === visibleUnreadDividerMessageId ? (
+                  <UnreadDelimiter
+                    id={`unread-anchor-${message.messageId}`}
+                    label={unreadDividerLabel}
+                  />
+                ) : null}
+              </Fragment>
+            );
+          })}
           <DateDelimiter label={label} />
         </Fragment>
       ))}
