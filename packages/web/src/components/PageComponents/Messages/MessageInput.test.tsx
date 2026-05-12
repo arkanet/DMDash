@@ -170,6 +170,27 @@ describe("MessageInput", () => {
     });
   });
 
+  it("should clear the reply preview when a valid message is submitted", async () => {
+    const onClearReply = vi.fn();
+    renderComponent({
+      onClearReply,
+      replyTo: {
+        messageId: 99,
+        message: "Original message",
+      } as MessageInputProps["replyTo"],
+    });
+    const inputElement = screen.getByTestId("message-input-field");
+    const formElement = screen.getByRole("form");
+
+    fireEvent.change(inputElement, { target: { value: "Reply message" } });
+    fireEvent.submit(formElement);
+
+    await waitFor(() => {
+      expect(mockOnSend).toHaveBeenCalledWith("Reply message");
+      expect(onClearReply).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("should not call onSend or clearDraft if input is empty on submit", async () => {
     renderComponent();
     const inputElement = screen.getByTestId("message-input-field");

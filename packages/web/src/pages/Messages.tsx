@@ -105,6 +105,22 @@ function getCompressionPreferenceKey(chatType: MessageType, chatId: number) {
   return `${chatId}${Constants.broadcastNum}`;
 }
 
+function getPacketErrorId(error: unknown): number | undefined {
+  if (!error || typeof error !== "object" || !("id" in error)) {
+    return undefined;
+  }
+
+  const id = (error as { id?: unknown }).id;
+  return typeof id === "number" ? id : undefined;
+}
+
+function isPrimaryChannel(channel: { index: number; role?: Protobuf.Channel.Channel_Role }) {
+  return (
+    channel.role === Protobuf.Channel.Channel_Role.PRIMARY ||
+    channel.index === Types.ChannelNumber.Primary
+  );
+}
+
 function SelectMessageChat() {
   const { t } = useTranslation("messages");
   return (
@@ -508,7 +524,7 @@ export const MessagesPage = () => {
         }
       } catch (e: unknown) {
         console.error("Failed to send message:", e);
-        const failedId = messageId ?? randId();
+        const failedId = messageId ?? getPacketErrorId(e) ?? randId();
         if (chatType === MessageType.Broadcast) {
           setMessageState({
             type: MessageType.Broadcast,
@@ -736,43 +752,49 @@ export const MessagesPage = () => {
             </div>
           </button>
         ))}
-        {channelSummaries.map(({ channel, latest, senderName, unread, label }) => (
-          <button
-            key={channel.index}
-            type="button"
-            onClick={() => openBroadcastChannel(channel.index)}
-            className="grid min-h-[4.5rem] w-full grid-cols-[3.25rem_1fr_auto] items-center gap-2 rounded-[1rem] bg-background-secondary px-3 py-2 text-left text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#2f2f2f] dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)]"
-          >
-            <div className="flex justify-center">
-              <UsersIcon className={cn("size-6", unread ? "text-[#00e531]" : "text-[#9b1118]")} />
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-[1.0875rem] leading-tight text-text-primary">
-                {label}
+        {channelSummaries.map(({ channel, latest, senderName, unread, label }) => {
+          const primaryChannel = isPrimaryChannel(channel);
+
+          return (
+            <button
+              key={channel.index}
+              type="button"
+              onClick={() => openBroadcastChannel(channel.index)}
+              className="grid min-h-[4.5rem] w-full grid-cols-[3.25rem_1fr_auto] items-center gap-2 rounded-[1rem] bg-background-secondary px-3 py-2 text-left text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#2f2f2f] dark:shadow-[0_2px_8px_rgba(0,0,0,0.35)]"
+            >
+              <div className="flex justify-center">
+                <UsersIcon
+                  className={cn("size-6", primaryChannel ? "text-[#00e531]" : "text-[#9b1118]")}
+                />
               </div>
-              {latest ? (
-                <div className="mt-1.5 line-clamp-2 text-[0.7875rem] leading-tight text-text-primary">
-                  {senderName ? `${senderName}: ` : ""}
-                  {latest.message}
+              <div className="min-w-0">
+                <div className="truncate text-[1.0875rem] leading-tight text-text-primary">
+                  {label}
                 </div>
-              ) : null}
-            </div>
-            <div className="self-start whitespace-nowrap text-[0.825rem] text-text-primary">
-              {unread > 0 ? (
-                <span className="rounded-full bg-[#8d0606] px-1.5 py-0.5 text-[0.65rem] text-white">
-                  {unread}
-                </span>
-              ) : latest ? (
-                new Intl.DateTimeFormat(undefined, {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }).format(new Date(latest.date * 1000))
-              ) : (
-                ""
-              )}
-            </div>
-          </button>
-        ))}
+                {latest ? (
+                  <div className="mt-1.5 line-clamp-2 text-[0.7875rem] leading-tight text-text-primary">
+                    {senderName ? `${senderName}: ` : ""}
+                    {latest.message}
+                  </div>
+                ) : null}
+              </div>
+              <div className="self-start whitespace-nowrap text-[0.825rem] text-text-primary">
+                {unread > 0 ? (
+                  <span className="rounded-full bg-[#8d0606] px-1.5 py-0.5 text-[0.65rem] text-white">
+                    {unread}
+                  </span>
+                ) : latest ? (
+                  new Intl.DateTimeFormat(undefined, {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }).format(new Date(latest.date * 1000))
+                ) : (
+                  ""
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

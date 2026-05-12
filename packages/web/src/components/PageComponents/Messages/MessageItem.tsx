@@ -178,6 +178,27 @@ export const MessageItem = ({
     return message.from != null ? getNode(message.from) : undefined;
   }, [getNode, message.from]);
 
+  const getNodeDisplayName = useCallback(
+    (nodeNum: number, options?: { useSelfLabel?: boolean }) => {
+      if (options?.useSelfLabel && nodeNum === myNodeNum) {
+        return t("message.you", { defaultValue: "You" });
+      }
+
+      const node = nodeNum === myNodeNum ? myNode : getNode(nodeNum);
+      const longName = getNodeLongName(node) ?? undefined;
+      if (longName) {
+        return longName;
+      }
+      if (node?.user?.shortName) {
+        return node.user.shortName;
+      }
+
+      const senderHex = nodeNum.toString(16).toUpperCase().padStart(8, "0");
+      return t("fallbackName", { last4: senderHex.slice(-4) });
+    },
+    [getNode, myNode, myNodeNum, t],
+  );
+
   const { displayName, isFavorite, nodeNum, nodeStatus } = useMemo(() => {
     const userIdHex = message.from.toString(16).toUpperCase().padStart(2, "0");
     const last4 = userIdHex.slice(-4);
@@ -226,25 +247,16 @@ export const MessageItem = ({
     () => Object.entries(message.reactions ?? {}).slice(0, 6),
     [message.reactions],
   );
+  const repliedMessageSenderName = useMemo(
+    () => (repliedMessage ? getNodeDisplayName(repliedMessage.from) : undefined),
+    [getNodeDisplayName, repliedMessage],
+  );
 
   const getReactionSenderLabel = useCallback(
     (senderNodeNum: number) => {
-      if (senderNodeNum === myNodeNum) {
-        return t("message.you", { defaultValue: "You" });
-      }
-
-      const senderNode = getNode(senderNodeNum);
-      if (getNodeLongName(senderNode)) {
-        return getNodeLongName(senderNode) as string;
-      }
-      if (senderNode?.user?.shortName) {
-        return senderNode.user.shortName;
-      }
-
-      const senderHex = senderNodeNum.toString(16).toUpperCase().padStart(8, "0");
-      return t("fallbackName", { last4: senderHex.slice(-4) });
+      return getNodeDisplayName(senderNodeNum, { useSelfLabel: true });
     },
-    [getNode, myNodeNum, t],
+    [getNodeDisplayName],
   );
 
   // Split plain text fragments further into URL parts so links become clickable.
@@ -542,7 +554,7 @@ export const MessageItem = ({
                   })}
                 >
                   <div className="font-medium text-slate-700 dark:text-zinc-200">
-                    {t("replyingTo", { defaultValue: "Replying to" })}
+                    {repliedMessageSenderName}
                   </div>
                   <div className="line-clamp-2 whitespace-pre-wrap break-words">
                     {repliedMessage.message}
@@ -693,44 +705,6 @@ export const MessageItem = ({
                   )}
                 </div>
               )}
-              {reactionEntries.length > 0 && (
-                <TooltipProvider delayDuration={200}>
-                  <div className="flex flex-wrap gap-1 pt-1 md:hidden">
-                    {reactionEntries.map(([emoji, reaction]) => (
-                      <Tooltip key={emoji}>
-                        <TooltipTrigger asChild>
-                          <div className="inline-flex items-center gap-1 rounded-full bg-black/10 px-2 py-0.5 text-sm dark:bg-black/20">
-                            <span className="text-base leading-none">{emoji}</span>
-                            {reaction.count > 1 && (
-                              <span className="text-xs text-slate-500 dark:text-zinc-300">
-                                {reaction.count}
-                              </span>
-                            )}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-slate-800 dark:bg-slate-600 text-white px-3 py-2 rounded text-xs">
-                          <div className="flex flex-col gap-0.5">
-                            {reaction.senders.length > 0 ? (
-                              reaction.senders.map((senderNodeNum) => (
-                                <span key={`${emoji}-${senderNodeNum}`}>
-                                  {getReactionSenderLabel(senderNodeNum)}
-                                </span>
-                              ))
-                            ) : (
-                              <span>
-                                {t("message.reactionUnknown", {
-                                  defaultValue: "Unknown sender",
-                                })}
-                              </span>
-                            )}
-                          </div>
-                          <TooltipArrow className="fill-slate-800" />
-                        </TooltipContent>
-                      </Tooltip>
-                    ))}
-                  </div>
-                </TooltipProvider>
-              )}
               <div className="flex items-center justify-end gap-2 pt-1 text-xs leading-none text-slate-500 md:hidden dark:text-zinc-200">
                 {hopLabel && <span>{hopLabel}</span>}
                 {messageDate && (
@@ -789,6 +763,49 @@ export const MessageItem = ({
           />
         </div>
       </div>
+      {reactionEntries.length > 0 && (
+        <TooltipProvider delayDuration={200}>
+          <div
+            className={cn(
+              "flex flex-wrap gap-1 pt-1 md:hidden",
+              isSender ? "justify-end pr-3" : "justify-start pl-3",
+            )}
+          >
+            {reactionEntries.map(([emoji, reaction]) => (
+              <Tooltip key={emoji}>
+                <TooltipTrigger asChild>
+                  <div className="inline-flex items-center gap-1 rounded-full bg-black/10 px-2 py-0.5 text-sm dark:bg-black/20">
+                    <span className="text-base leading-none">{emoji}</span>
+                    {reaction.count > 1 && (
+                      <span className="text-xs text-slate-500 dark:text-zinc-300">
+                        {reaction.count}
+                      </span>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="bg-slate-800 dark:bg-slate-600 text-white px-3 py-2 rounded text-xs">
+                  <div className="flex flex-col gap-0.5">
+                    {reaction.senders.length > 0 ? (
+                      reaction.senders.map((senderNodeNum) => (
+                        <span key={`${emoji}-${senderNodeNum}`}>
+                          {getReactionSenderLabel(senderNodeNum)}
+                        </span>
+                      ))
+                    ) : (
+                      <span>
+                        {t("message.reactionUnknown", {
+                          defaultValue: "Unknown sender",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  <TooltipArrow className="fill-slate-800" />
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </TooltipProvider>
+      )}
 
       <div className="absolute top-1 right-1 max-md:hidden">
         <MessageActionsMenu

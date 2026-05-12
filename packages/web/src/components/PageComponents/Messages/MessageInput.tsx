@@ -546,6 +546,7 @@ export const MessageInput = forwardRef(
         } else {
           onSend(payload);
         }
+        onClearReply?.();
         setLocalDraft("");
         autoInsertedMentionRef.current = undefined;
         // ensure mention selector is closed and caret reset after send
@@ -603,7 +604,7 @@ export const MessageInput = forwardRef(
                 onCompositionEnd={handleCompositionEnd}
                 ref={inputRef}
                 data-testid="message-input-field"
-                className="max-h-40 min-h-10 w-full resize-none rounded-3xl border border-slate-300 bg-transparent px-4 py-2.5 text-sm leading-5 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-500 dark:bg-[#2f2f2f] dark:text-slate-100 dark:focus:ring-slate-400 dark:focus:ring-offset-slate-600"
+                className="max-h-40 min-h-10 w-full resize-none overflow-hidden rounded-3xl border border-slate-300 bg-transparent px-4 py-2.5 text-sm leading-5 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-500 dark:bg-[#2f2f2f] dark:text-slate-100 dark:focus:ring-slate-400 dark:focus:ring-offset-slate-600"
               />
             </div>
             {/* debug badge removed */}
