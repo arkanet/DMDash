@@ -98,6 +98,16 @@
   }
 }
 
+@keyframes darkmesh-traceroute-panel-enter {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
 :root {
   --app-viewport-height: 100dvh;
 }
@@ -127,6 +137,16 @@
 .darkmesh-connection-progress-value::-moz-progress-bar {
   background: var(--darkmesh-action-color, #00bcd4);
   transition: width 150ms linear;
+}
+
+.darkmesh-mobile-traceroute-panel-enter {
+  animation: darkmesh-traceroute-panel-enter 0.5s ease-out;
+}
+
+@media (min-width: 950px) {
+  .darkmesh-mobile-traceroute-panel-enter {
+    animation: none;
+  }
 }
 
 .connection-progress-value {

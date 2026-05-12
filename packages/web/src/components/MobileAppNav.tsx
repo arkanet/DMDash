@@ -327,7 +327,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
               >
                 <Icon className="size-8" strokeWidth={2.2} />
                 {"count" in item && typeof item.count === "number" && item.count > 0 ? (
-                  <span className="absolute right-3 top-4 rounded-full bg-[#8d0606] px-1.5 text-[0.65rem] leading-4 text-white">
+                  <span className="relative right-2 top-2 rounded-full bg-[#8d0606] px-1.5 text-[0.65rem] leading-4 text-white">
                     {item.count}
                   </span>
                 ) : null}

@@ -11,6 +11,7 @@ export interface VisibilityState {
   directNeighbors: boolean;
   remoteNeighbors: boolean;
   positionPrecision: boolean;
+  traceroutePanel: boolean;
   traceroutes: boolean;
   waypoints: boolean;
   heatmap: boolean;
@@ -21,6 +22,7 @@ export const defaultVisibilityState: VisibilityState = {
   directNeighbors: false,
   remoteNeighbors: false,
   positionPrecision: false,
+  traceroutePanel: false,
   traceroutes: false,
   waypoints: true,
   heatmap: false,
@@ -74,6 +76,7 @@ export function MapLayerTool({
         directNeighbors: false,
         remoteNeighbors: false,
         positionPrecision: false,
+        traceroutePanel: false,
         traceroutes: false,
         waypoints: false,
         heatmap: true,
@@ -207,6 +210,20 @@ export function MapLayerTool({
               <span className="dark:text-slate-200">Traceroute Links</span>
             </Checkbox>
           </div>
+        </div>
+        <div className="md:hidden">
+          <Checkbox
+            checked={visibilityState.traceroutePanel}
+            onChange={() =>
+              setVisibilityState({
+                ...visibilityState,
+                traceroutePanel: !visibilityState.traceroutePanel,
+              })
+            }
+            className={cn("flex items-center gap-2")}
+          >
+            <span className="dark:text-slate-200">Traceroute Panel</span>
+          </Checkbox>
         </div>
         <button
           type="button"

@@ -969,6 +969,7 @@ const MapPage: React.FC = () => {
     ? getNode(pendingTraceRouteTarget)
     : undefined;
   const showTraceroutePanel = Boolean(selectedTraceRoute) || pendingTraceRouteTarget !== undefined;
+  const showMobileTraceroutePanel = showTraceroutePanel && visibilityState.traceroutePanel;
 
   // clicked link state (tooltip appears on click)
   const [clickedLink, setClickedLink] = useState<
@@ -1147,7 +1148,15 @@ const MapPage: React.FC = () => {
     >
       <div className="relative flex flex-1 overflow-hidden">
         {showTraceroutePanel && (
-          <aside className="hidden shrink-0 overflow-y-auto border-slate-300 bg-background/95 px-2 py-3 text-balance dark:border-slate-700 dark:bg-slate-950/95 md:static md:block md:h-auto md:w-52 md:rounded-none md:border-y-0 md:border-l-0 md:bg-background md:shadow-none md:backdrop-blur-none lg:w-64">
+          <aside
+            className={cn(
+              "absolute inset-y-0 left-0 z-20 w-[min(88vw,22rem)] shrink-0 overflow-y-auto border-r border-slate-300 bg-background/95 px-2 py-3 text-balance shadow-xl backdrop-blur-sm transition-transform duration-500 ease-out dark:border-slate-700 dark:bg-slate-950/95",
+              showMobileTraceroutePanel
+                ? "darkmesh-mobile-traceroute-panel-enter translate-x-0 pointer-events-auto"
+                : "-translate-x-full pointer-events-none",
+              "md:static md:block md:h-auto md:w-52 md:translate-x-0 md:pointer-events-auto md:rounded-none md:border-y-0 md:border-l-0 md:bg-background md:shadow-none md:backdrop-blur-none lg:w-64",
+            )}
+          >
             {tracerouteOverlay ? (
               <VisualTracerouteCard
                 traceroute={tracerouteOverlay.trace}
