@@ -826,6 +826,9 @@ const NodesPage = (): JSX.Element => {
   const setHighlightedNeighborNode = useDarkMeshStore((s) => s.setHighlightedNeighborNode);
   const addNeighborDiscoveryRecord = useDarkMeshStore((s) => s.addNeighborDiscoveryRecord);
   const selectedStoreTraceRoute = useDarkMeshStore((s) => s.selectedTraceRoute);
+  const setSelectedTraceRoute = useDarkMeshStore((s) => s.setSelectedTraceRoute);
+  const setPendingTraceRouteTarget = useDarkMeshStore((s) => s.setPendingTraceRouteTarget);
+  const setPendingTraceRouteRequest = useDarkMeshStore((s) => s.setPendingTraceRouteRequest);
   const neighborDiscoveryRecords =
     useDarkMeshStore((s) => s.neighborDiscoveryByDevice?.[device.id]) ?? {};
   const pendingNeighborInfo = useDeviceStore((s) => {
@@ -2034,6 +2037,9 @@ const NodesPage = (): JSX.Element => {
               onClick={() => {
                 setSelectedNeighborNode(undefined);
                 setSelectedNeighborResponse(undefined);
+                setSelectedTraceRoute(undefined);
+                setPendingTraceRouteTarget(device.id, undefined);
+                setPendingTraceRouteRequest(device.id, undefined);
                 setHighlightedNeighborNode(selectedNeighborNode);
                 const point = selectedNeighborSource
                   ? positionPoint(selectedNeighborSource.position)
@@ -2516,7 +2522,11 @@ function NeighborLog({
   fallbackNeighborInfo?: Protobuf.Mesh.NeighborInfo;
 }) {
   const navigate = useNavigate();
+  const device = useDevice();
   const setHighlightedNeighborNode = useDarkMeshStore((s) => s.setHighlightedNeighborNode);
+  const setSelectedTraceRoute = useDarkMeshStore((s) => s.setSelectedTraceRoute);
+  const setPendingTraceRouteTarget = useDarkMeshStore((s) => s.setPendingTraceRouteTarget);
+  const setPendingTraceRouteRequest = useDarkMeshStore((s) => s.setPendingTraceRouteRequest);
   const [selectedRecord, setSelectedRecord] = useState<NeighborDiscoveryRecord | undefined>();
   const displayRecords =
     records.length > 0
@@ -2599,6 +2609,9 @@ function NeighborLog({
               className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)]"
               onClick={() => {
                 if (selectedRecord) {
+                  setSelectedTraceRoute(undefined);
+                  setPendingTraceRouteTarget(device.id, undefined);
+                  setPendingTraceRouteRequest(device.id, undefined);
                   setHighlightedNeighborNode(selectedRecord.nodeNum);
                   navigate({ to: "/map" });
                 }

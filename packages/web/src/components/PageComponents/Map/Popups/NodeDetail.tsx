@@ -10,6 +10,7 @@ import {
 import { QRCode } from "react-qrcode-logo";
 import { Input } from "@components/UI/Input.tsx";
 import { Button } from "@components/UI/Button.tsx";
+import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { buildSharedContactUrl } from "../../../../darkmesh/utils.ts";
 import {
   EnvironmentMetricsPanel,
@@ -95,6 +96,11 @@ export const NodeDetail = ({
   const { setNodeNumDetails } = useAppStore();
   const nodeDB = useNodeDB();
   const { updateFavorite } = useFavoriteNode();
+  const setSelectedTraceRoute = useDarkMeshStore((state) => state.setSelectedTraceRoute);
+  const setPendingTraceRouteTarget = useDarkMeshStore((state) => state.setPendingTraceRouteTarget);
+  const setPendingTraceRouteRequest = useDarkMeshStore(
+    (state) => state.setPendingTraceRouteRequest,
+  );
 
   // not using gateway rxRssi here; use node's rxRssi where available
 
@@ -759,6 +765,30 @@ export const NodeDetail = ({
                 variant="popup"
                 className="w-64"
                 title={t("nodeDetail.neighbor.header", "Neighbor Nodes")}
+                onViewOnMap={async (num: number) => {
+                  try {
+                    setSelectedTraceRoute(undefined);
+                    setPendingTraceRouteTarget(deviceId, undefined);
+                    setPendingTraceRouteRequest(deviceId, undefined);
+                    const existing = getNeighborInfo(num);
+                    if (!existing || !existing.neighbors || existing.neighbors.length === 0) {
+                      if (!connection) throw new Error("No connection");
+                      await requestNeighborInfo(connection, num);
+                    }
+                    onSelectNode?.(num);
+                    if (!neighborHighlighted) {
+                      onHighlightNeighbors?.(num);
+                    }
+                  } catch (err) {
+                    logger.warn?.("view neighbor info on map failed", err);
+                    toast({
+                      title: t(
+                        "nodeDetail.neighbor.highlightError",
+                        "Failed to highlight neighbors",
+                      ),
+                    });
+                  }
+                }}
                 onOpenNode={(num: number) => {
                   (async () => {
                     // If the node isn't in nodeDB yet, create a minimal entry (same modeling as dialog)

@@ -88,8 +88,10 @@ const MapPage: React.FC = () => {
   const pendingTraceRouteTarget = useDarkMeshStore(
     (s) => s.pendingTraceRouteTargetByDevice[deviceId],
   );
+  const storedMapPopupNode = useDarkMeshStore((s) => s.mapPopupNodeByDevice[deviceId]);
   const clearSelectedTraceRoute = useDarkMeshStore((s) => s.setSelectedTraceRoute);
   const setStoredHighlightedNeighborNode = useDarkMeshStore((s) => s.setHighlightedNeighborNode);
+  const setStoredMapPopupNode = useDarkMeshStore((s) => s.setMapPopupNode);
   const setPendingTraceRouteTarget = useDarkMeshStore((s) => s.setPendingTraceRouteTarget);
   const setPendingTraceRouteRequest = useDarkMeshStore((s) => s.setPendingTraceRouteRequest);
 
@@ -112,6 +114,8 @@ const MapPage: React.FC = () => {
     mapRef as unknown as import("react-map-gl/maplibre").MapRef,
   );
   const prevTracerouteActive = useRef(false);
+  const lastPopupStateRef = useRef<PopupState | undefined>(undefined);
+  const restoredMapPopupNodeRef = useRef<number | undefined>(undefined);
   const requestedPositionTimestamps = useRef<Map<number, number>>(new Map());
 
   // visibility / layer UI
@@ -127,6 +131,30 @@ const MapPage: React.FC = () => {
   );
 
   const myNode = getMyNode();
+
+  useEffect(() => {
+    if (
+      popupState ||
+      storedMapPopupNode === undefined ||
+      restoredMapPopupNodeRef.current === storedMapPopupNode
+    ) {
+      return;
+    }
+
+    const node = getNode(storedMapPopupNode);
+    if (!node?.position || !hasPos(node.position)) {
+      return;
+    }
+
+    focusLngLat(toLngLat(node.position));
+    setPopupState({
+      type: "node",
+      num: storedMapPopupNode,
+      offset: [0, 0],
+      preventAutoPan: true,
+    });
+    restoredMapPopupNodeRef.current = storedMapPopupNode;
+  }, [focusLngLat, getNode, nodes, popupState, storedMapPopupNode]);
 
   // hover tooltips are disabled; tooltips appear on click now
   const onMouseMove = useCallback(() => {
@@ -149,7 +177,16 @@ const MapPage: React.FC = () => {
     }
 
     setHighlightedNeighborNode(highlightedNeighborNodeFromStore);
-  }, [highlightedNeighborNodeFromStore]);
+    clearSelectedTraceRoute(undefined);
+    setPendingTraceRouteTarget(deviceId, undefined);
+    setPendingTraceRouteRequest(deviceId, undefined);
+  }, [
+    clearSelectedTraceRoute,
+    deviceId,
+    highlightedNeighborNodeFromStore,
+    setPendingTraceRouteRequest,
+    setPendingTraceRouteTarget,
+  ]);
 
   const selectedNodeLinks = useMemo(() => {
     const nodeNum = highlightedNeighborNode;
@@ -899,6 +936,11 @@ const MapPage: React.FC = () => {
           setHighlightedNeighborNode((prev) => {
             const next = prev === num ? undefined : num;
             setStoredHighlightedNeighborNode(next);
+            if (next !== undefined) {
+              clearSelectedTraceRoute(undefined);
+              setPendingTraceRouteTarget(deviceId, undefined);
+              setPendingTraceRouteRequest(deviceId, undefined);
+            }
             return next;
           })
         }
@@ -915,6 +957,10 @@ const MapPage: React.FC = () => {
       tracerouteOverlay,
       visibilityState.nodeMarkers,
       highlightedNeighborNode,
+      clearSelectedTraceRoute,
+      deviceId,
+      setPendingTraceRouteRequest,
+      setPendingTraceRouteTarget,
       setStoredHighlightedNeighborNode,
     ],
   );
@@ -1066,8 +1112,14 @@ const MapPage: React.FC = () => {
   useEffect(() => {
     if (popupState && popupState.type === "node") {
       setPinnedPopupNode(popupState.num);
+      setStoredMapPopupNode(deviceId, popupState.num);
+      restoredMapPopupNodeRef.current = popupState.num;
+    } else if (lastPopupStateRef.current?.type === "node") {
+      setStoredMapPopupNode(deviceId, undefined);
+      restoredMapPopupNodeRef.current = undefined;
     }
-  }, [popupState]);
+    lastPopupStateRef.current = popupState;
+  }, [deviceId, popupState, setStoredMapPopupNode]);
 
   return (
     <PageLayout

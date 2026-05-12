@@ -160,6 +160,12 @@ export const NodeDetailsDialog = ({
   }, [nodeForRender, nodeDB, nodeStatus, open]);
 
   const selectedStoreTraceRoute = useDarkMeshStore((state) => state.selectedTraceRoute);
+  const setHighlightedNeighborNode = useDarkMeshStore((state) => state.setHighlightedNeighborNode);
+  const setSelectedTraceRoute = useDarkMeshStore((state) => state.setSelectedTraceRoute);
+  const setPendingTraceRouteTarget = useDarkMeshStore((state) => state.setPendingTraceRouteTarget);
+  const setPendingTraceRouteRequest = useDarkMeshStore(
+    (state) => state.setPendingTraceRouteRequest,
+  );
   const [selectedTraceroute, setSelectedTraceroute] = useState<
     Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> | undefined
   >();
@@ -203,6 +209,30 @@ export const NodeDetailsDialog = ({
   function closeTracerouteDialog() {
     setSelectedTraceroute(undefined);
     setSelectedTracerouteDurationMs(undefined);
+  }
+
+  function handleViewNeighborOnMap(nodeNum: number) {
+    const targetNode = nodeDB.getNode(nodeNum);
+    const point = positionPoint(targetNode?.position);
+
+    setHighlightedNeighborNode(nodeNum);
+    setSelectedTraceRoute(undefined);
+    setPendingTraceRouteTarget(deviceId, undefined);
+    setPendingTraceRouteRequest(deviceId, undefined);
+
+    if (point) {
+      navigate({
+        to: "/map/$long/$lat/$zoom",
+        params: {
+          long: String(point.longitude),
+          lat: String(point.latitude),
+          zoom: "14",
+        },
+      });
+      return;
+    }
+
+    navigate({ to: "/map" });
   }
 
   function handleDirectMessage() {
@@ -292,9 +322,6 @@ export const NodeDetailsDialog = ({
       toast({
         title: t("toast.tracerouteSent.title", { ns: "ui" }),
       });
-      if (propNodeNum === undefined) {
-        onOpenChange(false);
-      }
     } catch (error) {
       pendingTracerouteNodeRef.current = undefined;
       pendingTracerouteStartedAtRef.current = undefined;
@@ -910,6 +937,7 @@ export const NodeDetailsDialog = ({
                       nodeNum={currentNode?.num ?? effectiveNodeNum}
                       neighborInfo={neighborInfo}
                       onOpenNode={(num: number) => openNestedNode(num)}
+                      onViewOnMap={handleViewNeighborOnMap}
                     />
                   )}
                   {showEnvPanel && (

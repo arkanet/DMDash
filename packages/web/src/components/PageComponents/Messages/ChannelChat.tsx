@@ -9,6 +9,7 @@ import { Fragment, Suspense, useMemo, useRef, useLayoutEffect, useState, useCall
 import { useTranslation } from "react-i18next";
 
 export interface ChannelChatProps {
+  chatKey?: string;
   messages?: Message[];
   unreadAnchorCount?: number;
   onReply?: (message: Message) => void;
@@ -106,6 +107,7 @@ const EmptyState = () => {
 };
 
 export const ChannelChat = ({
+  chatKey,
   messages = [],
   unreadAnchorCount = 0,
   onReply,
@@ -156,7 +158,7 @@ export const ChannelChat = ({
     () => sorted.find((message) => message.from !== myNodeNum)?.messageId,
     [myNodeNum, sorted],
   );
-  const oldestUnreadMessageId = useMemo(() => {
+  const firstUnreadMessageId = useMemo(() => {
     if (!unreadAnchorCount || myNodeNum === undefined) return undefined;
     const unreadMessages = sorted
       .filter((message) => message.from !== myNodeNum)
@@ -165,6 +167,8 @@ export const ChannelChat = ({
   }, [myNodeNum, sorted, unreadAnchorCount]);
 
   const listRef = useRef<HTMLUListElement | null>(null);
+  const unreadAnchorTargetRef = useRef<number | undefined>(undefined);
+  const unreadAnchorScrolledRef = useRef(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | undefined>(undefined);
 
   const jumpToMessage = useCallback((messageId: number) => {
@@ -184,16 +188,35 @@ export const ChannelChat = ({
     window.setTimeout(() => setHighlightedMessageId(undefined), 3000);
   }, []);
 
+  useLayoutEffect(() => {
+    unreadAnchorTargetRef.current = undefined;
+    unreadAnchorScrolledRef.current = false;
+  }, [chatKey]);
+
   // Auto-scroll to show newest message when messages change.
   // Because the list uses `flex-col-reverse`, scrolling to `top: 0` shows newest messages.
   useLayoutEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    if (oldestUnreadMessageId !== undefined) {
+    if (unreadAnchorTargetRef.current === undefined && firstUnreadMessageId !== undefined) {
+      unreadAnchorTargetRef.current = firstUnreadMessageId;
+      unreadAnchorScrolledRef.current = false;
+    }
+
+    const unreadAnchorTarget = unreadAnchorTargetRef.current;
+    if (unreadAnchorTarget !== undefined) {
+      if (unreadAnchorScrolledRef.current) {
+        if (unreadAnchorCount === 0) {
+          unreadAnchorTargetRef.current = undefined;
+        }
+        return;
+      }
+
       requestAnimationFrame(() => {
-        const target = document.getElementById(`message-${oldestUnreadMessageId}`);
+        const target = document.getElementById(`message-${unreadAnchorTarget}`);
         target?.scrollIntoView({ block: "center", behavior: "auto" });
       });
+      unreadAnchorScrolledRef.current = true;
       return;
     }
     try {
@@ -201,7 +224,7 @@ export const ChannelChat = ({
     } catch {
       /* ignore */
     }
-  }, [messages.length, oldestUnreadMessageId]);
+  }, [messages.length, firstUnreadMessageId, unreadAnchorCount, chatKey]);
 
   if (!messages.length) {
     return (

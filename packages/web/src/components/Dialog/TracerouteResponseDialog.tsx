@@ -65,7 +65,6 @@ export const TracerouteResponseDialog = ({
 
     setSelectedTraceRoute(traceroute);
     navigate({ to: "/map" });
-    onOpenChange();
   }
 
   function handleCloseProcess() {
@@ -83,10 +82,10 @@ export const TracerouteResponseDialog = ({
   return (
     <Dialog open={open} onOpenChange={handleCloseProcess}>
       <DialogContent className="mobile-traceroute-dialog top-1/2 left-1/2 max-h-[86vh] w-[min(86vw,38rem)] max-w-[min(86vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]">
-        <DialogTitle className="text-left text-3xl font-normal text-zinc-100 max-md:text-[1.125rem]">
+        <DialogTitle className="text-left text-[1.5rem] font-normal text-zinc-100 max-md:text-[1.125rem]">
           Traceroute
         </DialogTitle>
-        <div className="mt-5 max-h-[62vh] overflow-y-auto pr-1 text-[1.35rem] leading-tight text-zinc-300 max-md:mt-3 max-md:max-h-[60vh] max-md:text-[0.8625rem]">
+        <div className="mt-5 max-h-[62vh] overflow-y-auto pr-1 text-[0.675rem] leading-tight text-zinc-300 max-md:mt-3 max-md:max-h-[60vh] max-md:text-[0.8625rem]">
           <TracerouteRouteSection
             title="Route traced toward destination:"
             path={forwardPath}
@@ -107,7 +106,7 @@ export const TracerouteResponseDialog = ({
           <Button
             size="sm"
             variant="ghost"
-            className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)] max-md:px-2 max-md:text-[0.65625rem]"
+            className="text-[0.4375rem] font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)] max-md:px-2 max-md:text-[0.65625rem]"
             onClick={handleViewOnMap}
           >
             {t("tracerouteResponse.viewOnMap", "View on Map")}
@@ -115,7 +114,7 @@ export const TracerouteResponseDialog = ({
           <Button
             size="sm"
             variant="ghost"
-            className="font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)] max-md:px-2 max-md:text-[0.65625rem]"
+            className="text-[0.4375rem] font-semibold uppercase tracking-wider text-[var(--darkmesh-action-color,#00bcd4)] max-md:px-2 max-md:text-[0.65625rem]"
             onClick={handleCloseProcess}
           >
             CHIUDI

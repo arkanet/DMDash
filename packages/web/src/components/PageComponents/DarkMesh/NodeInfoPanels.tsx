@@ -15,6 +15,7 @@ interface NeighborInfoPanelProps {
   title?: string;
   dense?: boolean;
   onOpenNode?: (nodeNum: number) => void;
+  onViewOnMap?: (nodeNum: number) => void;
   variant?: "popup" | "dialog";
 }
 
@@ -51,6 +52,7 @@ export function NeighborInfoPanel({
   title,
   dense = false,
   onOpenNode,
+  onViewOnMap,
   variant = "dialog",
 }: NeighborInfoPanelProps) {
   const { t } = useTranslation("dialog");
@@ -101,9 +103,23 @@ export function NeighborInfoPanel({
 
   return (
     <div className={cn("rounded-lg bg-slate-100 p-3 text-slate-900", darkClasses, className)}>
-      <p className={cn("font-semibold", dense ? "text-sm" : "text-base")}>
-        {title ?? t("nodeDetails.neighborPanel", "Neighbor Info")}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className={cn("font-semibold", dense ? "text-sm" : "text-base")}>
+          {title ?? t("nodeDetails.neighborPanel", "Neighbor Info")}
+        </p>
+        {onViewOnMap ? (
+          <button
+            type="button"
+            className={cn(
+              "shrink-0 rounded-md px-2 py-1 font-semibold uppercase tracking-wide text-blue-700 hover:bg-white/60 dark:text-sky-300 dark:hover:bg-black/10",
+              dense ? "text-[10px]" : "text-xs",
+            )}
+            onClick={() => onViewOnMap(nodeNum)}
+          >
+            {t("tracerouteResponse.viewOnMap", "View on Map")}
+          </button>
+        ) : null}
+      </div>
 
       {!neighborInfo || sortedNeighbors.length === 0 ? (
         <p className={cn("mt-2 text-slate-600 dark:text-slate-400", dense ? "text-xs" : "text-sm")}>

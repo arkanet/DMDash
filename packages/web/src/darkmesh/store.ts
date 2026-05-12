@@ -80,6 +80,7 @@ interface DarkMeshState extends DarkMeshPersistedState {
   /** Map deviceId -> packet requestId for pending traceroute requests */
   pendingTraceRouteRequestByDevice: Record<number, number | undefined>;
   highlightedNeighborNode?: number;
+  mapPopupNodeByDevice: Record<number, number | undefined>;
   gatewaysByDevice: Record<number, GatewaySnapshot | undefined>;
   tracePriorityByDevice?: Record<number, boolean>;
   setTracePriority: (deviceId: number, enabled: boolean) => void;
@@ -107,6 +108,7 @@ interface DarkMeshState extends DarkMeshPersistedState {
     neighborInfo: Protobuf.Mesh.NeighborInfo,
   ) => void;
   setHighlightedNeighborNode: (nodeNum?: number) => void;
+  setMapPopupNode: (deviceId: number, nodeNum?: number) => void;
   setPendingTraceRouteTarget: (deviceId: number, target?: number) => void;
   setPendingTraceRouteRequest: (deviceId: number, requestId?: number) => void;
 }
@@ -143,6 +145,7 @@ export const useDarkMeshStore = create<DarkMeshState>()(
       selectedTraceRoute: undefined,
       neighborDiscoveryByDevice: {},
       highlightedNeighborNode: undefined,
+      mapPopupNodeByDevice: {},
       pendingTraceRouteTargetByDevice: {},
       pendingTraceRouteRequestByDevice: {},
       gatewaysByDevice: {},
@@ -313,6 +316,14 @@ export const useDarkMeshStore = create<DarkMeshState>()(
       setHighlightedNeighborNode: (nodeNum) =>
         set(() => ({
           highlightedNeighborNode: nodeNum,
+        })),
+
+      setMapPopupNode: (deviceId, nodeNum) =>
+        set((state) => ({
+          mapPopupNodeByDevice: {
+            ...state.mapPopupNodeByDevice,
+            [deviceId]: nodeNum,
+          },
         })),
 
       setPendingTraceRouteTarget: (deviceId, target) =>

@@ -167,7 +167,7 @@ export const MessageActionsMenu = ({
             "emoji-picker-wrapper message-emoji-picker-shell message-emoji-picker-popover absolute right-0 z-20 rounded-xl border border-slate-200 p-2 shadow-md backdrop-blur-sm dark:border-zinc-700",
             pickerThemeClass,
             isMobileColumn
-              ? "top-full mt-2"
+              ? "top-full mt-2 md:fixed md:right-4 md:bottom-[5.75rem] md:top-auto md:z-[60] md:mt-0"
               : reactionPickerPlacement === "above"
                 ? "bottom-full mb-2"
                 : "top-full mt-2",

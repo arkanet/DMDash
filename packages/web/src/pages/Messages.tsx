@@ -407,10 +407,11 @@ export const MessagesPage = () => {
         return;
       }
 
+      writeUnreadScrollCount(MessageType.Direct, node.num, getUnreadCount(node.num) ?? 0);
       navigateToChat(MessageType.Direct, node.num.toString());
       resetUnread(node.num);
     },
-    [getNodeError, navigateToChat, resetUnread, toast],
+    [getNodeError, getUnreadCount, navigateToChat, resetUnread, toast],
   );
 
   const sendText = useCallback(
@@ -565,6 +566,7 @@ export const MessagesPage = () => {
       case MessageType.Broadcast:
         return (
           <ChannelChat
+            chatKey={`${chatType}:${numericChatId}`}
             messages={currentMessages}
             unreadAnchorCount={unreadAnchorCount}
             onReply={handleReply}
@@ -577,6 +579,7 @@ export const MessagesPage = () => {
         }
         return (
           <ChannelChat
+            chatKey={`${chatType}:${numericChatId}`}
             messages={currentMessages}
             unreadAnchorCount={unreadAnchorCount}
             onReply={handleReply}
@@ -607,6 +610,11 @@ export const MessagesPage = () => {
               }
               active={numericChatId === channel.index && chatType === MessageType.Broadcast}
               onClick={() => {
+                writeUnreadScrollCount(
+                  MessageType.Broadcast,
+                  channel.index,
+                  getUnreadCount(channel.index) ?? 0,
+                );
                 navigateToChat(MessageType.Broadcast, channel.index.toString());
                 resetUnread(channel.index);
               }}
