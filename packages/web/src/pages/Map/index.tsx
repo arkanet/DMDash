@@ -987,6 +987,21 @@ const MapPage: React.FC = () => {
     | undefined
   >(undefined);
 
+  const handleCleanLinks = useCallback(() => {
+    clearSelectedTraceRoute(undefined);
+    setPendingTraceRouteTarget(deviceId, undefined);
+    setPendingTraceRouteRequest(deviceId, undefined);
+    setHighlightedNeighborNode(undefined);
+    setStoredHighlightedNeighborNode(undefined);
+    setClickedLink(undefined);
+  }, [
+    clearSelectedTraceRoute,
+    deviceId,
+    setPendingTraceRouteRequest,
+    setPendingTraceRouteTarget,
+    setStoredHighlightedNeighborNode,
+  ]);
+
   // Close tooltip on Escape or when clicking outside the tooltip element
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1558,6 +1573,7 @@ const MapPage: React.FC = () => {
               setVisibilityState={setVisibilityState}
               heatmapMode={heatmapMode}
               setHeatmapMode={setHeatmapMode}
+              onCleanLinks={handleCleanLinks}
             />
 
             {isNorthMisaligned && (

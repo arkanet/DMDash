@@ -2,7 +2,7 @@ import type { HeatmapMode } from "@components/PageComponents/Map/Layers/HeatmapL
 import { Checkbox } from "@components/UI/Checkbox/index.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@components/UI/Popover.tsx";
 import { cn } from "@core/utils/cn.ts";
-import { LayersIcon } from "lucide-react";
+import { LayersIcon, Link2Off } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -31,6 +31,7 @@ interface MapLayerToolProps {
   setVisibilityState: (state: VisibilityState) => void;
   heatmapMode: HeatmapMode;
   setHeatmapMode: (mode: HeatmapMode) => void;
+  onCleanLinks: () => void;
 }
 
 interface CheckboxProps {
@@ -57,6 +58,7 @@ export function MapLayerTool({
   setVisibilityState,
   heatmapMode,
   setHeatmapMode,
+  onCleanLinks,
 }: MapLayerToolProps): ReactNode {
   const { t } = useTranslation("map");
 
@@ -82,6 +84,16 @@ export function MapLayerTool({
         [key]: !visibilityState[key],
       });
     }
+  };
+
+  const handleCleanLinks = () => {
+    setVisibilityState({
+      ...visibilityState,
+      directNeighbors: false,
+      remoteNeighbors: false,
+      traceroutes: false,
+    });
+    onCleanLinks();
   };
 
   const layers = useMemo(
@@ -167,13 +179,14 @@ export function MapLayerTool({
         <div>
           <Checkbox
             checked={visibilityState.remoteNeighbors || visibilityState.directNeighbors}
-            onChange={() =>
+            onChange={() => {
+              const next = !(visibilityState.remoteNeighbors || visibilityState.directNeighbors);
               setVisibilityState({
                 ...visibilityState,
-                remoteNeighbors: !visibilityState.remoteNeighbors,
-                directNeighbors: !visibilityState.directNeighbors,
-              })
-            }
+                remoteNeighbors: next,
+                directNeighbors: next,
+              });
+            }}
             className={cn("flex items-center gap-2")}
           >
             <span className="dark:text-slate-200">Neighbor Links</span>
@@ -195,6 +208,17 @@ export function MapLayerTool({
             </Checkbox>
           </div>
         </div>
+        <button
+          type="button"
+          className={cn(
+            "mt-1 flex items-center gap-2 rounded-md px-1 py-1 text-left font-semibold",
+            "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/60",
+          )}
+          onClick={handleCleanLinks}
+        >
+          <Link2Off className="size-5 shrink-0" aria-hidden="true" />
+          <span>Clean Links</span>
+        </button>
         {/*<CheckboxItem
           key="traceroutes"
           label={t("layerTool.traceroutes")}
