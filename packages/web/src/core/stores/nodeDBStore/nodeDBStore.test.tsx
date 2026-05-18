@@ -214,12 +214,18 @@ describe("NodeDB store", () => {
   });
 
   it("partialize persists only data, and onRehydrateStorage rebuilds methods", async () => {
+    const persistedPublicKey = toByteArray("40g5tLC6A+tXE92EyhwVwdiKsXwa1QUjZjkzEi0pCy4=");
+
     {
       const { useNodeDBStore } = await freshStore(true); // with persistence
       const st = useNodeDBStore.getState();
       const db = st.addNodeDB(123);
       db.setNodeNum(321);
-      db.addNode(makeNode(50));
+      db.addNode(
+        makeNode(50, {
+          user: makeUser({ publicKey: persistedPublicKey, longName: "keyed-50" }),
+        }),
+      );
       db.setNodeError(50, "ERROR" as any);
     }
     {
@@ -229,6 +235,8 @@ describe("NodeDB store", () => {
 
       // methods should work after rehydrate
       expect(db.getNode(50)?.num).toBe(50);
+      expect(db.getNode(50)?.user?.publicKey).toBeInstanceOf(Uint8Array);
+      expect(db.getNode(50)?.user?.publicKey).toEqual(persistedPublicKey);
       expect(db.getNodeError(50)).toEqual({ node: 50, error: "ERROR" });
       db.addNode(makeNode(51));
       expect(db.getNode(51)).toBeTruthy();

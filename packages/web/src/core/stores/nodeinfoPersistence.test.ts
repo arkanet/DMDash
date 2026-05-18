@@ -20,6 +20,9 @@ import * as persistence from "./nodeinfoPersistence";
 function makeNode(num: number, extras: Record<string, any> = {}) {
   return create(Protobuf.Mesh.NodeInfoSchema, { num, ...extras });
 }
+function makeUser(fields: Record<string, any>) {
+  return create(Protobuf.Mesh.UserSchema, fields);
+}
 
 describe("nodeinfoPersistence", () => {
   beforeEach(() => {
@@ -41,6 +44,44 @@ describe("nodeinfoPersistence", () => {
     await persistence.putNodesBatch(2, nodes as any);
     const all = await persistence.getAllNodes(2);
     expect(all.map((n) => n.num).sort()).toEqual([2, 3]);
+  });
+
+  it("preserves public keys as Uint8Array after put/get", async () => {
+    const publicKey = new Uint8Array([1, 2, 3, 4]);
+
+    await persistence.putNode(
+      4,
+      makeNode(9, {
+        user: makeUser({ publicKey, longName: "keyed-node" }),
+      }),
+    );
+
+    const got = await persistence.getNode(4, 9);
+    expect(got?.user?.publicKey).toBeInstanceOf(Uint8Array);
+    expect(Array.from(got?.user?.publicKey ?? [])).toEqual([1, 2, 3, 4]);
+
+    const all = await persistence.getAllNodes(4);
+    expect(all[0]?.user?.publicKey).toBeInstanceOf(Uint8Array);
+    expect(Array.from(all[0]?.user?.publicKey ?? [])).toEqual([1, 2, 3, 4]);
+  });
+
+  it("revives legacy public keys stored as JSON numeric records", async () => {
+    idbMem.set("nodeinfo:5:10", {
+      num: 10,
+      user: {
+        longName: "legacy-node",
+        publicKey: { 0: 8, 1: 9, 2: 10 },
+      },
+    });
+    idbMem.set("nodeinfo:index:5", [10]);
+
+    const got = await persistence.getNode(5, 10);
+    expect(got?.user?.publicKey).toBeInstanceOf(Uint8Array);
+    expect(Array.from(got?.user?.publicKey ?? [])).toEqual([8, 9, 10]);
+
+    const all = await persistence.getAllNodes(5);
+    expect(all[0]?.user?.publicKey).toBeInstanceOf(Uint8Array);
+    expect(Array.from(all[0]?.user?.publicKey ?? [])).toEqual([8, 9, 10]);
   });
 
   it("deleteNode and clearDb", async () => {
