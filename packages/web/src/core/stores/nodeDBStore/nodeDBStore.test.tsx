@@ -375,7 +375,7 @@ describe("NodeDB – merge semantics, PKI checks & extras", () => {
     expect(String(err!.error)).toMatch(/MISMATCH|PK/i);
   });
 
-  it("empty new key; drop new node", async () => {
+  it("empty new key; preserve old key while accepting new metadata", async () => {
     const { useNodeDBStore } = await freshStore();
     const st = useNodeDBStore.getState();
 
@@ -388,12 +388,12 @@ describe("NodeDB – merge semantics, PKI checks & extras", () => {
 
     newDB.setNodeNum(77);
 
-    // node from old
+    // keep old PK, but accept non-key data from the newer node
     const n5 = newDB.getNode(5)!;
-    expect(n5.user?.publicKey).toEqual(keyOld); // keep old PK
-    expect(n5.user?.longName).toBe("old-5");
+    expect(n5.user?.publicKey).toEqual(keyOld);
+    expect(n5.user?.longName).toBe("new-5");
 
-    // error not flagged; dropped silently
+    // error not flagged
     const err = newDB!.getNodeError(5);
     expect(err).toBeUndefined();
   });
@@ -427,6 +427,31 @@ describe("NodeDB – merge semantics, PKI checks & extras", () => {
     expect(err).toBeFalsy();
   });
 
+  it("preserves existing public key while accepting NodeInfo updates with an empty key", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(42);
+
+    db.addNode(
+      makeNode(5, {
+        user: makeUser({ publicKey: keyOld, longName: "old-5", shortName: "o5" }),
+        position: makePosition({ altitude: 100 }),
+      }),
+    );
+    db.addNode(
+      makeNode(5, {
+        user: makeUser({ publicKey: new Uint8Array(), longName: "new-5", shortName: "n5" }),
+        position: makePosition({ altitude: 250 }),
+      }),
+    );
+
+    const node = db.getNode(5)!;
+    expect(node.user?.longName).toBe("new-5");
+    expect(node.user?.shortName).toBe("n5");
+    expect(node.user?.publicKey).toEqual(keyOld);
+    expect(node.position?.altitude).toBe(250);
+    expect(db.getNodeError(5)).toBeUndefined();
+  });
+
   it("preserves existing public key when a user packet omits it", async () => {
     const { useNodeDBStore } = await freshStore();
     const db = useNodeDBStore.getState().addNodeDB(42);
@@ -444,6 +469,40 @@ describe("NodeDB – merge semantics, PKI checks & extras", () => {
     expect(node.user?.longName).toBe("new-5");
     expect(node.user?.shortName).toBe("n5");
     expect(node.user?.publicKey).toEqual(keyOld);
+  });
+
+  it("rejects duplicate public keys by byte value, not Uint8Array identity", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(43);
+
+    db.addNode(makeNode(5, { user: makeUser({ publicKey: keyOld, longName: "node-5" }) }));
+    db.addNode(
+      makeNode(6, {
+        user: makeUser({ publicKey: new Uint8Array(keyOld), longName: "node-6" }),
+      }),
+    );
+
+    expect(db.getNode(6)).toBeUndefined();
+    expect(db.getNodeError(6)?.error).toBe("DUPLICATE_PKI");
+  });
+
+  it("keeps the trusted node when a user packet presents a different public key", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(44);
+
+    db.addNode(makeNode(5, { user: makeUser({ publicKey: keyOld, longName: "old-5" }) }));
+    db.addUser({
+      from: 5,
+      to: 0,
+      id: 124,
+      rxTime: new Date(),
+      data: makeUser({ publicKey: keyNew, longName: "new-5" }),
+    } as any);
+
+    const node = db.getNode(5)!;
+    expect(node.user?.longName).toBe("old-5");
+    expect(node.user?.publicKey).toEqual(keyOld);
+    expect(db.getNodeError(5)?.error).toBe("MISMATCH_PKI");
   });
 
   it("unions nodeErrors: preserves old and new, respects existing-on-conflict", async () => {

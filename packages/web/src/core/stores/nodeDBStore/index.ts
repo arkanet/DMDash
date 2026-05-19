@@ -85,6 +85,13 @@ type NodeDBPersisted = {
   nodeDBs: Map<number, NodeDBData>;
 };
 
+function recordNodeError(nodeDB: NodeDBData, nodeNum: number, error: NodeErrorType) {
+  nodeDB.nodeErrors = new Map(nodeDB.nodeErrors).set(nodeNum, {
+    node: nodeNum,
+    error,
+  });
+}
+
 function nodeDBFactory(
   id: number,
   get: () => PrivateNodeDBState,
@@ -135,7 +142,7 @@ function nodeDBFactory(
           const next = validateIncomingNode(
             node,
             (nodeNum: number, err: NodeErrorType) => {
-              nodeDB.setNodeError(nodeNum, err);
+              recordNodeError(nodeDB, nodeNum, err);
             },
             (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => nodeDB.getNodes(filter, true),
           );
@@ -454,7 +461,7 @@ function nodeDBFactory(
 
           // Helpers for validation
           const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
-            nodeDB.setNodeError(nodeNum, err);
+            recordNodeError(nodeDB, nodeNum, err);
           };
           const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
             const arr = Array.from(nodeDB.nodeMap.values());
@@ -585,7 +592,7 @@ function nodeDBFactory(
 
           // validation helpers
           const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
-            nodeDB.setNodeError(nodeNum, err);
+            recordNodeError(nodeDB, nodeNum, err);
           };
           const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
             const arr = Array.from(nodeDB.nodeMap.values());
@@ -669,7 +676,7 @@ function nodeDBFactory(
           };
 
           const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
-            nodeDB.setNodeError(nodeNum, err);
+            recordNodeError(nodeDB, nodeNum, err);
           };
           const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
             const arr = Array.from(nodeDB.nodeMap.values());
@@ -737,7 +744,7 @@ function nodeDBFactory(
           };
 
           const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
-            nodeDB.setNodeError(nodeNum, err);
+            recordNodeError(nodeDB, nodeNum, err);
           };
           const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
             const arr = Array.from(nodeDB.nodeMap.values());

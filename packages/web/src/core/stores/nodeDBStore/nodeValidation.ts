@@ -21,6 +21,32 @@ export function equalKey(a?: Uint8Array | null, b?: Uint8Array | null): boolean 
   return true;
 }
 
+function hasPublicKey(key?: Uint8Array | null): key is Uint8Array {
+  return Boolean(key && key.length > 0);
+}
+
+function preserveExistingPublicKey(
+  oldNode: Protobuf.Mesh.NodeInfo,
+  newNode: Protobuf.Mesh.NodeInfo,
+): Protobuf.Mesh.NodeInfo {
+  if (!hasPublicKey(oldNode.user?.publicKey) || hasPublicKey(newNode.user?.publicKey)) {
+    return newNode;
+  }
+
+  if (!newNode.user) {
+    return newNode;
+  }
+
+  return {
+    ...newNode,
+    user: {
+      ...(oldNode.user ?? {}),
+      ...newNode.user,
+      publicKey: oldNode.user.publicKey,
+    },
+  };
+}
+
 // Validates a new incoming node against existing nodes.
 // If valid, returns a node to store, else returns undefined.
 export function validateIncomingNode(
@@ -35,8 +61,10 @@ export function validateIncomingNode(
     // No existing node with this node number.
     // Check if the new node's public key (if present and not empty)
     // is already claimed by another existing node.
-    if (newNode.user?.publicKey !== undefined && newNode.user?.publicKey.length > 0) {
-      const nodesWithSameKey = getNodes((node) => node.user?.publicKey === newNode.user?.publicKey);
+    if (hasPublicKey(newNode.user?.publicKey)) {
+      const nodesWithSameKey = getNodes(
+        (node) => node.num !== num && equalKey(node.user?.publicKey, newNode.user?.publicKey),
+      );
       if (nodesWithSameKey.length > 0) {
         // This is a potential impersonation attempt.
 
@@ -57,32 +85,27 @@ export function validateIncomingNode(
       return undefined;
     }
 
-    // A public key is considered matching if the incoming key equals
-    // the existing key, OR if the existing key is empty.
-    const isKeyMatchingOrExistingEmpty =
-      equalKey(oldNode.user?.publicKey, newNode.user?.publicKey) ||
-      oldNode.user?.publicKey === undefined ||
-      oldNode.user?.publicKey.length === 0;
+    const oldKey = oldNode.user?.publicKey;
+    const newKey = newNode.user?.publicKey;
 
-    if (isKeyMatchingOrExistingEmpty) {
+    if (!hasPublicKey(oldKey) || equalKey(oldKey, newKey)) {
       // Keys match or existing key was empty: trust the incoming node data completely.
       // This allows for legitimate updates to user info and other fields.
       return newNode;
-    } else if (newNode.user?.publicKey !== undefined && newNode.user?.publicKey.length > 0) {
+    } else if (hasPublicKey(newKey)) {
       console.warn(
         `Node ${num} rejected: existing key does not match incoming key. Old key:`,
-        fromByteArray(oldNode.user?.publicKey ?? new Uint8Array()),
+        fromByteArray(oldKey ?? new Uint8Array()),
         "New key:",
-        fromByteArray(newNode.user?.publicKey ?? new Uint8Array()),
+        fromByteArray(newKey ?? new Uint8Array()),
       );
 
       // Keys do not match and existing key was not empty: potential impersonation attempt.
       setNodeError(num, "MISMATCH_PKI");
       return oldNode; // drop newNode fields and return old
     } else {
-      // Incoming node has no public key: ignore the new node entirely.
-      console.warn(`Node ${num} rejected: incoming node has no public key, but existing does.`);
-      return oldNode; // drop newNode fields and return old
+      // Incoming node has no public key: keep the trusted key, but accept non-key updates.
+      return preserveExistingPublicKey(oldNode, newNode);
     }
   } else {
     // Multiple existing nodes with the same node number
