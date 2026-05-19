@@ -1854,6 +1854,7 @@ const NodesPage = (): JSX.Element => {
       leftBar={<Sidebar />}
       headerContent={<GatewayHeader />}
       mobileHeaderContent={<GatewayHeader />}
+      contentClassName="md:overflow-hidden"
     >
       <div className="hidden pl-2 pt-2 md:flex md:flex-row">
         <div className="mr-2 flex-1">
@@ -1965,9 +1966,9 @@ const NodesPage = (): JSX.Element => {
           </PopoverContent>
         </Popover>
       </div>
-      <div className="hidden overflow-y-auto md:block">
-        <div className="max-w-full">
-          <div className="text-xs">
+      <div className="hidden min-h-0 flex-1 overflow-hidden md:block">
+        <div className="h-full max-w-full overflow-hidden">
+          <div className="h-full text-xs">
             <Table headings={tableHeadings} rows={tableRows} />
           </div>
         </div>

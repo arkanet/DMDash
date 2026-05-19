@@ -95,7 +95,7 @@ export const Table = ({ headings, rows }: TableProps) => {
   }, [rows, sortColumn, sortOrder, headings]);
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="h-full min-h-0 w-full overflow-auto">
       <table
         className="w-fit max-w-full table-auto"
         style={{
@@ -112,7 +112,7 @@ export const Table = ({ headings, rows }: TableProps) => {
                 key={heading.title}
                 scope="col"
                 className={cn(
-                  "py-1 px-2 text-left text-sm",
+                  "sticky top-0 z-10 bg-background-primary py-1 px-2 text-left text-sm shadow-[inset_0_-1px_0_rgb(203_213_225)] dark:bg-[#101010] dark:shadow-[inset_0_-1px_0_rgb(63_63_70)]",
                   heading.sortable &&
                     "cursor-pointer hover:brightness-hover active:brightness-press",
                 )}
