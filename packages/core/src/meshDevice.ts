@@ -951,6 +951,7 @@ export class MeshDevice {
       relayNode: meshPacket.relayNode,
       rxSnr: meshPacket.rxSnr,
       rxRssi: meshPacket.rxRssi,
+      portNum: dataPacket.portnum,
       hopStart: meshPacket.hopStart,
       hopLimit: meshPacket.hopLimit,
       compressed: dataPacket.portnum === Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP,
@@ -968,6 +969,7 @@ export class MeshDevice {
 
     switch (dataPacket.portnum) {
       case Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP:
+      case Protobuf.Portnums.PortNum.ALERT_APP:
       case Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP: {
         this.events.onMessagePacket.dispatch({
           ...packetMetadata,

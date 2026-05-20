@@ -18,6 +18,40 @@ import { initReactI18next } from "react-i18next";
 
 enableMapSet();
 
+const createStorageMock = (): Storage => {
+  const store = new Map<string, string>();
+
+  return {
+    get length() {
+      return store.size;
+    },
+    clear: () => store.clear(),
+    getItem: (key) => store.get(key) ?? null,
+    key: (index) => Array.from(store.keys())[index] ?? null,
+    removeItem: (key) => {
+      store.delete(key);
+    },
+    setItem: (key, value) => {
+      store.set(key, String(value));
+    },
+  };
+};
+
+if (
+  typeof globalThis.localStorage === "undefined" ||
+  typeof globalThis.localStorage.clear !== "function"
+) {
+  const storageMock = createStorageMock();
+  Object.defineProperty(globalThis, "localStorage", {
+    value: storageMock,
+    configurable: true,
+  });
+  Object.defineProperty(window, "localStorage", {
+    value: storageMock,
+    configurable: true,
+  });
+}
+
 vi.mock("idb-keyval", () => ({
   get: vi.fn(() => Promise.resolve(undefined)),
   set: vi.fn(() => Promise.resolve()),

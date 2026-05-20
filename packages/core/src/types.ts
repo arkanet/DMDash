@@ -66,6 +66,7 @@ export interface PacketMetadata<T> {
   relayNode?: number;
   rxSnr?: number;
   rxRssi?: number;
+  portNum?: Protobuf.Portnums.PortNum;
   hopStart?: number;
   hopLimit?: number;
   compressed?: boolean;

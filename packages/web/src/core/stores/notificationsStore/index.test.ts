@@ -121,4 +121,59 @@ describe("NotificationsStore persistence", () => {
       },
     });
   });
+
+  it("preserves browser notification event selections when later config updates omit them", async () => {
+    const { useNotificationsStore } = await freshStore();
+    const state = useNotificationsStore.getState();
+
+    state.setConfig({
+      browserNotifications: {
+        enabled: true,
+        eventTypes: {
+          messages: false,
+          distress: true,
+        },
+      },
+    });
+    state.setConfig({
+      browserNotifications: {
+        notifyInForeground: true,
+        playSound: false,
+        sound: "beep",
+        eventTypes: {
+          nodes: false,
+        },
+      },
+    });
+
+    expect(useNotificationsStore.getState().config.browserNotifications).toMatchObject({
+      enabled: true,
+      notifyInForeground: true,
+      playSound: false,
+      sound: "beep",
+      eventTypes: {
+        messages: false,
+        nodes: false,
+        distress: true,
+        battery: true,
+        system: false,
+      },
+    });
+
+    const rehydrated = (await freshStore()).useNotificationsStore.getState();
+
+    expect(rehydrated.config.browserNotifications).toMatchObject({
+      enabled: true,
+      notifyInForeground: true,
+      playSound: false,
+      sound: "beep",
+      eventTypes: {
+        messages: false,
+        nodes: false,
+        distress: true,
+        battery: true,
+        system: false,
+      },
+    });
+  });
 });

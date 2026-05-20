@@ -32,6 +32,7 @@ import {
 import { validateHuntEndpoint } from "./huntApi.ts";
 import PowerNotificationPanel from "@components/PageComponents/PowerNotification/PowerNotificationPanel.tsx";
 import NotificationsPanel from "@components/PageComponents/Notifications/NotificationsPanel.tsx";
+import BatteryAlertsPanel from "@components/PageComponents/Notifications/BatteryAlertsPanel.tsx";
 import TraceroutePanel from "./TraceroutePanel";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import {
@@ -637,7 +638,7 @@ const DarkMeshDashboardPage = () => {
           title="Battery Alerts"
           description="Configure low battery notifications by node scope, battery percentage and voltage thresholds."
         >
-          <NotificationsPanel />
+          <BatteryAlertsPanel />
         </DashboardCard>
 
         <div id="hunting-forwarder" className="scroll-mt-28 md:scroll-mt-6">
@@ -906,6 +907,13 @@ const DarkMeshDashboardPage = () => {
           description="Review traceroute lists and visual traceroute responses from the current device."
         >
           <TraceroutePanel />
+        </DashboardCard>
+
+        <DashboardCard
+          title="Notifications"
+          description="Review notification history and configure device-level notification delivery."
+        >
+          <NotificationsPanel />
         </DashboardCard>
       </div>
     </PageLayout>

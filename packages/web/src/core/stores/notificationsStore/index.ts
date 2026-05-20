@@ -1,10 +1,24 @@
 import { create as createStore } from "zustand";
+import {
+  getBrowserNotificationEventType,
+  playBrowserNotificationSound,
+  showStoredBrowserNotification,
+  type BrowserNotificationSound,
+  type BrowserNotificationEventType,
+} from "@core/services/browserNotifications.ts";
 
 export type NotificationType =
   | "low_battery"
+  | "direct_message"
+  | "broadcast_message"
+  | "distress_beacon"
+  | "node_detected"
+  | "beacon_send"
+  | "beacon_failed"
   | "service"
   | "retransmit"
   | "scheduled_send"
+  | "scheduled_failed"
   | "custom";
 
 export type Notification = {
@@ -17,46 +31,60 @@ export type Notification = {
   timestamp: number;
 };
 
+export type BrowserNotificationsConfig = {
+  enabled: boolean;
+  notifyInForeground: boolean;
+  playSound: boolean;
+  sound: BrowserNotificationSound;
+  eventTypes: Record<BrowserNotificationEventType, boolean>;
+};
+
+export type BatteryMonitoringConfig = {
+  enabled: boolean;
+  scope: "all" | "selected" | "connected_bt";
+  selectedNodeNums: number[];
+  batteryPercentThreshold: number;
+  voltageThreshold: number;
+  cooldownMs: number;
+  nodeOverrides?: Record<
+    number,
+    Partial<{
+      enabled: boolean;
+      batteryPercentThreshold: number;
+      voltageThreshold: number;
+      cooldownMs: number;
+    }>
+  >;
+};
+
+export type NotificationsConfig = {
+  enablePersistence: boolean;
+  ttlDays: number;
+  maxEntries: number;
+  browserNotifications: BrowserNotificationsConfig;
+  batteryMonitoring: BatteryMonitoringConfig;
+};
+
+export type NotificationsConfigPatch = Partial<
+  Omit<NotificationsConfig, "batteryMonitoring" | "browserNotifications">
+> & {
+  batteryMonitoring?: Partial<BatteryMonitoringConfig>;
+  browserNotifications?: Partial<Omit<BrowserNotificationsConfig, "eventTypes">> & {
+    eventTypes?: Partial<Record<BrowserNotificationEventType, boolean>>;
+  };
+};
+
 export type NotificationsStore = {
   notifications: Notification[];
-  config: {
-    enablePersistence: boolean;
-    ttlDays: number;
-    maxEntries: number;
-    // battery monitoring config
-    batteryMonitoring: {
-      enabled: boolean;
-      scope: "all" | "selected" | "connected_bt";
-      // when scope === 'selected', selectedNodeNums controls which nodes
-      selectedNodeNums: number[];
-      // battery percent threshold (0-100). 0 disables
-      batteryPercentThreshold: number;
-      // voltage threshold in V. 0 disables
-      voltageThreshold: number;
-      // cooldown between low-battery notifications per node in ms
-      cooldownMs: number;
-      // optional per-node overrides
-      nodeOverrides?: Record<
-        number,
-        Partial<{
-          enabled: boolean;
-          batteryPercentThreshold: number;
-          voltageThreshold: number;
-          cooldownMs: number;
-        }>
-      >;
-    };
-  };
+  config: NotificationsConfig;
   add: (n: Omit<Partial<Notification>, "id" | "timestamp" | "seen">) => string;
   getAll: (opts?: { onlyUnseen?: boolean }) => Notification[];
   markSeen: (id: string) => void;
   markAllSeen: (nodeNum?: number) => void;
   remove: (id: string) => void;
   clearExpired: () => void;
-  setConfig: (c: Partial<NotificationsStore["config"]>) => void;
+  setConfig: (c: NotificationsConfigPatch) => void;
 };
-
-type NotificationsConfig = NotificationsStore["config"];
 
 const STORAGE_KEY = "darkmesh:notifications:v1";
 const CONFIG_STORAGE_KEY = "darkmesh:notifications:config:v1";
@@ -65,6 +93,19 @@ const defaultConfig: NotificationsConfig = {
   enablePersistence: true,
   ttlDays: 7,
   maxEntries: 500,
+  browserNotifications: {
+    enabled: false,
+    notifyInForeground: false,
+    playSound: true,
+    sound: "chime",
+    eventTypes: {
+      messages: true,
+      nodes: true,
+      distress: true,
+      battery: true,
+      system: false,
+    },
+  },
   batteryMonitoring: {
     enabled: false,
     scope: "all",
@@ -105,6 +146,14 @@ function loadConfigFromStorage(): NotificationsConfig {
     return {
       ...defaultConfig,
       ...parsed,
+      browserNotifications: {
+        ...defaultConfig.browserNotifications,
+        ...parsed.browserNotifications,
+        eventTypes: {
+          ...defaultConfig.browserNotifications.eventTypes,
+          ...parsed.browserNotifications?.eventTypes,
+        },
+      },
       batteryMonitoring: {
         ...defaultConfig.batteryMonitoring,
         ...parsed.batteryMonitoring,
@@ -117,6 +166,27 @@ function loadConfigFromStorage(): NotificationsConfig {
   } catch {
     return defaultConfig;
   }
+}
+
+function shouldShowNativeNotification(
+  notification: Notification,
+  config: NotificationsConfig,
+): boolean {
+  if (!config.browserNotifications.enabled) {
+    return false;
+  }
+
+  if (
+    !config.browserNotifications.notifyInForeground &&
+    typeof document !== "undefined" &&
+    document.visibilityState === "visible" &&
+    document.hasFocus()
+  ) {
+    return false;
+  }
+
+  const eventType = getBrowserNotificationEventType(notification.type);
+  return config.browserNotifications.eventTypes[eventType] === true;
 }
 
 function saveConfigToStorage(config: NotificationsConfig) {
@@ -146,6 +216,13 @@ export const useNotificationsStore = createStore<NotificationsStore>((set, get) 
       if (s.config.enablePersistence) saveToStorage(list);
       return { notifications: list };
     });
+
+    if (shouldShowNativeNotification(notif, get().config)) {
+      void showStoredBrowserNotification(notif);
+      if (get().config.browserNotifications.playSound) {
+        void playBrowserNotificationSound(notif.priority, get().config.browserNotifications.sound);
+      }
+    }
 
     return id;
   },
@@ -185,8 +262,8 @@ export const useNotificationsStore = createStore<NotificationsStore>((set, get) 
       // shallow merge at top level, but deep-merge batteryMonitoring when provided
       const merged = {
         ...s.config,
-        ...(c as Partial<NotificationsStore["config"]>),
-      } as NotificationsStore["config"];
+        ...c,
+      } as NotificationsConfig;
       if (c.batteryMonitoring) {
         merged.batteryMonitoring = { ...s.config.batteryMonitoring, ...c.batteryMonitoring };
         if (c.batteryMonitoring?.nodeOverrides) {
@@ -195,6 +272,16 @@ export const useNotificationsStore = createStore<NotificationsStore>((set, get) 
             ...(c.batteryMonitoring.nodeOverrides || {}),
           };
         }
+      }
+      if (c.browserNotifications) {
+        merged.browserNotifications = {
+          ...s.config.browserNotifications,
+          ...c.browserNotifications,
+          eventTypes: {
+            ...s.config.browserNotifications.eventTypes,
+            ...(c.browserNotifications.eventTypes ?? {}),
+          },
+        };
       }
       saveConfigToStorage(merged);
       if (merged.enablePersistence) saveToStorage(s.notifications);

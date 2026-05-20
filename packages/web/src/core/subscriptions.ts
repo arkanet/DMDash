@@ -10,7 +10,30 @@ import {
   useMessageStore,
 } from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
-import { type MeshDevice, Protobuf } from "@meshtastic/core";
+import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
+import { type MeshDevice, Protobuf, type Types } from "@meshtastic/core";
+
+function getNodeDisplayName(nodeDB: NodeDB, nodeNum: number): string {
+  const node = nodeDB.getNode(nodeNum);
+
+  return (
+    node?.user?.longName?.trim() ||
+    node?.user?.shortName?.trim() ||
+    (node?.user as { id?: string | undefined } | undefined)?.id ||
+    `!${nodeNum.toString(16).toUpperCase()}`
+  );
+}
+
+function getChannelDisplayName(device: Device, channel: number): string {
+  return device.channels.get(channel)?.settings?.name?.trim() || `Channel ${channel}`;
+}
+
+function isDistressBeaconMessage(messagePacket: Types.PacketMetadata<string>): boolean {
+  return (
+    messagePacket.portNum === Protobuf.Portnums.PortNum.ALERT_APP ||
+    /^\s*(\[SOS\]|\[DISTRESS\]|SOS\b|MAYDAY\b|DISTRESS\b|EMERGENCY\b)/i.test(messagePacket.data)
+  );
+}
 
 export const subscribeAll = (
   device: Device,
@@ -230,10 +253,45 @@ export const subscribeAll = (
     if (message.type === MessageType.Direct) {
       if (message.to === myNodeNum) {
         device.incrementUnread(messagePacket.from);
+        const senderName = getNodeDisplayName(nodeDB, message.from);
+        const distress = isDistressBeaconMessage(messagePacket);
+        useNotificationsStore.getState().add({
+          type: distress ? "distress_beacon" : "direct_message",
+          priority: distress ? 5 : 3,
+          nodeNum: message.from,
+          payload: {
+            title: distress
+              ? `Distress beacon from ${senderName}`
+              : `Direct message from ${senderName}`,
+            detail: message.message,
+            message: message.message,
+            senderName,
+            url: `/messages/direct/${message.from}`,
+          },
+        });
       }
     } else if (message.type === MessageType.Broadcast) {
       if (message.from !== myNodeNum) {
         device.incrementUnread(message.channel);
+        const senderName = getNodeDisplayName(nodeDB, message.from);
+        const channelName = getChannelDisplayName(device, message.channel);
+        const distress = isDistressBeaconMessage(messagePacket);
+        useNotificationsStore.getState().add({
+          type: distress ? "distress_beacon" : "broadcast_message",
+          priority: distress ? 5 : 2,
+          nodeNum: message.from,
+          payload: {
+            title: distress
+              ? `Distress beacon from ${senderName}`
+              : `${channelName}: ${senderName}`,
+            detail: message.message,
+            message: message.message,
+            senderName,
+            channel: message.channel,
+            channelName,
+            url: `/messages/broadcast/${message.channel}`,
+          },
+        });
       }
     }
   });

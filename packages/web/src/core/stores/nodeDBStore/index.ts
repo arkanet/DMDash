@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { featureFlags } from "@core/services/featureFlags";
 import { validateIncomingNode } from "@core/stores/nodeDBStore/nodeValidation";
+import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { createStorage } from "@core/stores/utils/indexDB.ts";
 import * as nodeinfoPersistence from "@core/stores/nodeinfoPersistence";
 import { normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
@@ -92,6 +93,40 @@ function recordNodeError(nodeDB: NodeDBData, nodeNum: number, error: NodeErrorTy
   });
 }
 
+function getNodeNotificationName(node: Protobuf.Mesh.NodeInfo): string {
+  return (
+    node.user?.longName?.trim() ||
+    node.user?.shortName?.trim() ||
+    (node.user as { id?: string | undefined } | undefined)?.id ||
+    `!${node.num.toString(16).toUpperCase()}`
+  );
+}
+
+function notifyNodeDetected(
+  node: Protobuf.Mesh.NodeInfo | undefined,
+  source: string,
+  myNodeNum?: number,
+) {
+  if (!node || node.num === myNodeNum) {
+    return;
+  }
+
+  const nodeName = getNodeNotificationName(node);
+
+  useNotificationsStore.getState().add({
+    type: "node_detected",
+    priority: 2,
+    nodeNum: node.num,
+    payload: {
+      title: "New Meshtastic node detected",
+      detail: `${nodeName} was heard from ${source}.`,
+      nodeName,
+      source,
+      url: "/nodes",
+    },
+  });
+}
+
 function nodeDBFactory(
   id: number,
   get: () => PrivateNodeDBState,
@@ -123,6 +158,8 @@ function nodeDBFactory(
       ),
 
     addNode: (node) => {
+      let newNodeNumForNotification: number | undefined;
+
       // apply normalization to node.position if present
       if (node.position) {
         node.position = normalizePosition(node.position);
@@ -201,6 +238,7 @@ function nodeDBFactory(
           }
 
           if (isNew) {
+            newNodeNumForNotification = merged.num;
             console.log(
               `[NodeDB] Adding new node from NodeInfo packet: ${merged.num} (${merged.user?.longName || "unknown"})`,
             );
@@ -223,6 +261,15 @@ function nodeDBFactory(
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after addNode", e);
       }
+
+      const nodeDB = get().nodeDBs.get(id);
+      notifyNodeDetected(
+        newNodeNumForNotification !== undefined
+          ? nodeDB?.nodeMap.get(newNodeNumForNotification)
+          : undefined,
+        "node info",
+        nodeDB?.myNodeNum,
+      );
     },
 
     removeNode: (nodeNum) => {
@@ -450,6 +497,8 @@ function nodeDBFactory(
       ),
 
     processPacket: (data) => {
+      let newNodeNumForNotification: number | undefined;
+
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -543,6 +592,7 @@ function nodeDBFactory(
               data.from,
               computedNew as Protobuf.Mesh.NodeInfo,
             );
+            newNodeNumForNotification = data.from;
           }
         }),
       );
@@ -558,6 +608,15 @@ function nodeDBFactory(
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after processPacket", e);
       }
+
+      const nodeDB = get().nodeDBs.get(id);
+      notifyNodeDetected(
+        newNodeNumForNotification !== undefined
+          ? nodeDB?.nodeMap.get(newNodeNumForNotification)
+          : undefined,
+        "mesh traffic",
+        nodeDB?.myNodeNum,
+      );
     },
 
     addTelemetry: (telemetry) => {
@@ -649,6 +708,8 @@ function nodeDBFactory(
     },
 
     addUser: (user) => {
+      let newNodeNumForNotification: number | undefined;
+
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -709,6 +770,7 @@ function nodeDBFactory(
           );
 
           if (isNew) {
+            newNodeNumForNotification = user.from;
             console.log(
               `[NodeDB] Adding new node from user packet: ${user.from} (${user.data.longName || "unknown"})`,
             );
@@ -726,9 +788,20 @@ function nodeDBFactory(
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after addUser", e);
       }
+
+      const nodeDB = get().nodeDBs.get(id);
+      notifyNodeDetected(
+        newNodeNumForNotification !== undefined
+          ? nodeDB?.nodeMap.get(newNodeNumForNotification)
+          : undefined,
+        "user packet",
+        nodeDB?.myNodeNum,
+      );
     },
 
     addPosition: (position) => {
+      let newNodeNumForNotification: number | undefined;
+
       set(
         produce<PrivateNodeDBState>((draft) => {
           const nodeDB = draft.nodeDBs.get(id);
@@ -797,6 +870,7 @@ function nodeDBFactory(
           }
 
           if (isNew) {
+            newNodeNumForNotification = position.from;
             console.log(`[NodeDB] Adding new node from position packet: ${position.from}`);
           }
         }),
@@ -812,6 +886,15 @@ function nodeDBFactory(
       } catch (e) {
         console.warn("nodeinfoPersistence: failed to persist node after addPosition", e);
       }
+
+      const nodeDB = get().nodeDBs.get(id);
+      notifyNodeDetected(
+        newNodeNumForNotification !== undefined
+          ? nodeDB?.nodeMap.get(newNodeNumForNotification)
+          : undefined,
+        "position packet",
+        nodeDB?.myNodeNum,
+      );
     },
 
     updateNodeStatus: (nodeNum, status) => {
