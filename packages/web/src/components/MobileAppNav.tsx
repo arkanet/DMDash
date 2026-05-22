@@ -85,7 +85,9 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
         ? undefined
         : state.savedConnections.find((connection) => connection.meshDeviceId === selectedDeviceId);
     const fallbackConnection = state.savedConnections.find((connection) =>
-      ["connected", "configured", "configuring", "connecting"].includes(connection.status),
+      ["connected", "configured", "configuring", "connecting", "reconnecting"].includes(
+        connection.status,
+      ),
     );
     const connection = activeConnection ?? selectedDeviceConnection ?? fallbackConnection;
     return connection && connection.type !== "http" ? connection : undefined;
@@ -95,7 +97,10 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
     localConnectionStatus === "connected" ||
     localConnectionStatus === "configured" ||
     localConnectionStatus === "configuring";
-  const isLocalConnectionRestoring = isAutoReconnecting || localConnectionStatus === "connecting";
+  const isLocalConnectionRestoring =
+    isAutoReconnecting ||
+    localConnectionStatus === "connecting" ||
+    localConnectionStatus === "reconnecting";
 
   useEffect(() => {
     setOverflowOpen(false);
@@ -113,7 +118,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
 
     if (localConnectionStatus !== "disconnected" && localConnectionStatus !== "error") {
       if (
-        localConnectionStatus === "connecting" &&
+        (localConnectionStatus === "connecting" || localConnectionStatus === "reconnecting") &&
         manualDisconnectConnectionIdRef.current === activeLocalConnection.id
       ) {
         manualDisconnectConnectionIdRef.current = undefined;
@@ -135,7 +140,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
     lastAutoReconnectAtRef.current = now;
     setIsAutoReconnecting(true);
 
-    void connect(activeLocalConnection.id, { allowPrompt: false }).finally(() => {
+    void connect(activeLocalConnection.id, { allowPrompt: false, reconnect: true }).finally(() => {
       setIsAutoReconnecting(false);
     });
   }, [activeLocalConnection, connect, localConnectionStatus]);

@@ -78,6 +78,8 @@ export const DeviceInfoPanel = ({
       case "online":
         return "bg-emerald-500";
       case "connecting":
+        return "bg-[#00e531]";
+      case "reconnecting":
       case "configuring":
       case "disconnecting":
         return "bg-amber-500";

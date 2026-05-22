@@ -284,7 +284,10 @@ export const Connections = () => {
                   });
                 }}
                 onRetry={async () => {
-                  const ok = await connect(c.id, { allowPrompt: c.type !== "bluetooth" });
+                  const ok = await connect(c.id, {
+                    allowPrompt: c.type !== "bluetooth",
+                    reconnect: true,
+                  });
                   if (ok) {
                     setPendingNavigationConnectionId(c.id);
                   }
@@ -369,9 +372,14 @@ function ConnectionCard({
   const { t } = useTranslation("connections");
 
   const Icon = connectionTypeIcon(connection.type);
-  const isBusy = connection.status === "connecting" || connection.status === "configuring";
+  const isBusy =
+    connection.status === "connecting" ||
+    connection.status === "reconnecting" ||
+    connection.status === "configuring";
   const isConnected = connection.status === "connected" || connection.status === "configured";
   const isError = connection.status === "error";
+  const isRetrying = connection.status === "reconnecting";
+  const showRetryAction = isError || isRetrying;
 
   return (
     <Card className="flex flex-col border-white/10 bg-[#141414]/92 text-zinc-100 shadow-[0_18px_40px_rgba(0,0,0,0.32)]">
@@ -478,10 +486,10 @@ function ConnectionCard({
         ) : (
           <Button
             className="gap-2"
-            onClick={() => (isError ? onRetry() : onConnect())}
+            onClick={() => (showRetryAction ? onRetry() : onConnect())}
             disabled={isBusy}
           >
-            {isError ? (
+            {showRetryAction ? (
               <>
                 <RotateCw className="size-4" />
                 {t("button.retry")}
@@ -518,9 +526,11 @@ function ConnectionProgressBar({ status }: { status: Connection["status"] }) {
   const progress = Math.min(96, Math.max(6, (elapsedMs / estimateMs) * 100));
   const elapsedSeconds = Math.floor(elapsedMs / 1000);
   const label =
-    status === "configuring"
-      ? t("status.configuring", "Configuring device")
-      : t("status.connecting", "Connecting to device");
+    status === "reconnecting"
+      ? t("status.reconnecting", "Reconnecting to device")
+      : status === "configuring"
+        ? t("status.configuring", "Configuring device")
+        : t("status.connecting", "Connecting to device");
 
   return (
     <div className="space-y-1.5">

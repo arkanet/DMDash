@@ -72,7 +72,9 @@ export function useConnectionForDevice(deviceId: number): Connection | undefined
  */
 export function useIsConnecting(): boolean {
   return useDeviceStore((s) =>
-    s.savedConnections.some((c) => c.status === "connecting" || c.status === "configuring"),
+    s.savedConnections.some(
+      (c) => c.status === "connecting" || c.status === "reconnecting" || c.status === "configuring",
+    ),
   );
 }
 

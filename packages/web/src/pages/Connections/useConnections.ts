@@ -37,6 +37,12 @@ const BLUETOOTH_RECONNECT_DELAY_MS = 1500;
 const BLUETOOTH_RECONNECT_MESSAGE =
   "Bluetooth Device is no longer in range. Reconnecting automatically.";
 
+type ConnectOptions = {
+  allowPrompt?: boolean;
+  background?: boolean;
+  reconnect?: boolean;
+};
+
 function clearBluetoothReconnect(id: ConnectionId): void {
   const timer = bluetoothReconnectTimers.get(id);
   if (timer) {
@@ -81,13 +87,9 @@ export function useConnections() {
   const { addMessageStore } = useMessageStore();
   const { setSelectedDevice } = useAppStore();
   const selectedDeviceId = useAppStore((s) => s.selectedDeviceId);
-  const connectRef = useRef<
-    | ((
-        id: ConnectionId,
-        opts?: { allowPrompt?: boolean; background?: boolean },
-      ) => Promise<boolean>)
-    | null
-  >(null);
+  const connectRef = useRef<((id: ConnectionId, opts?: ConnectOptions) => Promise<boolean>) | null>(
+    null,
+  );
 
   const stopConnectionTasks = useCallback((id: ConnectionId) => {
     const heartbeatId = heartbeats.get(id);
@@ -255,7 +257,11 @@ export function useConnections() {
           }
 
           backgroundReconnects.add(id);
-          const reconnect = connectRef.current?.(id, { allowPrompt: false, background: true });
+          const reconnect = connectRef.current?.(id, {
+            allowPrompt: false,
+            background: true,
+            reconnect: true,
+          });
           if (!reconnect) {
             backgroundReconnects.delete(id);
             queueReconnect();
@@ -336,10 +342,11 @@ export function useConnections() {
       }
 
       // Set active connection and link device bidirectionally
+      const isReconnectAttempt = conn?.status === "reconnecting";
       setActiveConnectionId(id);
       device.setConnectionId(id);
       device.setConnectionPhase("connecting");
-      updateStatus(id, "connected");
+      updateStatus(id, isReconnectAttempt ? "reconnecting" : "connected");
 
       // Listen for config complete event (with nonce/ID)
       const unsubConfigComplete = meshDevice.events.onConfigComplete.subscribe(
@@ -370,13 +377,19 @@ export function useConnections() {
           .getState()
           .getSavedConnections()
           .find((connection) => connection.id === id);
-        if (!currentConnection || currentConnection.status !== "connected") {
+        if (
+          !currentConnection ||
+          (currentConnection.status !== "connected" && currentConnection.status !== "reconnecting")
+        ) {
           return;
         }
 
         // Start configuration after the UI has observed the connected state.
         device.setConnectionPhase("configuring");
-        updateStatus(id, "configuring");
+        updateStatus(
+          id,
+          currentConnection.status === "reconnecting" ? "reconnecting" : "configuring",
+        );
         console.log("[useConnections] Starting configuration");
 
         meshDevice
@@ -425,7 +438,7 @@ export function useConnections() {
   );
 
   const connect = useCallback(
-    async (id: ConnectionId, opts?: { allowPrompt?: boolean; background?: boolean }) => {
+    async (id: ConnectionId, opts?: ConnectOptions) => {
       const conn = useDeviceStore
         .getState()
         .getSavedConnections()
@@ -447,8 +460,12 @@ export function useConnections() {
       if (!opts?.background) {
         clearBluetoothReconnect(id);
       }
+      const nextStatus: ConnectionStatus =
+        opts?.reconnect || opts?.background || conn.status === "error"
+          ? "reconnecting"
+          : "connecting";
       linkedDevice?.setConnectionPhase("connecting");
-      updateStatus(id, "connecting");
+      updateStatus(id, nextStatus);
       try {
         if (conn.type === "http") {
           const ok = await testHttpReachable(conn.url);
@@ -707,6 +724,8 @@ export function useConnections() {
           c.type === "http" &&
           c.status !== "connected" &&
           c.status !== "configured" &&
+          c.status !== "connecting" &&
+          c.status !== "reconnecting" &&
           c.status !== "configuring",
       )
       .map(async (c) => {
@@ -722,6 +741,8 @@ export function useConnections() {
           c.type === "tcp" &&
           c.status !== "connected" &&
           c.status !== "configured" &&
+          c.status !== "connecting" &&
+          c.status !== "reconnecting" &&
           c.status !== "configuring",
       )
       .map(async (c) => {
@@ -738,6 +759,8 @@ export function useConnections() {
           c.type === "bluetooth" &&
           c.status !== "connected" &&
           c.status !== "configured" &&
+          c.status !== "connecting" &&
+          c.status !== "reconnecting" &&
           c.status !== "configuring" &&
           c.status !== "error",
       )
@@ -774,6 +797,8 @@ export function useConnections() {
           c.type === "serial" &&
           c.status !== "connected" &&
           c.status !== "configured" &&
+          c.status !== "connecting" &&
+          c.status !== "reconnecting" &&
           c.status !== "configuring",
       )
       .map(async (c) => {
@@ -820,6 +845,8 @@ export function useConnections() {
       const isConnectedState =
         conn.status === "connected" ||
         conn.status === "configured" ||
+        conn.status === "connecting" ||
+        conn.status === "reconnecting" ||
         conn.status === "configuring";
 
       // Update status if it doesn't match reality

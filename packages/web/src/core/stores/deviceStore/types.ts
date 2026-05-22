@@ -31,6 +31,7 @@ export type ConnectionType = "http" | "tcp" | "bluetooth" | "serial";
 export type ConnectionStatus =
   | "connected"
   | "connecting"
+  | "reconnecting"
   | "disconnected"
   | "disconnecting"
   | "configuring"

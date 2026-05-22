@@ -15,9 +15,20 @@ export function ConnectionStatusBadge({ status }: { status: Connection["status"]
       displayStatus = "connected";
       break;
     case "connecting":
+      color = "bg-[#00e531]";
+      displayStatus = "connecting";
+      textColor = "text-[#00e531]";
+      isBlinking = true;
+      break;
+    case "reconnecting":
+      color = "bg-[#d3a02f]";
+      displayStatus = "reconnecting";
+      textColor = "text-[#d3a02f]";
+      isBlinking = true;
+      break;
     case "configuring":
       color = "bg-[#d3a02f]";
-      displayStatus = "reconnect";
+      displayStatus = "configuring";
       textColor = "text-[#d3a02f]";
       isBlinking = true;
       break;
