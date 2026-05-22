@@ -11,7 +11,7 @@ import {
 } from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
-import { type MeshDevice, Protobuf, type Types } from "@meshtastic/core";
+import { type MeshDevice, Protobuf, type Types, Types as CoreTypes } from "@meshtastic/core";
 
 function getNodeDisplayName(nodeDB: NodeDB, nodeNum: number): string {
   const node = nodeDB.getNode(nodeNum);
@@ -173,6 +173,9 @@ export const subscribeAll = (
 
   connection.events.onDeviceStatus.subscribe((status) => {
     device.setStatus(status);
+    if (status === CoreTypes.DeviceStatusEnum.DeviceDisconnected) {
+      device.setConnectionPhase("disconnected");
+    }
   });
 
   connection.events.onWaypointPacket.subscribe((waypoint) => {

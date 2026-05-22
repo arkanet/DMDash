@@ -119,21 +119,9 @@ export class Queue {
             await writer.write(item.data);
             item.sent = true;
           } catch (error) {
-            if (
-              error &&
-              typeof error === "object" &&
-              "code" in error &&
-              (error.code === "ECONNRESET" || error.code === "ERR_INVALID_STATE")
-            ) {
-              writer.releaseLock();
-              this.lock = false;
-              throw error;
-            }
-            /*
-             Transformed send error to logger.error. Original:
-             // console.error(`Error sending packet ${item.id}`, error);
-            */
             logger.error?.(`Error sending packet ${item.id}`, error);
+            this.queue = this.queue.filter((queuedItem) => queuedItem.id !== item.id);
+            throw error;
           }
         }
       }

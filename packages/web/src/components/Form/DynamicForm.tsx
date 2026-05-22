@@ -92,7 +92,7 @@ export function useSyncFormValues<T extends FieldValues>(
 
     lastSyncedValuesRef.current = valuesKey;
     reset(values, {
-      keepDefaultValues: true,
+      keepDefaultValues: isDirty,
       keepDirty: isDirty,
       keepDirtyValues: isDirty,
       keepErrors: true,

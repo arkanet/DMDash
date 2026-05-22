@@ -1,5 +1,5 @@
 import { MessageState, MessageType, useMessageStore } from "@core/stores";
-import { Protobuf } from "@meshtastic/core";
+import { Protobuf, Types } from "@meshtastic/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { subscribeAll } from "./subscriptions.ts";
 
@@ -139,5 +139,44 @@ describe("subscribeAll message status updates", () => {
         nodeB: targetNodeNum,
       })[0]?.state,
     ).toBe(MessageState.Received);
+  });
+
+  it("marks the connection phase disconnected when the device disconnects", () => {
+    const events = createConnectionEvents();
+    const messageStore = useMessageStore.getState().addMessageStore(9002);
+    const device = {
+      id: 9002,
+      hardware: { myNodeNum: 0 },
+      addMetadata: vi.fn(),
+      setStatus: vi.fn(),
+      setConnectionPhase: vi.fn(),
+      addWaypoint: vi.fn(),
+      addChannel: vi.fn(),
+      setConfig: vi.fn(),
+      setModuleConfig: vi.fn(),
+      incrementUnread: vi.fn(),
+      addTraceRoute: vi.fn(),
+      setPendingSettingsChanges: vi.fn(),
+      addClientNotification: vi.fn(),
+      setDialogOpen: vi.fn(),
+      addNeighborInfo: vi.fn(),
+      setRefreshKeysNodeNum: vi.fn(),
+    };
+    const nodeDB = {
+      addTelemetry: vi.fn(),
+      updateNodeStatus: vi.fn(),
+      addUser: vi.fn(),
+      addPosition: vi.fn(),
+      addNode: vi.fn(),
+      processPacket: vi.fn(),
+      setNodeError: vi.fn(),
+    };
+
+    subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
+
+    events.onDeviceStatus.dispatch(Types.DeviceStatusEnum.DeviceDisconnected);
+
+    expect(device.setStatus).toHaveBeenCalledWith(Types.DeviceStatusEnum.DeviceDisconnected);
+    expect(device.setConnectionPhase).toHaveBeenCalledWith("disconnected");
   });
 });

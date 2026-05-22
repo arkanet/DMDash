@@ -6,7 +6,8 @@ import { LeftSidebarButton } from "@components/UI/Sidebar/LeftSidebarButton.tsx"
 import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
 import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
-import { useNodeDB } from "@core/stores";
+import { EXPECTED_DEVICE_RECONNECT_TIMEOUT_MS } from "@core/constants/connection.ts";
+import { useDeviceStore, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { Protobuf, Types } from "@meshtastic/core";
 import { DeviceConfig } from "@pages/Settings/DeviceConfig.tsx";
@@ -25,6 +26,15 @@ import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { RadioConfig } from "./RadioConfig.tsx";
 
+const EXPECTED_REBOOT_COMMIT_ERROR_PATTERN =
+  /bluetooth|gatt|disconnect|disconnected|closed|networkerror|notsupportederror|timeout|packet does not exist/i;
+
+function isExpectedRebootCommitError(error: unknown): boolean {
+  const message = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
+
+  return EXPECTED_REBOOT_COMMIT_ERROR_PATTERN.test(message);
+}
+
 const ConfigPage = () => {
   const {
     getAllConfigChanges,
@@ -32,6 +42,7 @@ const ConfigPage = () => {
     getAllChannelChanges,
     getAllQueuedAdminMessages,
     connection,
+    connectionId,
     clearAllChanges,
     setConfig,
     setModuleConfig,
@@ -186,13 +197,32 @@ const ConfigPage = () => {
         ),
       );
 
-      if (configChanges.length > 0 || moduleConfigChanges.length > 0) {
-        await connection?.commitEditSettings();
+      const shouldCommitSettings = configChanges.length > 0 || moduleConfigChanges.length > 0;
+      const shouldCommitInBackground = shouldCommitSettings && !isRemote && Boolean(connectionId);
+
+      if (shouldCommitSettings) {
+        if (!isRemote && connectionId) {
+          useDeviceStore.getState().updateSavedConnection(connectionId, {
+            expectedReconnectUntil: Date.now() + EXPECTED_DEVICE_RECONNECT_TIMEOUT_MS,
+            expectedReconnectReason: "device-reboot",
+          });
+        }
+
+        const commitPromise = connection?.commitEditSettings();
+        if (shouldCommitInBackground) {
+          void commitPromise?.catch((error) => {
+            if (!isExpectedRebootCommitError(error)) {
+              console.warn("commitEditSettings failed after scheduling reconnect", error);
+            }
+          });
+        } else {
+          await commitPromise;
+        }
       }
 
       // Send queued admin messages after configs are committed
       if (adminMessages.length > 0) {
-        await Promise.all(
+        const adminMessagePromise = Promise.all(
           adminMessages.map((message) =>
             connection?.sendPacket(
               toBinary(Protobuf.Admin.AdminMessageSchema, message),
@@ -201,6 +231,16 @@ const ConfigPage = () => {
             ),
           ),
         );
+
+        if (shouldCommitInBackground) {
+          void adminMessagePromise.catch((error) => {
+            if (!isExpectedRebootCommitError(error)) {
+              console.warn("Queued admin messages failed after scheduling reconnect", error);
+            }
+          });
+        } else {
+          await adminMessagePromise;
+        }
       }
 
       channelChanges.forEach((newChannel) => {
@@ -220,8 +260,8 @@ const ConfigPage = () => {
           keepDirty: false,
           keepErrors: false,
           keepTouched: false,
-          keepValues: true,
         });
+        setRhfState((current) => ({ ...current, isDirty: false }));
 
         formMethods.trigger();
       }
@@ -249,9 +289,11 @@ const ConfigPage = () => {
     getChange,
     formMethods,
     addChannel,
+    connectionId,
     setConfig,
     setModuleConfig,
     clearAllChanges,
+    isRemote,
     nodeDB,
     targetNodeNum,
   ]);

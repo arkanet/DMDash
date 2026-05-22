@@ -50,13 +50,10 @@ export const Sidebar = ({ children }: SidebarProps) => {
     ? t("sidebar.collapseToggle.button.open")
     : t("sidebar.collapseToggle.button.close");
 
-  // Get the active connection from selector (connected > default > first)
-  const activeConnection =
-    useActiveConnection() ||
-    // biome-ignore lint/correctness/useHookAtTopLevel: not a react hook
-    useDefaultConnection() ||
-    // biome-ignore lint/correctness/useHookAtTopLevel: not a hook
-    useFirstSavedConnection();
+  const activeStoreConnection = useActiveConnection();
+  const defaultConnection = useDefaultConnection();
+  const firstSavedConnection = useFirstSavedConnection();
+  const activeConnection = activeStoreConnection ?? defaultConnection ?? firstSavedConnection;
 
   const pathname = useLocation({
     select: (location) => location.pathname.replace(/^\//, ""),

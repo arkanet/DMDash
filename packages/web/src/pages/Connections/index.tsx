@@ -103,10 +103,7 @@ export const Connections = () => {
       return;
     }
 
-    if (
-      pendingConnection.status === "configured" ||
-      pendingNavigationConnectionPhase === "configured"
-    ) {
+    if (pendingNavigationConnectionPhase === "configured") {
       setPendingNavigationConnectionId(null);
       navigate({ to: "/map" });
       return;
@@ -241,8 +238,10 @@ export const Connections = () => {
                 key={c.id}
                 connection={c}
                 onConnect={async () => {
-                  setPendingNavigationConnectionId(c.id);
                   const ok = await connect(c.id, { allowPrompt: true });
+                  if (ok) {
+                    setPendingNavigationConnectionId(c.id);
+                  }
                   toast({
                     title: ok ? t("toasts.connected") : t("toasts.failed"),
                     description: ok
@@ -252,9 +251,6 @@ export const Connections = () => {
                         })
                       : t("toasts.checkConnection"),
                   });
-                  if (!ok) {
-                    setPendingNavigationConnectionId(null);
-                  }
                 }}
                 onDisconnect={async () => {
                   await disconnect(c.id);
@@ -288,20 +284,28 @@ export const Connections = () => {
                   });
                 }}
                 onRetry={async () => {
-                  setPendingNavigationConnectionId(c.id);
-                  const ok = await connect(c.id, { allowPrompt: true });
+                  const ok = await connect(c.id, { allowPrompt: c.type !== "bluetooth" });
+                  if (ok) {
+                    setPendingNavigationConnectionId(c.id);
+                  }
                   toast({
-                    title: ok ? t("toasts.connected") : t("toasts.failed"),
+                    title:
+                      ok || c.type !== "bluetooth"
+                        ? ok
+                          ? t("toasts.connected")
+                          : t("toasts.failed")
+                        : t("toasts.reconnecting", "Reconnecting"),
                     description: ok
                       ? t("toasts.nowConnected", {
                           name: c.name,
                           interpolation: { escapeValue: false },
                         })
-                      : t("toasts.pickConnectionAgain"),
+                      : c.type === "bluetooth"
+                        ? t("toasts.retryingAuthorizedDevice", {
+                            defaultValue: "Retrying on the previously authorized Bluetooth device.",
+                          })
+                        : t("toasts.pickConnectionAgain"),
                   });
-                  if (!ok) {
-                    setPendingNavigationConnectionId(null);
-                  }
                 }}
               />
             ))}

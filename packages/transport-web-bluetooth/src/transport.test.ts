@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { runTransportContract } from "../../../tests/utils/transportContract.ts";
+import { Types } from "@meshtastic/core";
 import { TransportWebBluetooth } from "./transport.ts";
 
 class MiniEmitter {
@@ -24,10 +25,15 @@ function stubWebBluetooth() {
   const incomingQueue: Uint8Array[] = [];
   let lastWritten: Uint8Array | undefined;
   let isConnected = true;
+  let failNextRead = false;
 
   // fromRadioCharacteristic: read bytes from queue, one buffer per read
   const fromRadioCharacteristic: BluetoothRemoteGATTCharacteristic = {
     async readValue() {
+      if (failNextRead) {
+        failNextRead = false;
+        throw new Error("GATT operation failed for unknown reason");
+      }
       const next = incomingQueue.shift() ?? new Uint8Array();
       return new DataView(next.buffer, next.byteOffset, next.byteLength) as unknown as DataView;
     },
@@ -139,6 +145,9 @@ function stubWebBluetooth() {
       isConnected = false;
       deviceEmitter.dispatchEvent(new Event("gattserverdisconnected"));
     },
+    failNextRead: () => {
+      failNextRead = true;
+    },
     cleanup: () => {
       vi.unstubAllGlobals();
     },
@@ -190,6 +199,41 @@ describe("TransportWebBluetooth (contract)", () => {
 
       await expect(transport.disconnect()).resolves.toBeUndefined();
 
+      reader.releaseLock();
+    } finally {
+      ble.cleanup();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("read errors emit disconnect status without rejecting a fire-and-forget read", async () => {
+    const ble = stubWebBluetooth();
+
+    try {
+      const transport = await TransportWebBluetooth.create();
+      const reader = transport.fromDevice.getReader();
+      const writer = transport.toDevice.getWriter();
+
+      ble.failNextRead();
+      await expect(writer.write(new Uint8Array([0xaa]))).resolves.toBeUndefined();
+
+      let sawReadError = false;
+      for (let i = 0; i < 10; i++) {
+        const { value } = await reader.read();
+        if (
+          value?.type === "status" &&
+          value.data.status === Types.DeviceStatusEnum.DeviceDisconnected &&
+          value.data.reason === "read-error"
+        ) {
+          sawReadError = true;
+          break;
+        }
+      }
+
+      expect(sawReadError).toBe(true);
+
+      writer.releaseLock();
       reader.releaseLock();
     } finally {
       ble.cleanup();

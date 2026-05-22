@@ -48,7 +48,7 @@ export class TransportWebBluetooth implements Types.Transport {
     this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "gatt-disconnected");
   };
   private onFromNumChanged = () => {
-    void this.readFromRadio();
+    this.readFromRadio();
   };
 
   /**
@@ -133,7 +133,7 @@ export class TransportWebBluetooth implements Types.Transport {
           );
           this.emitStatus(Types.DeviceStatusEnum.DeviceConnected);
           // prime once in case data already queued
-          void this.readFromRadio();
+          this.readFromRadio();
         } catch {
           this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "notify-failed");
           this.gattServer.device.removeEventListener(
@@ -149,7 +149,7 @@ export class TransportWebBluetooth implements Types.Transport {
         try {
           const ab = toArrayBuffer(chunk);
           await this.toRadioCharacteristic.writeValue(ab);
-          void this.readFromRadio(); // ensure we read any response
+          this.readFromRadio(); // ensure we read any response
         } catch (error) {
           this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "write-error");
           throw error;
@@ -194,33 +194,34 @@ export class TransportWebBluetooth implements Types.Transport {
     }
   }
 
-  private async readFromRadio(): Promise<void> {
+  private readFromRadio(): void {
     if (this.reading) {
       return;
     }
     this.reading = true;
 
-    try {
-      let hasMoreData = true;
-      while (hasMoreData && this.fromRadioCharacteristic) {
-        const value = await this.fromRadioCharacteristic.readValue();
-        if (value.byteLength === 0) {
-          hasMoreData = false;
-          continue;
+    void (async () => {
+      try {
+        let hasMoreData = true;
+        while (hasMoreData && this.gattServer.connected && this.fromRadioCharacteristic) {
+          const value = await this.fromRadioCharacteristic.readValue();
+          if (value.byteLength === 0) {
+            hasMoreData = false;
+            continue;
+          }
+          this.enqueue({
+            type: "packet",
+            data: new Uint8Array(value.buffer),
+          });
         }
-        this.enqueue({
-          type: "packet",
-          data: new Uint8Array(value.buffer),
-        });
+      } catch {
+        if (!this.closingByUser) {
+          this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "read-error");
+        }
+      } finally {
+        this.reading = false;
       }
-    } catch (error) {
-      if (!this.closingByUser) {
-        this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "read-error");
-      }
-      throw error;
-    } finally {
-      this.reading = false;
-    }
+    })();
   }
 
   private emitStatus(next: Types.DeviceStatusEnum, reason?: string): void {

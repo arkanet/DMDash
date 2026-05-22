@@ -98,6 +98,21 @@
   }
 }
 
+@keyframes darkmesh-status-blink {
+  0%,
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    text-shadow: 0 0 0 transparent;
+  }
+
+  50% {
+    opacity: 0.42;
+    filter: blur(1.2px);
+    text-shadow: 0 0 10px currentColor;
+  }
+}
+
 @keyframes darkmesh-traceroute-panel-enter {
   from {
     transform: translateX(-100%);
@@ -116,6 +131,18 @@
   background:
     linear-gradient(90deg, transparent, var(--darkmesh-action-color, #00bcd4), transparent);
   animation: darkmesh-connection-progress 1.4s linear infinite;
+}
+
+.darkmesh-status-blink {
+  animation: darkmesh-status-blink 0.95s ease-in-out infinite;
+  will-change: opacity, filter;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .darkmesh-status-blink {
+    animation: none;
+    filter: none;
+  }
 }
 
 .darkmesh-connection-progress-value {

@@ -6,9 +6,10 @@ import { ThemeDocumentController } from "@components/ThemeDocumentController.tsx
 import { Toaster } from "@components/Toaster.tsx";
 import { ErrorPage } from "@components/UI/ErrorPage.tsx";
 import Footer from "@components/UI/Footer.tsx";
-import { SidebarProvider, useAppStore, useDeviceStore } from "@core/stores";
+import { type Device, SidebarProvider, useAppStore, useDeviceStore } from "@core/stores";
 import { DarkMeshRuntime } from "@app/darkmesh/runtime.tsx";
 import { Connections } from "@pages/Connections/index.tsx";
+import { Types } from "@meshtastic/core";
 import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { useEffect, useState } from "react";
@@ -97,10 +98,17 @@ function DeviceConnectionProgress({
   );
 }
 
+function isUsableDevice(device: Device | undefined): device is Device {
+  return (
+    device?.connectionPhase === "configured" &&
+    device.status !== Types.DeviceStatusEnum.DeviceDisconnected
+  );
+}
+
 export function App() {
   useMobileViewport();
 
-  const { getDevice } = useDeviceStore();
+  const { getDevice, getConnectionForDevice } = useDeviceStore();
   const { selectedDeviceId } = useAppStore();
   const navigate = useNavigate();
   const pathname = useLocation({
@@ -108,9 +116,62 @@ export function App() {
   });
 
   const device = getDevice(selectedDeviceId);
+  const expectedReconnectConnection = device ? getConnectionForDevice(device.id) : undefined;
   const isPublicGuideRoute = pathname === "/guide" || pathname.startsWith("/guide/");
   const isConnectionsRoute = pathname === "/" || pathname === "/connections";
-  const shouldRedirectToConnections = !device && !isPublicGuideRoute && !isConnectionsRoute;
+  const hasUsableDevice = isUsableDevice(device);
+  const expectedReconnectUntil = expectedReconnectConnection?.expectedReconnectUntil ?? 0;
+  const isHoldingExpectedReconnect = !hasUsableDevice && expectedReconnectUntil > Date.now();
+  const deviceForAppShell = hasUsableDevice || isHoldingExpectedReconnect ? device : undefined;
+  const shouldRedirectToConnections =
+    !hasUsableDevice && !isHoldingExpectedReconnect && !isPublicGuideRoute && !isConnectionsRoute;
+
+  useEffect(() => {
+    if (hasUsableDevice || isPublicGuideRoute || isConnectionsRoute) {
+      return;
+    }
+
+    if (!expectedReconnectConnection?.id || !expectedReconnectUntil) {
+      return;
+    }
+
+    const redirectAfterExpectedReconnectWindow = () => {
+      const state = useDeviceStore.getState();
+      const currentConnection = state
+        .getSavedConnections()
+        .find((connection) => connection.id === expectedReconnectConnection.id);
+      const currentDevice = currentConnection?.meshDeviceId
+        ? state.getDevice(currentConnection.meshDeviceId)
+        : state.getDevice(selectedDeviceId);
+
+      if (isUsableDevice(currentDevice)) {
+        return;
+      }
+
+      state.updateSavedConnection(expectedReconnectConnection.id, {
+        expectedReconnectUntil: undefined,
+        expectedReconnectReason: undefined,
+      });
+      void navigate({ to: "/connections", replace: true });
+    };
+
+    const timeoutMs = expectedReconnectUntil - Date.now();
+    if (timeoutMs <= 0) {
+      redirectAfterExpectedReconnectWindow();
+      return;
+    }
+
+    const timeout = window.setTimeout(redirectAfterExpectedReconnectWindow, timeoutMs);
+    return () => window.clearTimeout(timeout);
+  }, [
+    expectedReconnectConnection?.id,
+    expectedReconnectUntil,
+    hasUsableDevice,
+    isConnectionsRoute,
+    isPublicGuideRoute,
+    navigate,
+    selectedDeviceId,
+  ]);
 
   useEffect(() => {
     if (shouldRedirectToConnections) {
@@ -144,9 +205,9 @@ export function App() {
                     <Footer />
                   </div>
                 </div>
-              ) : device ? (
+              ) : deviceForAppShell ? (
                 <div className="flex h-full min-h-0 w-full flex-1">
-                  <DeviceConnectionProgress phase={device.connectionPhase} />
+                  <DeviceConnectionProgress phase={deviceForAppShell.connectionPhase} />
                   <DarkMeshRuntime />
                   <DialogManager />
                   <KeyBackupReminder />

@@ -48,6 +48,8 @@ export type Connection = {
   status: ConnectionStatus;
   error?: string;
   meshDeviceId?: number;
+  expectedReconnectUntil?: number;
+  expectedReconnectReason?: "device-reboot";
 } & NewConnection;
 
 export type NewConnection =

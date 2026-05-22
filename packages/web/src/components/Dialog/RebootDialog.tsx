@@ -11,8 +11,9 @@ import {
 import { Input } from "@components/UI/Input.tsx";
 import { Label } from "@components/UI/Label.tsx";
 import { Separator } from "@components/UI/Separator.tsx";
+import { EXPECTED_DEVICE_RECONNECT_TIMEOUT_MS } from "@core/constants/connection.ts";
 import { toast } from "@core/hooks/useToast.ts";
-import { useDevice } from "@core/stores";
+import { useDevice, useDeviceStore } from "@core/stores";
 import { ClockIcon, OctagonXIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,7 +28,7 @@ const REBOOT_NOW_DELAY = 5; // seconds, matching the Android admin reboot reques
 
 export const RebootDialog = ({ open, onOpenChange }: RebootDialogProps) => {
   const { t } = useTranslation("dialog");
-  const { connection } = useDevice();
+  const { connection, connectionId } = useDevice();
   const [time, setTime] = useState<number>(DEFAULT_REBOOT_DELAY);
   const [isScheduled, setIsScheduled] = useState(false);
   const [isOTA, setIsOTA] = useState(false);
@@ -54,6 +55,14 @@ export const RebootDialog = ({ open, onOpenChange }: RebootDialogProps) => {
         variant: "destructive",
       });
       return false;
+    }
+
+    if (connectionId) {
+      useDeviceStore.getState().updateSavedConnection(connectionId, {
+        expectedReconnectUntil:
+          delay >= 0 ? Date.now() + delay * 1000 + EXPECTED_DEVICE_RECONNECT_TIMEOUT_MS : undefined,
+        expectedReconnectReason: delay >= 0 ? "device-reboot" : undefined,
+      });
     }
 
     void Promise.resolve(rebootCommand.call(connection, delay)).catch((error) => {

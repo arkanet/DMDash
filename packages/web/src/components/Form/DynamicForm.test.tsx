@@ -17,7 +17,12 @@ const SyncFormHarness = ({ values }: { values: SyncFormValues }) => {
 
   useSyncFormValues(methods, values);
 
-  return <input aria-label="name" {...methods.register("name")} />;
+  return (
+    <>
+      <input aria-label="name" {...methods.register("name")} />
+      <output aria-label="dirty">{methods.formState.isDirty ? "dirty" : "clean"}</output>
+    </>
+  );
 };
 
 const SyncFormHarnessWithControls = () => {
@@ -44,6 +49,7 @@ describe("useSyncFormValues", () => {
 
     await waitFor(() => {
       expect(input.value).toBe("server-update");
+      expect(screen.getByLabelText("dirty")).toHaveTextContent("clean");
     });
   });
 
@@ -55,12 +61,14 @@ describe("useSyncFormValues", () => {
 
     await waitFor(() => {
       expect(input.value).toBe("local-edit");
+      expect(screen.getByLabelText("dirty")).toHaveTextContent("dirty");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "refresh" }));
 
     await waitFor(() => {
       expect(input.value).toBe("local-edit");
+      expect(screen.getByLabelText("dirty")).toHaveTextContent("dirty");
     });
   });
 

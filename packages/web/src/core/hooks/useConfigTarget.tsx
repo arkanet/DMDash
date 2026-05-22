@@ -8,6 +8,7 @@ type ConfigTargetBase = Pick<
   | "channels"
   | "hardware"
   | "connection"
+  | "connectionId"
   | "setConfig"
   | "setModuleConfig"
   | "addChannel"
