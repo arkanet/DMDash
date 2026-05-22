@@ -152,6 +152,51 @@ describe("DeviceStore – change registry API", () => {
     expect(device.hasConfigChange("position")).toBe(false);
   });
 
+  it("keeps only the latest queued fixed position admin message", async () => {
+    const { useDeviceStore } = await freshStore(false);
+    const state = useDeviceStore.getState();
+    const device = state.addDevice(43);
+
+    const firstPosition = create(Protobuf.Admin.AdminMessageSchema, {
+      payloadVariant: {
+        case: "setFixedPosition",
+        value: create(Protobuf.Mesh.PositionSchema, {
+          latitudeI: 100,
+          longitudeI: 200,
+        }),
+      },
+    });
+    const nextPosition = create(Protobuf.Admin.AdminMessageSchema, {
+      payloadVariant: {
+        case: "setFixedPosition",
+        value: create(Protobuf.Mesh.PositionSchema, {
+          latitudeI: 300,
+          longitudeI: 400,
+        }),
+      },
+    });
+    const removePosition = create(Protobuf.Admin.AdminMessageSchema, {
+      payloadVariant: {
+        case: "removeFixedPosition",
+        value: true,
+      },
+    });
+
+    device.queueAdminMessage(firstPosition);
+    device.queueAdminMessage(nextPosition);
+
+    expect(device.getAdminMessageChangeCount()).toBe(1);
+    expect(device.getAllQueuedAdminMessages()[0]?.payloadVariant).toMatchObject({
+      case: "setFixedPosition",
+      value: { latitudeI: 300, longitudeI: 400 },
+    });
+
+    device.queueAdminMessage(removePosition);
+
+    expect(device.getAdminMessageChangeCount()).toBe(1);
+    expect(device.getAllQueuedAdminMessages()[0]?.payloadVariant.case).toBe("removeFixedPosition");
+  });
+
   it("setChange/hasChange for moduleConfig and getEffectiveModuleConfig", async () => {
     const { useDeviceStore } = await freshStore(false);
     const state = useDeviceStore.getState();

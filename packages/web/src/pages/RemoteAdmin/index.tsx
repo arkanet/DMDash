@@ -66,6 +66,25 @@ type RemoteAdminTab = RemoteRadioTab | RemoteDeviceTab | RemoteModuleTab;
 
 const REMOTE_RESPONSE_TIMEOUT_MS = 8000;
 
+function getPositionAdminPayload(
+  message: Protobuf.Admin.AdminMessage,
+): Protobuf.Mesh.Position | undefined {
+  if (message.payloadVariant.case === "setFixedPosition") {
+    return message.payloadVariant.value;
+  }
+
+  if (message.payloadVariant.case === "removeFixedPosition") {
+    return create(Protobuf.Mesh.PositionSchema, {
+      latitudeI: 0,
+      longitudeI: 0,
+      altitude: 0,
+      time: Math.floor(Date.now() / 1000),
+    });
+  }
+
+  return undefined;
+}
+
 const isRemoteAdminAckTimeoutError = (
   error: unknown,
 ): error is { id: number; error: Protobuf.Mesh.Routing_Error } => {
@@ -351,10 +370,25 @@ const RemoteAdminPage = () => {
   const queueAdminMessage = useCallback((message: Protobuf.Admin.AdminMessage) => {
     const messageId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const variant =
-      message.payloadVariant.case === "setFixedPosition" ? "setFixedPosition" : "other";
+      message.payloadVariant.case === "setFixedPosition"
+        ? "setFixedPosition"
+        : message.payloadVariant.case === "removeFixedPosition"
+          ? "removeFixedPosition"
+          : "other";
 
     setChangeRegistry((current) => {
       const next = new Map(current.changes);
+      if (variant === "setFixedPosition" || variant === "removeFixedPosition") {
+        for (const [keyStr, entry] of next.entries()) {
+          if (
+            entry.key.type === "adminMessage" &&
+            (entry.key.variant === "setFixedPosition" ||
+              entry.key.variant === "removeFixedPosition")
+          ) {
+            next.delete(keyStr);
+          }
+        }
+      }
       next.set(serializeKey({ type: "adminMessage", variant, id: messageId }), {
         key: { type: "adminMessage", variant, id: messageId },
         value: message,
@@ -681,10 +715,10 @@ const RemoteAdminPage = () => {
       }
     },
     [
+      createRemoteAdminSendFailurePromise,
       ensureRemoteSession,
       localDevice.connection,
       markRemoteTabFailed,
-      sendRemoteAdmin,
       setRemoteTabLoaded,
       setRemoteTabLoading,
       startRemoteTabTimeout,
@@ -807,8 +841,8 @@ const RemoteAdminPage = () => {
     markRemoteTabLoaded,
     maxChannels,
     nodeNum,
+    nodeDB,
     createRemoteAdminSendFailurePromise,
-    sendRemoteAdmin,
     setConfig,
     setModuleConfig,
     startRemoteTabTimeout,
@@ -950,16 +984,6 @@ const RemoteAdminPage = () => {
         });
       }
 
-      if (hasTransactionalChanges) {
-        await sendRemoteAdmin(
-          {
-            case: "commitEditSettings",
-            value: true,
-          },
-          { includeSessionPasskey: true },
-        );
-      }
-
       for (const message of adminMessages) {
         if (!message.payloadVariant.case) {
           continue;
@@ -969,7 +993,8 @@ const RemoteAdminPage = () => {
           includeSessionPasskey: true,
         });
 
-        if (message.payloadVariant.case === "setFixedPosition") {
+        const positionPayload = getPositionAdminPayload(message);
+        if (positionPayload) {
           nodeDB.addPosition({
             id: Date.now(),
             rxTime: new Date(),
@@ -977,9 +1002,19 @@ const RemoteAdminPage = () => {
             from: nodeNum,
             to: nodeNum,
             channel: Types.ChannelNumber.Primary,
-            data: message.payloadVariant.value,
+            data: positionPayload,
           });
         }
+      }
+
+      if (hasTransactionalChanges) {
+        await sendRemoteAdmin(
+          {
+            case: "commitEditSettings",
+            value: true,
+          },
+          { includeSessionPasskey: true },
+        );
       }
 
       channelChanges.forEach(addChannel);

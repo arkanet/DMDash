@@ -150,7 +150,7 @@ export const Position = ({ onFormInit }: PositionConfigProps) => {
                 pattern: "^-?\\d+(\\.\\d{0,7})?$",
                 normalizeDecimalSeparator: true,
                 fieldLength: {
-                  max: 10,
+                  max: 11,
                 },
               },
               disabledBy: [
@@ -171,7 +171,7 @@ export const Position = ({ onFormInit }: PositionConfigProps) => {
                 pattern: "^-?\\d+(\\.\\d{0,7})?$",
                 normalizeDecimalSeparator: true,
                 fieldLength: {
-                  max: 10,
+                  max: 12,
                 },
               },
               disabledBy: [

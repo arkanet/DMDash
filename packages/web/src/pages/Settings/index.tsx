@@ -1,5 +1,5 @@
 import { deviceRoute, moduleRoute, radioRoute } from "@app/routes";
-import { toBinary } from "@bufbuild/protobuf";
+import { create, toBinary } from "@bufbuild/protobuf";
 import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
 import { LeftSidebarButton } from "@components/UI/Sidebar/LeftSidebarButton.tsx";
@@ -33,6 +33,29 @@ function isExpectedRebootCommitError(error: unknown): boolean {
   const message = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
 
   return EXPECTED_REBOOT_COMMIT_ERROR_PATTERN.test(message);
+}
+
+function getPositionAdminPayload(
+  message: Protobuf.Admin.AdminMessage,
+): Protobuf.Mesh.Position | undefined {
+  if (message.payloadVariant.case === "setFixedPosition") {
+    return message.payloadVariant.value;
+  }
+
+  if (message.payloadVariant.case === "removeFixedPosition") {
+    return createEmptyPosition();
+  }
+
+  return undefined;
+}
+
+function createEmptyPosition(): Protobuf.Mesh.Position {
+  return create(Protobuf.Mesh.PositionSchema, {
+    latitudeI: 0,
+    longitudeI: 0,
+    altitude: 0,
+    time: Math.floor(Date.now() / 1000),
+  });
 }
 
 const ConfigPage = () => {
@@ -200,6 +223,29 @@ const ConfigPage = () => {
       const shouldCommitSettings = configChanges.length > 0 || moduleConfigChanges.length > 0;
       const shouldCommitInBackground = shouldCommitSettings && !isRemote && Boolean(connectionId);
 
+      // Fixed position is a separate admin command in firmware. Send it before
+      // commitEditSettings, because the commit may reboot/disconnect BLE.
+      for (const message of adminMessages) {
+        await connection?.sendPacket(
+          toBinary(Protobuf.Admin.AdminMessageSchema, message),
+          Protobuf.Portnums.PortNum.ADMIN_APP,
+          "self",
+        );
+
+        const positionPayload = getPositionAdminPayload(message);
+        if (positionPayload) {
+          nodeDB.addPosition({
+            id: Date.now(),
+            rxTime: new Date(),
+            type: "direct",
+            from: targetNodeNum,
+            to: targetNodeNum,
+            channel: Types.ChannelNumber.Primary,
+            data: positionPayload,
+          });
+        }
+      }
+
       if (shouldCommitSettings) {
         if (!isRemote && connectionId) {
           useDeviceStore.getState().updateSavedConnection(connectionId, {
@@ -217,29 +263,6 @@ const ConfigPage = () => {
           });
         } else {
           await commitPromise;
-        }
-      }
-
-      // Send queued admin messages after configs are committed
-      if (adminMessages.length > 0) {
-        const adminMessagePromise = Promise.all(
-          adminMessages.map((message) =>
-            connection?.sendPacket(
-              toBinary(Protobuf.Admin.AdminMessageSchema, message),
-              Protobuf.Portnums.PortNum.ADMIN_APP,
-              "self",
-            ),
-          ),
-        );
-
-        if (shouldCommitInBackground) {
-          void adminMessagePromise.catch((error) => {
-            if (!isExpectedRebootCommitError(error)) {
-              console.warn("Queued admin messages failed after scheduling reconnect", error);
-            }
-          });
-        } else {
-          await adminMessagePromise;
         }
       }
 

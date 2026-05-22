@@ -1009,13 +1009,29 @@ function deviceFactory(
 
       // Determine the variant type
       const variant =
-        message.payloadVariant.case === "setFixedPosition" ? "setFixedPosition" : "other";
+        message.payloadVariant.case === "setFixedPosition"
+          ? "setFixedPosition"
+          : message.payloadVariant.case === "removeFixedPosition"
+            ? "removeFixedPosition"
+            : "other";
 
       set(
         produce<PrivateDeviceState>((draft) => {
           const device = draft.devices.get(id);
           if (!device) {
             return;
+          }
+
+          if (variant === "setFixedPosition" || variant === "removeFixedPosition") {
+            for (const [keyStr, entry] of device.changeRegistry.changes.entries()) {
+              if (
+                entry.key.type === "adminMessage" &&
+                (entry.key.variant === "setFixedPosition" ||
+                  entry.key.variant === "removeFixedPosition")
+              ) {
+                device.changeRegistry.changes.delete(keyStr);
+              }
+            }
           }
 
           const keyStr = serializeKey({

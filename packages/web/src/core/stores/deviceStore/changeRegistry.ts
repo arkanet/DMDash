@@ -29,7 +29,7 @@ export type ValidModuleConfigType =
   | "trafficManagement";
 
 // Admin message types that can be queued
-export type ValidAdminMessageType = "setFixedPosition" | "other";
+export type ValidAdminMessageType = "setFixedPosition" | "removeFixedPosition" | "other";
 
 // Unified config change key type
 export type ConfigChangeKey =
