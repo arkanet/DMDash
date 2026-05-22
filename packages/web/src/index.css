@@ -62,6 +62,8 @@
   --link: #991b1b;
   --gateway-bg: #f1f1f1;
   --darkmesh-action-color: #00bcd4;
+  --darkmesh-scrollbar-thumb: rgba(100, 116, 139, 0.74);
+  --darkmesh-scrollbar-thumb-hover: rgba(71, 85, 105, 0.92);
   --color-zinc-100: #0b1220;
   --color-gray-800: #0b1220;
 
@@ -80,6 +82,8 @@
   --link: #fafafa;
   --gateway-bg: #222;
   --darkmesh-action-color: #00bcd4;
+  --darkmesh-scrollbar-thumb: rgba(148, 163, 184, 0.72);
+  --darkmesh-scrollbar-thumb-hover: rgba(203, 213, 225, 0.9);
   --color-zinc-100: #e6eef8;
   --color-gray-800: #1f2937;
 
@@ -230,6 +234,7 @@
 html {
   overflow: hidden;
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
 }
 
 html,
@@ -382,7 +387,6 @@ body {
 
 
 @layer base {
-
   *,
   ::after,
   ::before,
@@ -391,29 +395,38 @@ body {
     border-color: var(--color-slate-200, currentColor);
   }
 
-  ::-webkit-scrollbar {
-    @apply bg-transparent w-2;
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
   }
 
-  ::-webkit-scrollbar-thumb {
-    @apply bg-gray-400;
+  *::-webkit-scrollbar {
+    width: 0.5rem;
+    height: 0.5rem;
+    background: transparent;
   }
 
-  ::-webkit-scrollbar-corner {
-    @apply bg-slate-200;
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
-  .dark {
-    ::-webkit-scrollbar {
-      @apply bg-transparent w-2;
+  *::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: transparent;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    *:hover {
+      scrollbar-color: var(--darkmesh-scrollbar-thumb) transparent;
     }
 
-    ::-webkit-scrollbar-thumb {
-      @apply bg-slate-600 rounded-4xl;
+    *:hover::-webkit-scrollbar-thumb {
+      background-color: var(--darkmesh-scrollbar-thumb);
     }
 
-    ::-webkit-scrollbar-corner {
-      @apply bg-slate-900;
+    *::-webkit-scrollbar-thumb:hover {
+      background-color: var(--darkmesh-scrollbar-thumb-hover);
     }
   }
 }
