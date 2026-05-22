@@ -10,12 +10,17 @@ interface DebugLog {
   data: string;
 }
 
+interface LogRecord {
+  type: "logRecord";
+  data: Uint8Array;
+}
+
 interface StatusEvent {
   type: "status";
   data: { status: DeviceStatusEnum; reason?: string };
 }
 
-export type DeviceOutput = Packet | DebugLog | StatusEvent;
+export type DeviceOutput = Packet | DebugLog | LogRecord | StatusEvent;
 
 export interface Transport {
   toDevice: WritableStream<Uint8Array>;

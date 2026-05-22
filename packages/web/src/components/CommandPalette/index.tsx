@@ -12,6 +12,7 @@ import { cn } from "@core/utils/cn.ts";
 import { useCommandState } from "cmdk";
 import {
   BoxSelectIcon,
+  BugIcon,
   FactoryIcon,
   HardDriveUpload,
   type LucideIcon,
@@ -23,6 +24,7 @@ import {
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "@tanstack/react-router";
 
 export interface Group {
   id: string;
@@ -46,6 +48,7 @@ export interface SubItem {
 export const CommandPalette = () => {
   const { commandPaletteOpen, setCommandPaletteOpen } = useAppStore();
   const { setDialogOpen } = useDevice();
+  const navigate = useNavigate({ from: "/" });
   const { pinnedItems, togglePinnedItem } = usePinnedItems({
     storageName: "pinnedCommandMenuGroups",
   });
@@ -57,6 +60,13 @@ export const CommandPalette = () => {
       label: t("contextual.label"),
       icon: BoxSelectIcon,
       commands: [
+        {
+          label: t("contextual.command.debugPanel", "Debug Panel"),
+          icon: BugIcon,
+          action() {
+            void navigate({ to: "/debug" });
+          },
+        },
         {
           label: t("contextual.command.nodeImport", "Node Import"),
           icon: HardDriveUpload,

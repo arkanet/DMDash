@@ -110,7 +110,7 @@ export const PageLayout = ({
             {headerContent ? <div className="px-2 pt-2 max-md:hidden">{headerContent}</div> : null}
             <MobileAppNav actions={actions} subNav={mobileSubNav} />
             {mobileHeaderContent ? (
-              <div className="hidden max-h-[42dvh] overflow-y-auto bg-[#101010] px-3 py-1 max-md:block">
+              <div className="hidden max-h-[42dvh] overflow-y-auto bg-background-primary px-3 py-1 text-text-primary max-md:block dark:bg-[#101010] dark:text-zinc-100">
                 {mobileHeaderContent}
               </div>
             ) : null}

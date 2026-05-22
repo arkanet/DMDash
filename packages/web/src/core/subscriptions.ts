@@ -7,6 +7,7 @@ import {
   MessageType,
   MessageState,
   type NodeDB,
+  useDebugStore,
   useMessageStore,
 } from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
@@ -102,6 +103,18 @@ export const subscribeAll = (
 
   connection.events.onDeviceMetadataPacket.subscribe((metadataPacket) => {
     device.addMetadata(metadataPacket.from, metadataPacket.data);
+  });
+
+  connection.events.onFromRadio.subscribe((fromRadio) => {
+    useDebugStore.getState().addFromRadio(device.id, fromRadio);
+  });
+
+  connection.events.onLogRecord.subscribe((logRecord) => {
+    useDebugStore.getState().addLogRecord(device.id, logRecord);
+  });
+
+  connection.events.onDeviceDebugLog.subscribe((debugLog) => {
+    useDebugStore.getState().addSerialDebugLog(device.id, debugLog);
   });
 
   connection.events.onRoutingPacket.subscribe((routingPacket) => {

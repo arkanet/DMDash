@@ -220,7 +220,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
   return (
     <div className="shrink-0 md:hidden">
       <div className="h-2 shrink-0 bg-[#8d0606]" />
-      <div className="flex min-h-16 shrink-0 items-center gap-3 bg-[#262626] px-4 py-1 text-white">
+      <div className="flex min-h-16 shrink-0 items-center gap-3 border-b border-slate-300 bg-background-secondary px-4 py-1 text-text-primary shadow-[0_10px_16px_rgba(15,23,42,0.08)] dark:border-zinc-900 dark:bg-[#262626] dark:text-white dark:shadow-[0_10px_16px_rgba(0,0,0,0.28)]">
         <img
           src="/darkmesh-dashboard-logo.png"
           alt="DarkMesh"
@@ -233,7 +233,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
           role="img"
           className={cn(
             "inline-flex size-11 items-center justify-center",
-            huntEnabled ? "text-white" : "text-zinc-600",
+            huntEnabled ? "text-text-primary dark:text-white" : "text-slate-400 dark:text-zinc-600",
           )}
           aria-label={huntEnabled ? "Hunting Forwarder active" : "Hunting Forwarder inactive"}
           title={huntEnabled ? "Hunting Forwarder active" : "Hunting Forwarder inactive"}
@@ -262,7 +262,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="inline-flex size-10 items-center justify-center text-zinc-300"
+              className="inline-flex size-10 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
               aria-label="Menu"
             >
               <MoreVerticalIcon className="size-7" />
@@ -298,7 +298,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
                 <button
                   type="button"
                   onClick={() => void handleManualDisconnect()}
-                  className="px-5 py-3 text-left text-red-400 hover:bg-[#242424]"
+                  className="px-5 py-3 text-left text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-[#242424]"
                 >
                   Disconnect
                 </button>
@@ -314,7 +314,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
         </Popover>
       </div>
 
-      <div className="shrink-0 bg-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.28)]">
+      <div className="shrink-0 border-b border-slate-300 bg-background-secondary shadow-[0_10px_16px_rgba(15,23,42,0.08)] dark:border-zinc-900 dark:bg-[#101010] dark:shadow-[0_10px_16px_rgba(0,0,0,0.28)]">
         <div className="grid h-[3.5rem] grid-cols-5">
           {[tabItems[0], nodeTab, tabItems[1], tabItems[2], tabItems[3]].map((item) => {
             if (!item) return null;
@@ -325,8 +325,10 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
                 type="button"
                 onClick={item.onClick}
                 className={cn(
-                  "relative flex items-center justify-center text-zinc-500 transition-colors",
-                  item.active ? "text-[#8d0606]" : "text-zinc-500",
+                  "relative flex items-center justify-center text-slate-500 transition-colors hover:bg-slate-200/70 hover:text-slate-900 dark:text-zinc-500 dark:hover:bg-zinc-900 dark:hover:text-zinc-100",
+                  item.active
+                    ? "text-[#8d0606] dark:text-[#b91c1c]"
+                    : "text-slate-500 dark:text-zinc-500",
                 )}
                 aria-label={item.label}
               >
@@ -346,11 +348,13 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
       </div>
 
       {subNav ? (
-        <div className="border-t border-zinc-900 bg-[#101010] px-3 py-3">{subNav}</div>
+        <div className="border-t border-slate-300 bg-background-secondary px-3 py-3 dark:border-zinc-900 dark:bg-[#101010]">
+          {subNav}
+        </div>
       ) : null}
 
       {mobileActions.length > 0 ? (
-        <div className="border-t border-zinc-900 bg-[#101010] px-3 py-2">
+        <div className="border-t border-slate-300 bg-background-secondary px-3 py-2 dark:border-zinc-900 dark:bg-[#101010]">
           <div className="flex items-center gap-2 overflow-x-auto">
             {mobileActions.map((action) => {
               const Icon = action.icon;
@@ -364,11 +368,12 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
                   aria-disabled={action.disabled}
                   aria-busy={action.isLoading}
                   className={cn(
-                    "inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-100",
+                    "inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-slate-300 bg-background-primary px-3 text-sm font-medium text-text-primary",
                     "disabled:cursor-not-allowed disabled:opacity-50",
-                    "hover:bg-zinc-900",
+                    "hover:bg-slate-200 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900",
                     action.key === "unsavedChanges" &&
                       "border-blue-500/60 bg-blue-500 text-slate-950 hover:bg-blue-500",
+                    action.className,
                   )}
                 >
                   {Icon ? (

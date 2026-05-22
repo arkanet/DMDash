@@ -26,6 +26,7 @@ function stubWebBluetooth() {
   let lastWritten: Uint8Array | undefined;
   let isConnected = true;
   let failNextRead = false;
+  let logValue = new DataView(new ArrayBuffer(0));
 
   // fromRadioCharacteristic: read bytes from queue, one buffer per read
   const fromRadioCharacteristic: BluetoothRemoteGATTCharacteristic = {
@@ -62,6 +63,29 @@ function stubWebBluetooth() {
     },
   } as unknown as BluetoothRemoteGATTCharacteristic;
 
+  const logEmitter = new MiniEmitter();
+
+  const logRadioCharacteristic: BluetoothRemoteGATTCharacteristic = {
+    get value() {
+      return logValue;
+    },
+    async startNotifications() {
+      return this;
+    },
+    async stopNotifications() {
+      if (!isConnected) {
+        throw new Error("GATT Server is disconnected");
+      }
+      return this;
+    },
+    addEventListener(type: string, listener: (e: Event) => void) {
+      logEmitter.addEventListener(type, listener);
+    },
+    removeEventListener(type: string, listener: (e: Event) => void) {
+      logEmitter.removeEventListener(type, listener);
+    },
+  } as unknown as BluetoothRemoteGATTCharacteristic;
+
   const toRadioCharacteristic: BluetoothRemoteGATTCharacteristic = {
     async writeValue(bufferSource: BufferSource) {
       const u8 =
@@ -83,6 +107,9 @@ function stubWebBluetooth() {
       }
       if (uuid === TransportWebBluetooth.FromNumUuid) {
         return fromNumCharacteristic;
+      }
+      if (uuid === TransportWebBluetooth.LogRadioUuid) {
+        return logRadioCharacteristic;
       }
       throw new Error(`Unknown characteristic: ${uuid}`);
     },
@@ -135,6 +162,10 @@ function stubWebBluetooth() {
     pushIncoming: (u8: Uint8Array) => {
       incomingQueue.push(u8);
       charEmitter.dispatchEvent(new Event("characteristicvaluechanged"));
+    },
+    pushLogRecord: (u8: Uint8Array) => {
+      logValue = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+      logEmitter.dispatchEvent(new Event("characteristicvaluechanged"));
     },
     assertLastWritten: (u8: Uint8Array) => {
       expect(lastWritten).toBeDefined();
@@ -198,6 +229,46 @@ describe("TransportWebBluetooth (contract)", () => {
       ble.triggerGattDisconnect();
 
       await expect(transport.disconnect()).resolves.toBeUndefined();
+
+      reader.releaseLock();
+    } finally {
+      ble.cleanup();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("emits BLE logRadio notifications as logRecord outputs", async () => {
+    const ble = stubWebBluetooth();
+
+    try {
+      const transport = await TransportWebBluetooth.create();
+      const reader = transport.fromDevice.getReader();
+
+      for (let i = 0; i < 10; i++) {
+        const { value } = await reader.read();
+        if (
+          value?.type === "status" &&
+          value.data.status === Types.DeviceStatusEnum.DeviceConnected
+        ) {
+          break;
+        }
+      }
+
+      const logBytes = new Uint8Array([0x01, 0x02, 0x03]);
+      ble.pushLogRecord(logBytes);
+
+      let sawLogRecord = false;
+      for (let i = 0; i < 10; i++) {
+        const { value } = await reader.read();
+        if (value?.type === "logRecord") {
+          expect(value.data).toEqual(logBytes);
+          sawLogRecord = true;
+          break;
+        }
+      }
+
+      expect(sawLogRecord).toBe(true);
 
       reader.releaseLock();
     } finally {

@@ -21,6 +21,21 @@ export const decodePacket = (device: MeshDevice) =>
           break;
         }
         case "debug": {
+          device.events.onDeviceDebugLog.dispatch(new TextEncoder().encode(chunk.data));
+          break;
+        }
+        case "logRecord": {
+          try {
+            device.events.onLogRecord.dispatch(
+              fromBinary(Protobuf.Mesh.LogRecordSchema, chunk.data),
+            );
+          } catch (e) {
+            device.log.error(
+              Types.Emitter[Types.Emitter.HandleFromRadio],
+              "⚠️  Received undecodable log record",
+              e,
+            );
+          }
           break;
         }
         case "packet": {

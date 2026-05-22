@@ -22,6 +22,9 @@ function createEvent<T>() {
 function createConnectionEvents() {
   return {
     onDeviceMetadataPacket: createEvent<unknown>(),
+    onFromRadio: createEvent<unknown>(),
+    onLogRecord: createEvent<unknown>(),
+    onDeviceDebugLog: createEvent<unknown>(),
     onRoutingPacket: createEvent<unknown>(),
     onQueueStatus: createEvent<unknown>(),
     onTelemetryPacket: createEvent<unknown>(),

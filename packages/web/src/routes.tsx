@@ -2,6 +2,7 @@ import { DialogManager } from "@components/Dialog/DialogManager.tsx";
 import type { useAppStore, useMessageStore } from "@core/stores";
 import DarkMeshDashboardPage from "@app/darkmesh/DashboardPage.tsx";
 import { Connections } from "@pages/Connections/index.tsx";
+import DebugPanelPage from "@pages/DebugPanel/index.tsx";
 import ChannelsPage from "@pages/ChannelsPage.tsx";
 import GuidePage from "@pages/Guide/index.tsx";
 import React from "react";
@@ -179,6 +180,12 @@ const scheduledMessagesRoute = createRoute({
   component: ScheduledMessagesPage,
 });
 
+const debugPanelRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/debug",
+  component: DebugPanelPage,
+});
+
 const channelsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/channels",
@@ -248,6 +255,7 @@ export const routeTree = rootRoute.addChildren([
   ]),
   nodesRoute,
   scheduledMessagesRoute,
+  debugPanelRoute,
   channelsRoute,
   dialogWithParamsRoute,
   connectionsRoute,

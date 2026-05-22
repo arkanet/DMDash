@@ -10,6 +10,12 @@ export {
   useDeviceContext,
 } from "@core/hooks/useDeviceContext";
 export { useAppStore } from "@core/stores/appStore/index.ts";
+export {
+  MAX_DEBUG_LOGS,
+  type DebugLogEntry,
+  type DebugLogKind,
+  useDebugStore,
+} from "@core/stores/debugStore/index.ts";
 export { type Device, useDeviceStore } from "@core/stores/deviceStore/index.ts";
 export {
   useActiveConnection,
