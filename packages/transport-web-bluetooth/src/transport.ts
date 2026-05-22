@@ -171,12 +171,14 @@ export class TransportWebBluetooth implements Types.Transport {
   /**
    * Closes the GATT connection and emits `DeviceDisconnected("user")`.
    */
-  disconnect(): Promise<void> {
+  async disconnect(): Promise<void> {
     try {
       this.closingByUser = true;
       this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "user");
       try {
-        this.fromNumCharacteristic.stopNotifications?.();
+        if (this.gattServer.connected) {
+          await this.fromNumCharacteristic.stopNotifications?.();
+        }
       } catch {}
       this.fromNumCharacteristic.removeEventListener(
         "characteristicvaluechanged",
@@ -184,11 +186,12 @@ export class TransportWebBluetooth implements Types.Transport {
       );
       this.gattServer.device.removeEventListener("gattserverdisconnected", this.onGattDisconnected);
 
-      this.gattServer.disconnect();
+      if (this.gattServer.connected) {
+        this.gattServer.disconnect();
+      }
     } finally {
       this.closingByUser = false;
     }
-    return Promise.resolve();
   }
 
   private async readFromRadio(): Promise<void> {

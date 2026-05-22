@@ -1,4 +1,4 @@
-import { describe, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { runTransportContract } from "../../../tests/utils/transportContract.ts";
 import { TransportWebBluetooth } from "./transport.ts";
 
@@ -23,6 +23,7 @@ class MiniEmitter {
 function stubWebBluetooth() {
   const incomingQueue: Uint8Array[] = [];
   let lastWritten: Uint8Array | undefined;
+  let isConnected = true;
 
   // fromRadioCharacteristic: read bytes from queue, one buffer per read
   const fromRadioCharacteristic: BluetoothRemoteGATTCharacteristic = {
@@ -39,6 +40,12 @@ function stubWebBluetooth() {
 
   const fromNumCharacteristic: BluetoothRemoteGATTCharacteristic = {
     async startNotifications() {
+      return this;
+    },
+    async stopNotifications() {
+      if (!isConnected) {
+        throw new Error("GATT Server is disconnected");
+      }
       return this;
     },
     addEventListener(type: string, listener: (e: Event) => void) {
@@ -79,7 +86,6 @@ function stubWebBluetooth() {
   const deviceEmitter = new MiniEmitter();
 
   // GATT server with readonly connected
-  let isConnected = true;
   const gattServer: BluetoothRemoteGATTServer = {
     get connected() {
       return isConnected;
@@ -171,5 +177,24 @@ describe("TransportWebBluetooth (contract)", () => {
       ).__ble.triggerGattDisconnect();
       await Promise.resolve();
     },
+  });
+
+  it("disconnect() tolerates a GATT drop before stopNotifications()", async () => {
+    const ble = stubWebBluetooth();
+
+    try {
+      const transport = await TransportWebBluetooth.create();
+      const reader = transport.fromDevice.getReader();
+
+      ble.triggerGattDisconnect();
+
+      await expect(transport.disconnect()).resolves.toBeUndefined();
+
+      reader.releaseLock();
+    } finally {
+      ble.cleanup();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -278,7 +278,7 @@ export const Connections = () => {
                 }}
                 onDelete={async () => {
                   await disconnect(c.id);
-                  removeConnection(c.id);
+                  await removeConnection(c.id);
                   toast({
                     title: t("toasts.deleted"),
                     description: t("toasts.deletedByName", {

@@ -56,7 +56,7 @@ export function useConnections() {
   );
 
   const removeConnection = useCallback(
-    (id: ConnectionId) => {
+    async (id: ConnectionId) => {
       const conn = useDeviceStore
         .getState()
         .getSavedConnections()
@@ -86,7 +86,7 @@ export function useConnections() {
         if (device?.connection) {
           // Disconnect MeshDevice
           try {
-            device.connection.disconnect();
+            await device.connection.disconnect();
           } catch {}
         }
 
@@ -103,7 +103,7 @@ export function useConnections() {
           const sp = transport as SerialPort & { close?: () => Promise<void> };
           if (sp.close) {
             try {
-              sp.close();
+              await sp.close();
             } catch {}
           }
 
@@ -444,7 +444,7 @@ export function useConnections() {
           if (device?.connection) {
             // Disconnect MeshDevice
             try {
-              device.connection.disconnect();
+              await device.connection.disconnect();
             } catch {
               // Ignore errors
             }
