@@ -103,6 +103,8 @@ export default function DebugPanelPage() {
   const allEntries = useDebugStore((state) => state.entries);
   const clearLogs = useDebugStore((state) => state.clear);
   const [search, setSearch] = useState("");
+  const [showDesktopDebugApiHelp, setShowDesktopDebugApiHelp] = useState(false);
+  const [showMobileDebugApiHelp, setShowMobileDebugApiHelp] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   const entries = useMemo(
@@ -118,6 +120,18 @@ export default function DebugPanelPage() {
   const debugLogApiTitle = debugLogApiEnabled
     ? "Firmware Debug Log API enabled: firmware LogRecord output can be streamed into this panel."
     : "Firmware Debug Log API disabled: enable it from Settings > Radio > Security > Logging Settings.";
+  const debugApiInstructions =
+    "Enable/disable: Settings -> Radio -> Security -> Logging Settings -> Enable Debug Log API";
+  const debugApiIndicatorClasses = cn(
+    "inline-flex w-fit items-center rounded-md px-3 py-2 text-sm font-semibold ring-1",
+    debugLogApiEnabled
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-300 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30"
+      : "bg-amber-50 text-amber-700 ring-amber-300 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30",
+  );
+  const clearButtonClasses =
+    "inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-slate-300 bg-background-secondary px-3 text-sm font-semibold text-text-primary transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900";
+
+  const handleClearLogs = () => clearLogs(device.id);
 
   const handleBack = () => {
     if (globalThis.history.length > 1) {
@@ -141,60 +155,103 @@ export default function DebugPanelPage() {
     <PageLayout
       label="Debug Panel"
       noPadding
-      actions={[
-        {
-          key: "clear-debug-log",
-          icon: TrashIcon,
-          iconClasses: "text-slate-700 dark:text-zinc-100",
-          label: "Clear",
-          disabled: entries.length === 0,
-          className:
-            "border border-slate-300 bg-background-secondary text-text-primary hover:bg-slate-200 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900",
-          onClick: () => clearLogs(device.id),
-        },
-      ]}
       headerContent={
-        <button
-          type="button"
-          onClick={handleBack}
-          className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-background-secondary px-3 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-slate-200 dark:border-slate-700 dark:hover:bg-slate-900"
-        >
-          <ArrowLeftIcon className="size-4" />
-          <span>Back</span>
-        </button>
+        <div className="space-y-2">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="inline-flex h-10 w-fit shrink-0 items-center gap-2 rounded-md border border-slate-300 bg-background-secondary px-3 text-sm font-semibold text-text-primary transition-colors hover:bg-slate-200 dark:border-slate-700 dark:hover:bg-slate-900"
+            >
+              <ArrowLeftIcon className="size-4" />
+              <span>Back</span>
+            </button>
+
+            <span className="min-w-0 truncate text-center text-lg font-semibold tracking-[0.08em] uppercase text-text-primary">
+              Debug Panel
+            </span>
+
+            <div className="flex min-w-0 items-center justify-end gap-2">
+              <button
+                type="button"
+                aria-expanded={showDesktopDebugApiHelp}
+                aria-controls="debug-log-api-desktop-help"
+                title={debugLogApiTitle}
+                onClick={() => setShowDesktopDebugApiHelp((visible) => !visible)}
+                className={debugApiIndicatorClasses}
+              >
+                Debug Log API {debugLogApiEnabled ? "enabled" : "disabled"}
+              </button>
+              <button
+                type="button"
+                disabled={entries.length === 0}
+                onClick={handleClearLogs}
+                className={clearButtonClasses}
+              >
+                <TrashIcon className="size-4 text-slate-700 dark:text-zinc-100" />
+                <span>Clear</span>
+              </button>
+            </div>
+          </div>
+
+          {showDesktopDebugApiHelp ? (
+            <p
+              id="debug-log-api-desktop-help"
+              className="text-right text-xs leading-5 text-text-secondary"
+            >
+              {debugApiInstructions}
+            </p>
+          ) : null}
+        </div>
+      }
+      mobileSubNav={
+        <div className="space-y-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
+            <span className="min-w-0 truncate text-sm font-semibold tracking-[0.08em] uppercase text-text-primary">
+              Debug Panel
+            </span>
+            <button
+              type="button"
+              aria-expanded={showMobileDebugApiHelp}
+              aria-controls="debug-log-api-mobile-help"
+              title={debugLogApiTitle}
+              onClick={() => setShowMobileDebugApiHelp((visible) => !visible)}
+              className={cn(
+                debugApiIndicatorClasses,
+                "max-w-[9.75rem] overflow-hidden px-2 py-1 text-[0.68rem]",
+              )}
+            >
+              <span className="truncate">
+                Debug Log API {debugLogApiEnabled ? "enabled" : "disabled"}
+              </span>
+            </button>
+            <button
+              type="button"
+              disabled={entries.length === 0}
+              onClick={handleClearLogs}
+              className={cn(clearButtonClasses, "h-9 px-2 text-xs")}
+            >
+              <TrashIcon className="size-4 text-slate-700 dark:text-zinc-100" />
+              <span>Clear</span>
+            </button>
+          </div>
+
+          {showMobileDebugApiHelp ? (
+            <p id="debug-log-api-mobile-help" className="text-xs leading-5 text-text-secondary">
+              {debugApiInstructions}
+            </p>
+          ) : null}
+        </div>
       }
       contentClassName="bg-background-primary text-text-primary"
     >
       <section className="flex h-full min-h-0 flex-col text-text-primary">
         <div className="shrink-0 border-b border-slate-300 bg-background-primary px-4 py-3 dark:border-slate-800">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-xl font-semibold tracking-[0.08em] uppercase">Debug Panel</h1>
-              <p className="mt-1 text-sm text-text-secondary">
-                {MAX_DEBUG_LOGS} last messages - {entries.length} captured
-              </p>
-            </div>
-            <div className="flex flex-col items-start gap-1 md:items-end">
-              <div
-                title={debugLogApiTitle}
-                aria-label={debugLogApiTitle}
-                className={cn(
-                  "inline-flex w-fit items-center rounded-md px-3 py-2 text-sm font-semibold ring-1",
-                  debugLogApiEnabled
-                    ? "bg-emerald-50 text-emerald-700 ring-emerald-300 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30"
-                    : "bg-amber-50 text-amber-700 ring-amber-300 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30",
-                )}
-              >
-                Debug Log API {debugLogApiEnabled ? "enabled" : "disabled"}
-              </div>
-              <p className="max-w-md text-xs leading-5 text-text-secondary md:text-right">
-                Enable/disable: Settings -&gt; Radio -&gt; Security -&gt; Logging Settings -&gt;
-                Enable Debug Log API
-              </p>
-            </div>
-          </div>
+          <p className="hidden text-sm text-text-secondary md:block">
+            {MAX_DEBUG_LOGS} last messages - {entries.length} captured
+          </p>
 
-          <div className="relative mt-3 max-w-xl">
+          <div className="relative max-w-xl md:mt-3">
             <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500 dark:text-zinc-500" />
             <input
               type="search"
