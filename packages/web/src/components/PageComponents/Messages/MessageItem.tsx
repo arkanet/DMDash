@@ -36,7 +36,7 @@ import {
 import { Fragment, type ReactNode, useCallback, useMemo } from "react";
 import SwipeReplyMessage from "./SwipeReplyMessage";
 import { useTranslation } from "react-i18next";
-import { getNodeLongName } from "@app/darkmesh/utils.ts";
+import { getNodeLongName, getNodeShortName } from "@app/darkmesh/utils.ts";
 
 // Cache for pending promises
 const myNodePromises = new Map<string, Promise<Protobuf.Mesh.NodeInfo>>();
@@ -259,23 +259,23 @@ export const MessageItem = ({
     [getNode, myNode, myNodeNum, t],
   );
 
-  const { displayName, isFavorite, nodeNum, nodeStatus } = useMemo(() => {
+  const { displayName, isFavorite, nodeNum, nodeStatus, shortName } = useMemo(() => {
     const userIdHex = message.from.toString(16).toUpperCase().padStart(2, "0");
     const last4 = userIdHex.slice(-4);
     const fallbackName = t("fallbackName", { last4 });
     const longName = getNodeLongName(messageUser) ?? undefined;
-    const derivedShortName = messageUser?.user?.shortName || fallbackName;
-    const derivedDisplayName = longName || derivedShortName;
+    const derivedShortName = getNodeShortName(messageUser) ?? last4;
+    const derivedDisplayName = longName || fallbackName;
     const isFavorite = messageUser?.num !== myNodeNum && messageUser?.isFavorite;
     const nodeStatus = normalizeNodeStatus(
       (messageUser as (Protobuf.Mesh.NodeInfo & { nodeStatus?: string }) | undefined)?.nodeStatus,
     );
     return {
       displayName: derivedDisplayName,
-      shortName: derivedShortName,
       isFavorite: isFavorite,
       nodeNum: message.from,
       nodeStatus,
+      shortName: derivedShortName,
     };
   }, [messageUser, message.from, t, myNodeNum]);
 
@@ -507,7 +507,10 @@ export const MessageItem = ({
             setDialogOpen("nodeDetails", true);
           }}
           aria-label={`Open node ${nodeNum} details`}
-          className={cn("m-0 p-0", isSender && "hidden")}
+          className={cn(
+            "m-0 flex w-12 flex-col items-center gap-1 self-start p-0 text-center",
+            isSender && "hidden",
+          )}
         >
           <Avatar
             size="sm"
@@ -516,6 +519,9 @@ export const MessageItem = ({
             showFavorite={isFavorite}
             showStatusIndicator={false}
           />
+          <span className="block max-w-12 truncate text-[0.68rem] font-semibold leading-none text-slate-500 dark:text-zinc-300">
+            {shortName}
+          </span>
         </button>
 
         <div
