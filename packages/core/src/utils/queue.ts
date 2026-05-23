@@ -4,6 +4,16 @@ import { SimpleEventDispatcher } from "ste-simple-events";
 import type { PacketError, QueueItem } from "../types.ts";
 import { logger } from "./logger";
 
+const nonBlockingWriteFailurePayloads = new Set(["heartbeat", "wantConfigId"]);
+
+function getToRadioPayloadCase(data: Uint8Array): string | undefined {
+  try {
+    return fromBinary(Protobuf.Mesh.ToRadioSchema, data).payloadVariant.case ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export class Queue {
   private queue: QueueItem[] = [];
   private lock = false;
@@ -119,7 +129,10 @@ export class Queue {
             await writer.write(item.data);
             item.sent = true;
           } catch (error) {
-            logger.error?.(`Error sending packet ${item.id}`, error);
+            const payloadCase = getToRadioPayloadCase(item.data);
+            if (!nonBlockingWriteFailurePayloads.has(payloadCase ?? "")) {
+              logger.error?.(`Error sending packet ${item.id}`, error);
+            }
             this.queue = this.queue.filter((queuedItem) => queuedItem.id !== item.id);
             throw error;
           }

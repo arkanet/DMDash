@@ -22,7 +22,7 @@ import { useCallback, useRef } from "react";
 // Local storage for cleanup only (not in Zustand)
 const transports = new Map<ConnectionId, BluetoothDevice | SerialPort>();
 const heartbeats = new Map<ConnectionId, ReturnType<typeof setInterval>>();
-const configSubscriptions = new Map<ConnectionId, () => void>();
+const connectionSubscriptions = new Map<ConnectionId, () => void>();
 const bluetoothReconnectTimers = new Map<ConnectionId, ReturnType<typeof setTimeout>>();
 const bluetoothDisconnectListeners = new Map<
   ConnectionId,
@@ -99,11 +99,11 @@ export function useConnections() {
       console.log(`[useConnections] Heartbeat stopped for connection ${id}`);
     }
 
-    const unsubConfigComplete = configSubscriptions.get(id);
-    if (unsubConfigComplete) {
-      unsubConfigComplete();
-      configSubscriptions.delete(id);
-      console.log(`[useConnections] Config subscription cleaned up for connection ${id}`);
+    const unsubscribeConnectionEvents = connectionSubscriptions.get(id);
+    if (unsubscribeConnectionEvents) {
+      unsubscribeConnectionEvents();
+      connectionSubscriptions.delete(id);
+      console.log(`[useConnections] Runtime subscriptions cleaned up for connection ${id}`);
     }
   }, []);
 
@@ -330,6 +330,41 @@ export function useConnections() {
       const nodeDB = addNodeDB(deviceId);
       const messageStore = addMessageStore(deviceId);
       const meshDevice = new MeshDevice(transport, deviceId);
+      const handleRuntimeDisconnect = () => {
+        const currentConnection = useDeviceStore
+          .getState()
+          .getSavedConnections()
+          .find((connection) => connection.id === id);
+
+        if (
+          !currentConnection ||
+          currentConnection.type !== "bluetooth" ||
+          userDisconnects.has(id)
+        ) {
+          return;
+        }
+
+        if (currentConnection.status === "error" || currentConnection.status === "reconnecting") {
+          scheduleBluetoothReconnect(id);
+          return;
+        }
+
+        markConnectionLost(id);
+        scheduleBluetoothReconnect(id);
+      };
+      const handleHeartbeatFailure = (error: unknown, label: string) => {
+        const currentConnection = useDeviceStore
+          .getState()
+          .getSavedConnections()
+          .find((connection) => connection.id === id);
+
+        if (currentConnection?.type === "bluetooth" && !userDisconnects.has(id)) {
+          handleRuntimeDisconnect();
+          return;
+        }
+
+        console.warn(`[useConnections] ${label}:`, error);
+      };
 
       setSelectedDevice(deviceId);
       device.addConnection(meshDevice); // This stores meshDevice in Device.connection
@@ -364,13 +399,21 @@ export function useConnections() {
 
           const maintenanceHeartbeat = setInterval(() => {
             meshDevice.heartbeat().catch((error) => {
-              console.warn("[useConnections] Heartbeat failed:", error);
+              handleHeartbeatFailure(error, "Heartbeat failed");
             });
           }, HEARTBEAT_INTERVAL_MS);
           heartbeats.set(id, maintenanceHeartbeat);
         },
       );
-      configSubscriptions.set(id, unsubConfigComplete);
+      const unsubDeviceStatus = meshDevice.events.onDeviceStatus.subscribe((status) => {
+        if (status === Types.DeviceStatusEnum.DeviceDisconnected) {
+          handleRuntimeDisconnect();
+        }
+      });
+      connectionSubscriptions.set(id, () => {
+        unsubConfigComplete();
+        unsubDeviceStatus();
+      });
 
       window.setTimeout(() => {
         const currentConnection = useDeviceStore
@@ -403,7 +446,7 @@ export function useConnections() {
                 // Start fast heartbeat after first successful heartbeat
                 const configHeartbeatId = setInterval(() => {
                   meshDevice.heartbeat().catch((error) => {
-                    console.warn("[useConnections] Config heartbeat failed:", error);
+                    handleHeartbeatFailure(error, "Config heartbeat failed");
                   });
                 }, CONFIG_HEARTBEAT_INTERVAL_MS);
                 heartbeats.set(id, configHeartbeatId);
@@ -412,10 +455,19 @@ export function useConnections() {
                 );
               })
               .catch((error) => {
-                console.warn("[useConnections] Initial heartbeat failed:", error);
+                handleHeartbeatFailure(error, "Initial heartbeat failed");
               });
           })
           .catch((error) => {
+            const currentConnection = useDeviceStore
+              .getState()
+              .getSavedConnections()
+              .find((connection) => connection.id === id);
+            if (currentConnection?.type === "bluetooth" && !userDisconnects.has(id)) {
+              handleRuntimeDisconnect();
+              return;
+            }
+
             console.error(`[useConnections] Failed to configure:`, error);
             device.setConnectionPhase("disconnected");
             updateStatus(id, "error", error.message);
@@ -432,6 +484,8 @@ export function useConnections() {
       setSelectedDevice,
       setActiveConnectionId,
       stopConnectionTasks,
+      markConnectionLost,
+      scheduleBluetoothReconnect,
       updateSavedConnection,
       updateStatus,
     ],
