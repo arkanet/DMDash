@@ -201,6 +201,9 @@ export const NodeDetail = ({
                     new Uint8Array(),
                     Protobuf.Portnums.PortNum.NODEINFO_APP,
                     node.num,
+                    undefined,
+                    false,
+                    true,
                   );
                 } else if (typeof connection.getMetadata === "function") {
                   await connection.getMetadata(node.num);
@@ -598,6 +601,9 @@ export const NodeDetail = ({
                             new Uint8Array(),
                             Protobuf.Portnums.PortNum.NODEINFO_APP,
                             node.num,
+                            undefined,
+                            false,
+                            true,
                           );
                         } else if (connection && typeof connection.getMetadata === "function") {
                           await connection.getMetadata(node.num);

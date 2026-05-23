@@ -401,6 +401,9 @@ export const NodeDetailsDialog = ({
           new Uint8Array(),
           Protobuf.Portnums.PortNum.NODEINFO_APP,
           currentNode.num,
+          undefined,
+          false,
+          true,
         );
       } else if (connection && typeof connection.getMetadata === "function") {
         await connection.getMetadata(currentNode.num);

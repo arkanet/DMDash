@@ -1,6 +1,6 @@
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { create, toBinary } from "@bufbuild/protobuf";
-import { Protobuf } from "@meshtastic/core";
+import { Protobuf, Types } from "@meshtastic/core";
 
 /**
  * Helper to produce readable error messages from Error or plain objects.
@@ -24,7 +24,13 @@ type ConnectionLike = {
   sendPacket?: (
     payload: Uint8Array,
     portNum: Protobuf.Portnums.PortNum,
-    destination: number,
+    destination: Types.Destination,
+    channel?: Types.ChannelNumber,
+    wantAck?: boolean,
+    wantResponse?: boolean,
+    echoResponse?: boolean,
+    replyId?: number,
+    emoji?: number,
   ) => Promise<unknown>;
   getMetadata?: (nodeNum: number) => Promise<unknown>;
 };
@@ -146,7 +152,14 @@ export async function requestEnvironmentMetrics(
   }
 
   if (connection && typeof connection.sendPacket === "function") {
-    await connection.sendPacket(new Uint8Array(), Protobuf.Portnums.PortNum.TELEMETRY_APP, nodeNum);
+    await connection.sendPacket(
+      new Uint8Array(),
+      Protobuf.Portnums.PortNum.TELEMETRY_APP,
+      nodeNum,
+      undefined,
+      false,
+      true,
+    );
     return;
   }
 

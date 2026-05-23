@@ -143,6 +143,16 @@ export class EventSystem {
     new SimpleEventDispatcher<PacketMetadata<string>>();
 
   /**
+   * Fires when a new MeshPacket message containing a Node Status packet has been
+   * received from device
+   *
+   * @event onNodeStatusPacket
+   */
+  public readonly onNodeStatusPacket: SimpleEventDispatcher<
+    PacketMetadata<Protobuf.Mesh.StatusMessage>
+  > = new SimpleEventDispatcher<PacketMetadata<Protobuf.Mesh.StatusMessage>>();
+
+  /**
    * Fires when a new MeshPacket message containing a Waypoint packet has been
    * received from device
    *
@@ -306,6 +316,14 @@ export class EventSystem {
    * @event onAtakForwarderPacket
    */
   public readonly onAtakForwarderPacket: SimpleEventDispatcher<PacketMetadata<Uint8Array>> =
+    new SimpleEventDispatcher<PacketMetadata<Uint8Array>>();
+
+  /**
+   * Fires when a MeshPacket contains a portnum without custom handling
+   *
+   * @event onUnhandledPacket
+   */
+  public readonly onUnhandledPacket: SimpleEventDispatcher<PacketMetadata<Uint8Array>> =
     new SimpleEventDispatcher<PacketMetadata<Uint8Array>>();
 
   /**

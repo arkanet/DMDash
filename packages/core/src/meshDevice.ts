@@ -171,6 +171,7 @@ export class MeshDevice {
       Emitter[Emitter.SendPacket],
       `📤 Sending ${Protobuf.Portnums.PortNum[portNum]} to ${destination}`,
     );
+    const shouldRequestAck = wantAck && destination !== "broadcast";
 
     const meshPacket = create(Protobuf.Mesh.MeshPacketSchema, {
       payloadVariant: {
@@ -194,7 +195,7 @@ export class MeshDevice {
             ? this.myNodeInfo.myNodeNum
             : destination,
       id: this.generateRandId(),
-      wantAck: wantAck,
+      wantAck: shouldRequestAck,
       channel,
     });
 
@@ -209,24 +210,48 @@ export class MeshDevice {
       meshPacket.rxTime = Math.trunc(Date.now() / 1000);
       this.handleMeshPacket(meshPacket);
     }
-    return await this.sendRaw(toBinary(Protobuf.Mesh.ToRadioSchema, toRadioMessage), meshPacket.id);
+    return await this.sendRaw(
+      toBinary(Protobuf.Mesh.ToRadioSchema, toRadioMessage),
+      meshPacket.id,
+      shouldRequestAck,
+    );
   }
 
   /**
    * Sends raw packet over the radio
    */
-  public async sendRaw(toRadio: Uint8Array, id: number = this.generateRandId()): Promise<number> {
+  public async sendRaw(
+    toRadio: Uint8Array,
+    id: number = this.generateRandId(),
+    waitForAck?: boolean,
+  ): Promise<number> {
     if (toRadio.length > 512) {
       throw new Error("Message longer than 512 bytes, it will not be sent!");
     }
     this.queue.push({
       id,
       data: toRadio,
+      waitForAck: waitForAck ?? this.shouldWaitForAck(toRadio),
     });
 
+    const queuedPacket = this.queue.wait(id);
     await this.queue.processQueue(this.transport.toDevice);
 
-    return this.queue.wait(id);
+    return queuedPacket;
+  }
+
+  private shouldWaitForAck(toRadio: Uint8Array): boolean {
+    try {
+      const decoded = fromBinary(Protobuf.Mesh.ToRadioSchema, toRadio);
+      if (decoded.payloadVariant.case !== "packet") {
+        return false;
+      }
+
+      const meshPacket = decoded.payloadVariant.value;
+      return meshPacket.wantAck && meshPacket.to !== Constants.broadcastNum;
+    } catch {
+      return true;
+    }
   }
 
   /**
@@ -855,6 +880,9 @@ export class MeshDevice {
       new Uint8Array(),
       Protobuf.Portnums.PortNum.POSITION_APP,
       destination,
+      ChannelNumber.Primary,
+      false,
+      true,
     );
   }
 
@@ -961,11 +989,18 @@ export class MeshDevice {
         alwaysEmitImplicit: true,
         prettySpaces: 2,
       });
+    const portNumName =
+      typeof dataPacket.portnum === "number"
+        ? (Protobuf.Portnums.PortNum[dataPacket.portnum] ?? dataPacket.portnum.toString())
+        : "undefined";
+    const dispatchUnhandledPacket = () => {
+      this.events.onUnhandledPacket.dispatch({
+        ...packetMetadata,
+        data: dataPacket.payload,
+      });
+    };
 
-    this.log.trace(
-      Emitter[Emitter.HandleMeshPacket],
-      `📦 Received ${Protobuf.Portnums.PortNum[dataPacket.portnum]} packet`,
-    );
+    this.log.trace(Emitter[Emitter.HandleMeshPacket], `📦 Received ${portNumName} packet`);
 
     switch (dataPacket.portnum) {
       case Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP:
@@ -1000,6 +1035,23 @@ export class MeshDevice {
           ...packetMetadata,
           data: fromBinary(Protobuf.Mesh.UserSchema, dataPacket.payload),
         });
+        break;
+      }
+
+      case Protobuf.Portnums.PortNum.NODE_STATUS_APP: {
+        try {
+          this.events.onNodeStatusPacket.dispatch({
+            ...packetMetadata,
+            data: fromBinary(Protobuf.Mesh.StatusMessageSchema, dataPacket.payload),
+          });
+        } catch (e) {
+          this.log.warn(
+            Emitter[Emitter.HandleMeshPacket],
+            `⚠️ Unable to decode ${portNumName} packet`,
+            e,
+          );
+          dispatchUnhandledPacket();
+        }
         break;
       }
 
@@ -1242,8 +1294,30 @@ export class MeshDevice {
         break;
       }
 
-      default:
-        throw new Error(`Unhandled case ${dataPacket.portnum}`);
+      case Protobuf.Portnums.PortNum.UNKNOWN_APP:
+      case Protobuf.Portnums.PortNum.KEY_VERIFICATION_APP:
+      case Protobuf.Portnums.PortNum.STORE_FORWARD_PLUSPLUS_APP:
+      case Protobuf.Portnums.PortNum.POWERSTRESS_APP:
+      case Protobuf.Portnums.PortNum.LORAWAN_BRIDGE:
+      case Protobuf.Portnums.PortNum.RETICULUM_TUNNEL_APP:
+      case Protobuf.Portnums.PortNum.CAYENNE_APP:
+      case Protobuf.Portnums.PortNum.GROUPALARM_APP: {
+        this.log.debug(
+          Emitter[Emitter.HandleMeshPacket],
+          `ℹ️ No custom processing needed for ${portNumName} packet`,
+        );
+        dispatchUnhandledPacket();
+        break;
+      }
+
+      default: {
+        this.log.warn(
+          Emitter[Emitter.HandleMeshPacket],
+          `⚠️ Unhandled portnum ${portNumName}`,
+          dataPacket.payload,
+        );
+        dispatchUnhandledPacket();
+      }
     }
   }
 }

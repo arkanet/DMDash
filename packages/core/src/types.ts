@@ -31,6 +31,7 @@ export interface Transport {
 export interface QueueItem {
   id: number;
   data: Uint8Array;
+  waitForAck?: boolean;
   sent: boolean;
   added: Date;
   promise: Promise<number>;

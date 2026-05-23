@@ -445,6 +445,9 @@ export const MessagesPage = () => {
                       new Uint8Array(),
                       Protobuf.Portnums.PortNum.NODEINFO_APP,
                       numericChatId,
+                      undefined,
+                      false,
+                      true,
                     );
                   } else if (typeof connection.getMetadata === "function") {
                     await connection.getMetadata(numericChatId);
@@ -869,6 +872,9 @@ export const MessagesPage = () => {
                                 new Uint8Array(),
                                 Protobuf.Portnums.PortNum.NODEINFO_APP,
                                 otherNode!.num,
+                                undefined,
+                                false,
+                                true,
                               );
                             } else if (typeof connection.getMetadata === "function") {
                               await connection.getMetadata(otherNode!.num);

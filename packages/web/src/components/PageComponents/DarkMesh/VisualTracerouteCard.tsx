@@ -115,6 +115,9 @@ function RouteSection({
           new Uint8Array(),
           Protobuf.Portnums.PortNum.NODEINFO_APP,
           nodeNum,
+          undefined,
+          false,
+          true,
         );
       } catch {
         // ignore

@@ -34,8 +34,10 @@ export class Queue {
   }
 
   public push(item: Omit<QueueItem, "promise" | "sent" | "added">): void {
+    const waitForAck = item.waitForAck ?? true;
     const queueItem: QueueItem = {
       ...item,
+      waitForAck,
       sent: false,
       added: new Date(),
       promise: new Promise<number>((resolve, reject) => {
@@ -54,6 +56,11 @@ export class Queue {
         setTimeout(() => {
           if (this.queue.findIndex((qi) => qi.id === item.id) !== -1) {
             this.remove(item.id);
+            if (!waitForAck) {
+              resolve(item.id);
+              return;
+            }
+
             const decoded = fromBinary(Protobuf.Mesh.ToRadioSchema, item.data);
 
             if (
@@ -128,6 +135,9 @@ export class Queue {
           try {
             await writer.write(item.data);
             item.sent = true;
+            if (!item.waitForAck) {
+              this.processAck(item.id);
+            }
           } catch (error) {
             const payloadCase = getToRadioPayloadCase(item.data);
             if (!nonBlockingWriteFailurePayloads.has(payloadCase ?? "")) {

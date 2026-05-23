@@ -209,6 +209,10 @@ export const subscribeAll = (
     nodeDB.addPosition(position);
   });
 
+  connection.events.onNodeStatusPacket.subscribe((statusPacket) => {
+    nodeDB.updateNodeStatus(statusPacket.from, statusPacket.data.status);
+  });
+
   // NOTE: Node handling is managed by the nodeDB
   // Nodes are added via subscriptions.ts and stored in nodeDB
   // Configuration is handled directly by meshDevice.configure() in useConnections

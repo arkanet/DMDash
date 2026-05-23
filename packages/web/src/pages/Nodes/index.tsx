@@ -1424,6 +1424,9 @@ const NodesPage = (): JSX.Element => {
         new Uint8Array(),
         Protobuf.Portnums.PortNum.NODEINFO_APP,
         nodeNum,
+        undefined,
+        false,
+        true,
       );
     } else if (typeof connection.getMetadata === "function") {
       await connection.getMetadata(nodeNum);

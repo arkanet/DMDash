@@ -33,6 +33,7 @@ function createConnectionEvents() {
     onMyNodeInfo: createEvent<unknown>(),
     onUserPacket: createEvent<unknown>(),
     onPositionPacket: createEvent<unknown>(),
+    onNodeStatusPacket: createEvent<unknown>(),
     onNodeInfoPacket: createEvent<unknown>(),
     onChannelPacket: createEvent<unknown>(),
     onConfigPacket: createEvent<unknown>(),
@@ -181,5 +182,45 @@ describe("subscribeAll message status updates", () => {
 
     expect(device.setStatus).toHaveBeenCalledWith(Types.DeviceStatusEnum.DeviceDisconnected);
     expect(device.setConnectionPhase).toHaveBeenCalledWith("disconnected");
+  });
+
+  it("updates node status from NODE_STATUS_APP packets", () => {
+    const events = createConnectionEvents();
+    const messageStore = useMessageStore.getState().addMessageStore(9003);
+    const device = {
+      id: 9003,
+      hardware: { myNodeNum: 0 },
+      addMetadata: vi.fn(),
+      setStatus: vi.fn(),
+      addWaypoint: vi.fn(),
+      addChannel: vi.fn(),
+      setConfig: vi.fn(),
+      setModuleConfig: vi.fn(),
+      incrementUnread: vi.fn(),
+      addTraceRoute: vi.fn(),
+      setPendingSettingsChanges: vi.fn(),
+      addClientNotification: vi.fn(),
+      setDialogOpen: vi.fn(),
+      addNeighborInfo: vi.fn(),
+      setRefreshKeysNodeNum: vi.fn(),
+    };
+    const nodeDB = {
+      addTelemetry: vi.fn(),
+      updateNodeStatus: vi.fn(),
+      addUser: vi.fn(),
+      addPosition: vi.fn(),
+      addNode: vi.fn(),
+      processPacket: vi.fn(),
+      setNodeError: vi.fn(),
+    };
+
+    subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
+
+    events.onNodeStatusPacket.dispatch({
+      from: 123,
+      data: { status: "In movimento" },
+    });
+
+    expect(nodeDB.updateNodeStatus).toHaveBeenCalledWith(123, "In movimento");
   });
 });

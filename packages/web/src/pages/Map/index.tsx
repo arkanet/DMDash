@@ -516,7 +516,14 @@ const MapPage: React.FC = () => {
       }
       try {
         // Best-effort: ask for nodeinfo as well
-        await connection.sendPacket(new Uint8Array(), Protobuf.Portnums.PortNum.NODEINFO_APP, n);
+        await connection.sendPacket(
+          new Uint8Array(),
+          Protobuf.Portnums.PortNum.NODEINFO_APP,
+          n,
+          undefined,
+          false,
+          true,
+        );
       } catch {
         // ignore
       }
@@ -583,6 +590,9 @@ const MapPage: React.FC = () => {
                 new Uint8Array(),
                 Protobuf.Portnums.PortNum.NODEINFO_APP,
                 nodeNum,
+                undefined,
+                false,
+                true,
               );
             } catch {
               // best-effort
@@ -616,6 +626,9 @@ const MapPage: React.FC = () => {
                 new Uint8Array(),
                 Protobuf.Portnums.PortNum.NODEINFO_APP,
                 nodeNum,
+                undefined,
+                false,
+                true,
               );
             } catch {
               // ignore
