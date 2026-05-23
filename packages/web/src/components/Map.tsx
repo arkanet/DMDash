@@ -1,6 +1,6 @@
 import { useTheme } from "@core/hooks/useTheme.ts";
 import type { StyleSpecification } from "maplibre-gl";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import MapGl, {
   AttributionControl,
@@ -26,7 +26,6 @@ interface MapProps {
 const osmRasterStyle: StyleSpecification = {
   version: 8,
   name: "OpenStreetMap Mapnik raster tiles",
-  glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
   sources: {
     "osm-mapnik": {
       type: "raster",
@@ -66,13 +65,6 @@ export const BaseMap = ({
 
   const darkMode = theme === "dark";
   const mapRef = useRef<MapRef | null>(null);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (map && onLoad) {
-      onLoad(map);
-    }
-  }, [onLoad]);
 
   const locale = useMemo(() => {
     return {
@@ -115,6 +107,12 @@ export const BaseMap = ({
       onMouseMove={onMouseMove}
       onMove={onMove}
       onClick={onClick}
+      onLoad={() => {
+        const map = mapRef.current;
+        if (map) {
+          onLoad?.(map);
+        }
+      }}
     >
       <AttributionControl
         style={{

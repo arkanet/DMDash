@@ -28,16 +28,119 @@ import { useTheme } from "@core/hooks/useTheme.ts";
 import { useDevice, useNodeDB } from "@core/stores";
 import { useToast } from "@core/hooks/useToast.ts";
 import { cn } from "@core/utils/cn.ts";
-import { hasPos, toLngLat } from "@core/utils/geo.ts";
+import { bearingDegrees, hasPos, toLngLat, type LngLat } from "@core/utils/geo.ts";
 import { Protobuf } from "@meshtastic/core";
 import type { Types } from "@meshtastic/core";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { CompassIcon, FunnelIcon, LocateFixedIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Layer, Source, type MapLayerMouseEvent, useMap } from "react-map-gl/maplibre";
+import { Layer, Source, type MapLayerMouseEvent, type MapRef, useMap } from "react-map-gl/maplibre";
 import useTracerouteStore from "@core/stores/tracerouteStore";
 import { useParams } from "@tanstack/react-router";
+
+const LINK_ARROW_ICON_ID = "darkmesh-link-arrow";
+
+function createLinkArrowIcon(): ImageData | undefined {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+
+  const size = 48;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return undefined;
+  }
+
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = "#f59e0b";
+  ctx.strokeStyle = "#111827";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 5;
+
+  ctx.beginPath();
+  ctx.moveTo(36, 24);
+  ctx.lineTo(15, 11);
+  ctx.lineTo(21, 24);
+  ctx.lineTo(15, 37);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  return ctx.getImageData(0, 0, size, size);
+}
+
+function ensureLinkArrowIcon(mapRef: MapRef | undefined): void {
+  const map = mapRef?.getMap();
+  if (!map || map.hasImage(LINK_ARROW_ICON_ID)) {
+    return;
+  }
+
+  const icon = createLinkArrowIcon();
+  if (!icon) {
+    return;
+  }
+
+  try {
+    map.addImage(LINK_ARROW_ICON_ID, icon, { pixelRatio: 2 });
+  } catch (error) {
+    console.warn("Unable to register map arrow icon", error);
+  }
+}
+
+function linkArrowFeatureCollection(
+  links: GeoJSON.FeatureCollection | undefined,
+): GeoJSON.FeatureCollection {
+  const features: GeoJSON.Feature[] = [];
+
+  for (const feature of links?.features ?? []) {
+    if (feature.geometry?.type !== "LineString") {
+      continue;
+    }
+
+    const coords = feature.geometry.coordinates as LngLat[];
+    const start = coords[0];
+    const end = coords[coords.length - 1];
+    const forwardPoint = coords[Math.floor(coords.length * 0.85)];
+    if (!start || !end || !forwardPoint) {
+      continue;
+    }
+
+    const properties = (feature.properties ?? {}) as Record<string, unknown>;
+    features.push({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: forwardPoint },
+      properties: {
+        angle: bearingDegrees(start, end),
+        from: properties.from,
+        to: properties.to,
+      },
+    });
+
+    if ((properties.direction ?? "") === "both") {
+      const backwardPoint = coords[Math.floor(coords.length * 0.15)];
+      if (!backwardPoint) {
+        continue;
+      }
+
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: backwardPoint },
+        properties: {
+          angle: bearingDegrees(end, start),
+          from: properties.from,
+          to: properties.to,
+        },
+      });
+    }
+  }
+
+  return { type: "FeatureCollection", features };
+}
 
 function buildTraceCoordinates(
   nodes: Array<Protobuf.Mesh.NodeInfo | undefined>,
@@ -110,9 +213,7 @@ const MapPage: React.FC = () => {
 
   // map helpers / refs
   const { default: mapRef } = useMap();
-  const { focusLngLat, fitToNodes, fitToNodesKeepingCenter } = useMapFitting(
-    mapRef as unknown as import("react-map-gl/maplibre").MapRef,
-  );
+  const { focusLngLat, fitToNodes, fitToNodesKeepingCenter } = useMapFitting(mapRef);
   const prevTracerouteActive = useRef(false);
   const lastPopupStateRef = useRef<PopupState | undefined>(undefined);
   const restoredMapPopupNodeRef = useRef<number | undefined>(undefined);
@@ -162,9 +263,8 @@ const MapPage: React.FC = () => {
     return;
   }, []);
 
-  const getMapBounds = useCallback(() => {
-    // no-op placeholder (BaseMap passes its mapRef on load)
-    return;
+  const handleMapLoad = useCallback((loadedMapRef: MapRef) => {
+    ensureLinkArrowIcon(loadedMapRef);
   }, []);
   // Selected node links: draw links related to the currently opened (or pinned) node
   const [highlightedNeighborNode, setHighlightedNeighborNode] = useState<number | undefined>(
@@ -913,6 +1013,32 @@ const MapPage: React.FC = () => {
     mapRef?.easeTo({ bearing: 0, duration: 260 });
   }, [mapRef]);
 
+  useEffect(() => {
+    if (!mapRef) {
+      return;
+    }
+
+    const map = mapRef.getMap();
+    const registerIcon = () => ensureLinkArrowIcon(mapRef);
+    const handleStyleImageMissing = (event: { id?: string }) => {
+      if (event.id === LINK_ARROW_ICON_ID) {
+        registerIcon();
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      registerIcon();
+    } else {
+      map.once("load", registerIcon);
+    }
+    map.on("styleimagemissing", handleStyleImageMissing);
+
+    return () => {
+      map.off("load", registerIcon);
+      map.off("styleimagemissing", handleStyleImageMissing);
+    };
+  }, [mapRef]);
+
   const isNorthMisaligned = Math.abs(mapBearing) > 1;
 
   const markerElements = useMemo(
@@ -1206,7 +1332,7 @@ const MapPage: React.FC = () => {
         <div className="relative min-w-0 flex-1">
           <BaseMap
             initialViewState={initialMapView}
-            onLoad={getMapBounds}
+            onLoad={handleMapLoad}
             onMouseMove={onMouseMove}
             onMove={(event) => {
               setMapZoom(event.viewState.zoom);
@@ -1344,61 +1470,21 @@ const MapPage: React.FC = () => {
               <Source
                 id="darkmesh-selected-node-links-arrows"
                 type="geojson"
-                data={(() => {
-                  const pts: GeoJSON.Feature[] = [];
-                  for (const f of (selectedNodeLinks as unknown as GeoJSON.FeatureCollection)
-                    ?.features ?? []) {
-                    const coords = (f.geometry as GeoJSON.LineString).coordinates as [
-                      number,
-                      number,
-                    ][];
-                    if (!coords || coords.length < 2) continue;
-                    const mid = coords[Math.floor(coords.length * 0.85)];
-                    // simple arrow glyph
-                    pts.push({
-                      type: "Feature",
-                      geometry: { type: "Point", coordinates: mid },
-                      properties: {
-                        text: "▶",
-                        angle: 0,
-                        from: (f.properties as Record<string, unknown>).from,
-                        to: (f.properties as Record<string, unknown>).to,
-                      },
-                    } as GeoJSON.Feature);
-                    if (((f.properties as Record<string, unknown>).direction ?? "") === "both") {
-                      const mid2 = coords[Math.floor(coords.length * 0.15)];
-                      pts.push({
-                        type: "Feature",
-                        geometry: {
-                          type: "Point",
-                          coordinates: mid2 as [number, number],
-                        },
-                        properties: {
-                          text: "◀",
-                          angle: 180,
-                          from: (f.properties as Record<string, unknown>).from,
-                          to: (f.properties as Record<string, unknown>).to,
-                        },
-                      } as GeoJSON.Feature);
-                    }
-                  }
-                  return { type: "FeatureCollection", features: pts };
-                })()}
+                data={linkArrowFeatureCollection(
+                  selectedNodeLinks as unknown as GeoJSON.FeatureCollection,
+                )}
               >
                 <Layer
                   id="darkmesh-selected-node-links-arrows"
                   type="symbol"
                   layout={{
-                    "text-field": ["get", "text"],
-                    "text-size": 16,
-                    "text-allow-overlap": true,
-                    "text-ignore-placement": true,
+                    "icon-image": LINK_ARROW_ICON_ID,
+                    "icon-size": 0.75,
+                    "icon-allow-overlap": true,
+                    "icon-ignore-placement": true,
+                    "icon-rotate": ["get", "angle"],
+                    "icon-rotation-alignment": "map",
                     "symbol-placement": "point",
-                  }}
-                  paint={{
-                    "text-color": "#f59e0b",
-                    "text-halo-color": "#111827",
-                    "text-halo-width": 1,
                   }}
                 />
               </Source>
@@ -1435,56 +1521,21 @@ const MapPage: React.FC = () => {
               <Source
                 id="darkmesh-all-traceroute-links-arrows"
                 type="geojson"
-                data={(() => {
-                  const pts: GeoJSON.Feature[] = [];
-                  for (const f of (allTracerouteLinks as unknown as GeoJSON.FeatureCollection)
-                    ?.features ?? []) {
-                    const coords = (f.geometry as GeoJSON.LineString).coordinates as [
-                      number,
-                      number,
-                    ][];
-                    if (!coords || coords.length < 2) continue;
-                    const mid = coords[Math.floor(coords.length * 0.85)];
-                    pts.push({
-                      type: "Feature",
-                      geometry: { type: "Point", coordinates: mid },
-                      properties: {
-                        text: "▶",
-                        angle: 0,
-                        from: (f.properties as Record<string, unknown>).from,
-                        to: (f.properties as Record<string, unknown>).to,
-                      },
-                    } as GeoJSON.Feature);
-                    if (((f.properties as Record<string, unknown>).direction ?? "") === "both") {
-                      const mid2 = coords[Math.floor(coords.length * 0.15)];
-                      pts.push({
-                        type: "Feature",
-                        geometry: { type: "Point", coordinates: mid2 },
-                        properties: {
-                          text: "◀",
-                          angle: 180,
-                          from: (f.properties as Record<string, unknown>).from,
-                          to: (f.properties as Record<string, unknown>).to,
-                        },
-                      } as GeoJSON.Feature);
-                    }
-                  }
-                  return { type: "FeatureCollection", features: pts };
-                })()}
+                data={linkArrowFeatureCollection(
+                  allTracerouteLinks as unknown as GeoJSON.FeatureCollection,
+                )}
               >
                 <Layer
                   id="darkmesh-all-traceroute-links-arrows"
                   type="symbol"
                   layout={{
-                    "text-field": ["get", "text"],
-                    "text-size": 12,
-                    "text-allow-overlap": true,
-                    "text-ignore-placement": true,
-                  }}
-                  paint={{
-                    "text-color": "#f97316",
-                    "text-halo-color": "#111827",
-                    "text-halo-width": 1,
+                    "icon-image": LINK_ARROW_ICON_ID,
+                    "icon-size": 0.6,
+                    "icon-allow-overlap": true,
+                    "icon-ignore-placement": true,
+                    "icon-rotate": ["get", "angle"],
+                    "icon-rotation-alignment": "map",
+                    "symbol-placement": "point",
                   }}
                 />
               </Source>
