@@ -75,6 +75,7 @@ import {
   LockIcon,
   LockOpenIcon,
   MapPinIcon,
+  MonitorXIcon,
   NavigationIcon,
   PlugZapIcon,
   PowerIcon,
@@ -260,6 +261,15 @@ function isInfrastructureNode(node: Protobuf.Mesh.NodeInfo): boolean {
     roleName.includes("ROUTER") ||
     roleName.includes("REPEATER") ||
     roleName.includes("INFRASTRUCTURE")
+  );
+}
+
+function isAndroidInfrastructureRole(role?: Protobuf.Config.Config_DeviceConfig_Role): boolean {
+  return (
+    role === Protobuf.Config.Config_DeviceConfig_Role.ROUTER ||
+    role === Protobuf.Config.Config_DeviceConfig_Role.ROUTER_LATE ||
+    role === Protobuf.Config.Config_DeviceConfig_Role.CLIENT_BASE ||
+    role === Protobuf.Config.Config_DeviceConfig_Role.REPEATER
   );
 }
 
@@ -500,6 +510,32 @@ function EncryptionIcon({
     );
   }
   return <LockOpenIcon className="size-6 text-yellow-400" aria-label="Public key missing" />;
+}
+
+function MobileNodeModeIndicator({ node }: { node: Protobuf.Mesh.NodeInfo }) {
+  const infrastructure = isAndroidInfrastructureRole(node.user?.role);
+  const unmessageable = node.user?.isUnmessagable ?? false;
+
+  if (!infrastructure && !unmessageable) {
+    return <span className="size-6" aria-hidden="true" />;
+  }
+
+  const Icon = infrastructure ? RadioTowerIcon : MonitorXIcon;
+  const label = infrastructure
+    ? "Infrastructure node, may not respond to private messages."
+    : "Unmessageable node, may not respond to private messages.";
+  const className = infrastructure ? "text-[#00a9c8]" : "text-[#8d0606]";
+
+  return (
+    <span
+      className={`inline-flex size-6 items-center justify-center ${className}`}
+      aria-label={label}
+      title={label}
+      role="img"
+    >
+      <Icon className="size-5" strokeWidth={2.5} />
+    </span>
+  );
 }
 
 function SignalPill({
@@ -1493,6 +1529,19 @@ const NodesPage = (): JSX.Element => {
       node.deviceMetrics?.channelUtilization !== undefined ||
       node.deviceMetrics?.airUtilTx !== undefined;
     const hasDetailRows = hasPositionRow || hasIdentityRow || hasUtilRow || Boolean(nodeStatus);
+    const startMobileNodeTraceroute = () => {
+      pendingTracerouteNodeRef.current = node.num;
+      pendingTracerouteStartedAtRef.current = Date.now();
+      void runMobileNodeAction("Traceroute avviato", async () => {
+        try {
+          return await startVisualTraceroute(device.id, connection, node.num);
+        } catch (error) {
+          pendingTracerouteNodeRef.current = undefined;
+          pendingTracerouteStartedAtRef.current = undefined;
+          throw error;
+        }
+      });
+    };
     const actionMenu = (
       <div className="flex max-h-[70vh] flex-col overflow-y-auto py-2 text-lg">
         <button
@@ -1579,17 +1628,7 @@ const NodesPage = (): JSX.Element => {
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
-                pendingTracerouteNodeRef.current = node.num;
-                pendingTracerouteStartedAtRef.current = Date.now();
-                void runMobileNodeAction("Traceroute avviato", async () => {
-                  try {
-                    return await startVisualTraceroute(device.id, connection, node.num);
-                  } catch (error) {
-                    pendingTracerouteNodeRef.current = undefined;
-                    pendingTracerouteStartedAtRef.current = undefined;
-                    throw error;
-                  }
-                });
+                startMobileNodeTraceroute();
               }}
             >
               Traceroute
@@ -1655,7 +1694,7 @@ const NodesPage = (): JSX.Element => {
         key={node.num}
         className="rounded-md bg-background-secondary p-2.5 text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#303030] dark:text-zinc-100 dark:shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
       >
-        <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-1.5">
+        <div className="grid grid-cols-[auto_auto_auto_minmax(0,1fr)_auto_auto] items-center gap-1">
           <Popover
             open={mobileActionNode === node.num}
             onOpenChange={(open) => setMobileActionNode(open ? node.num : undefined)}
@@ -1701,12 +1740,25 @@ const NodesPage = (): JSX.Element => {
             onCopyPublicKey={copyMobileNodePublicKey}
           />
 
+          <button
+            type="button"
+            className="inline-flex size-8 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-slate-200/80 active:bg-[#00e531]/25 disabled:pointer-events-none disabled:opacity-35 dark:text-zinc-100 dark:hover:bg-zinc-700"
+            aria-label={`Traceroute ${longName}`}
+            title={isLocalNode ? "Traceroute non disponibile sul nodo locale" : "Traceroute"}
+            disabled={isLocalNode}
+            onClick={startMobileNodeTraceroute}
+          >
+            <RouteIcon className="size-5 rotate-90" strokeWidth={2.7} />
+          </button>
+
           <div className="min-w-0 text-[0.9375rem] leading-tight">
             <span className="whitespace-normal break-words">{longName}</span>
             {node.isFavorite ? (
               <StarIcon className="ml-1.5 inline size-4 fill-[#8d0606] text-[#8d0606]" />
             ) : null}
           </div>
+
+          <MobileNodeModeIndicator node={node} />
 
           <div className="flex items-center justify-end gap-1 whitespace-nowrap text-[0.875rem] text-text-secondary dark:text-zinc-200">
             <RadioTowerIcon className="size-4" />
@@ -1993,7 +2045,10 @@ const NodesPage = (): JSX.Element => {
       />
 
       <Dialog open={!!selectedNeighborNode} onOpenChange={closeNeighborDiscoveryProcess}>
-        <DialogContent className="top-1/2 left-1/2 max-h-[86vh] max-w-[min(92vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]">
+        <DialogContent
+          aria-describedby={undefined}
+          className="top-1/2 left-1/2 max-h-[86vh] max-w-[min(92vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]"
+        >
           <DialogHeader>
             <DialogTitle className="text-center text-4xl font-semibold text-zinc-100 max-md:text-3xl">
               Neighbor Discovery
@@ -2083,7 +2138,10 @@ const NodesPage = (): JSX.Element => {
       </Dialog>
 
       <Dialog open={!!selectedNodeInfoNode} onOpenChange={() => setSelectedNodeInfo(undefined)}>
-        <DialogContent className="inset-0 h-dvh max-h-dvh w-screen max-w-none rounded-none bg-[#111] p-0 text-zinc-100 dark:bg-[#111] sm:max-w-none sm:rounded-none">
+        <DialogContent
+          aria-describedby={undefined}
+          className="inset-0 h-dvh max-h-dvh w-screen max-w-none rounded-none bg-[#111] p-0 text-zinc-100 dark:bg-[#111] sm:max-w-none sm:rounded-none"
+        >
           {selectedNodeInfoNode ? (
             <MobileNodeInfoDialog
               node={selectedNodeInfoNode}
@@ -2383,7 +2441,10 @@ function MobileNodeInfoDialog({
         </InfoSection>
       </div>
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-        <DialogContent className="max-h-[86vh] max-w-[min(92vw,28rem)] rounded-2xl bg-[#151515] p-6 text-zinc-100">
+        <DialogContent
+          aria-describedby={undefined}
+          className="max-h-[86vh] max-w-[min(92vw,28rem)] rounded-2xl bg-[#151515] p-6 text-zinc-100"
+        >
           <DialogTitle className="text-center text-xl">Condividi</DialogTitle>
           <p className="text-center text-cyan-400">{longName}</p>
           <div className="mx-auto bg-white p-3">
@@ -2409,7 +2470,10 @@ function MobileNodeInfoDialog({
         </DialogContent>
       </Dialog>
       <Dialog open={activeLog !== undefined} onOpenChange={() => setActiveLog(undefined)}>
-        <DialogContent className="inset-0 h-dvh max-h-dvh w-screen max-w-none rounded-none bg-[#111] p-0 text-zinc-100 dark:bg-[#111] sm:max-w-none sm:rounded-none">
+        <DialogContent
+          aria-describedby={undefined}
+          className="inset-0 h-dvh max-h-dvh w-screen max-w-none rounded-none bg-[#111] p-0 text-zinc-100 dark:bg-[#111] sm:max-w-none sm:rounded-none"
+        >
           {activeLog ? (
             <NodeLogPanel
               title={getNodeLogTitle(activeLog)}
@@ -2575,7 +2639,10 @@ function NeighborLog({
         })}
       </div>
       <Dialog open={!!selectedRecord} onOpenChange={() => setSelectedRecord(undefined)}>
-        <DialogContent className="top-1/2 left-1/2 max-h-[86vh] max-w-[min(92vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]">
+        <DialogContent
+          aria-describedby={undefined}
+          className="top-1/2 left-1/2 max-h-[86vh] max-w-[min(92vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]"
+        >
           <DialogHeader>
             <DialogTitle className="text-center text-4xl font-semibold text-zinc-100 max-md:text-3xl">
               Neighbor Discovery

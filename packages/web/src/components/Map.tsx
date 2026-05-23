@@ -1,4 +1,5 @@
 import { useTheme } from "@core/hooks/useTheme.ts";
+import type { StyleSpecification } from "maplibre-gl";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import MapGl, {
@@ -21,6 +22,35 @@ interface MapProps {
     zoom?: number;
   };
 }
+
+const osmRasterStyle: StyleSpecification = {
+  version: 8,
+  name: "OpenStreetMap Mapnik raster tiles",
+  glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+  sources: {
+    "osm-mapnik": {
+      type: "raster",
+      tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution:
+        "Basemap data <a href='https://www.osm.org' target=_blank>© OpenStreetMap contributors</a>",
+    },
+  },
+  layers: [
+    {
+      id: "background",
+      type: "background",
+      paint: {
+        "background-color": "rgba(0,0,0,0)",
+      },
+    },
+    {
+      id: "osm-mapnik",
+      type: "raster",
+      source: "osm-mapnik",
+    },
+  ],
+};
 
 export const BaseMap = ({
   children,
@@ -66,7 +96,7 @@ export const BaseMap = ({
   return (
     <MapGl
       ref={mapRef}
-      mapStyle="https://raw.githubusercontent.com/hc-oss/maplibre-gl-styles/master/styles/osm-mapnik/v8/default.json"
+      mapStyle={osmRasterStyle}
       attributionControl={false}
       renderWorldCopies={false}
       maxPitch={0}

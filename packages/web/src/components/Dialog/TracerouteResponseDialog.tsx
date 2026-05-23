@@ -81,7 +81,10 @@ export const TracerouteResponseDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleCloseProcess}>
-      <DialogContent className="mobile-traceroute-dialog top-1/2 left-1/2 max-h-[86vh] w-[min(86vw,38rem)] max-w-[min(86vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]">
+      <DialogContent
+        aria-describedby={undefined}
+        className="mobile-traceroute-dialog top-1/2 left-1/2 max-h-[86vh] w-[min(86vw,38rem)] max-w-[min(86vw,38rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-[#303030] p-6 text-zinc-100 dark:bg-[#303030]"
+      >
         <DialogTitle className="text-left text-[1.5rem] font-normal text-zinc-100 max-md:text-[1.125rem]">
           Traceroute
         </DialogTitle>
