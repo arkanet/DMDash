@@ -22,10 +22,11 @@ export interface SettingsPanelProps {
 }
 
 export const Channel = ({ onFormInit, channel }: SettingsPanelProps) => {
-  const { config, setChange, getChange, removeChange } = useConfigTarget();
+  const { channels, config, setChange, getChange, removeChange } = useConfigTarget();
   const { t } = useTranslation(["channels", "ui", "dialog"]);
 
-  const defaultConfig = channel;
+  const originalConfig = channels.get(channel.index);
+  const defaultConfig = originalConfig ?? channel;
   const defaultValues = {
     ...defaultConfig,
     ...{
@@ -47,7 +48,7 @@ export const Channel = ({ onFormInit, channel }: SettingsPanelProps) => {
     type: "channel",
     index: channel.index,
   }) as Protobuf.Channel.Channel | undefined;
-  const effectiveConfig = workingChannel ?? channel;
+  const effectiveConfig = workingChannel ?? defaultConfig;
   const formValues = {
     ...effectiveConfig,
     ...{
@@ -121,12 +122,12 @@ export const Channel = ({ onFormInit, channel }: SettingsPanelProps) => {
       },
     });
 
-    if (deepCompareConfig(channel, payload, true)) {
+    if (originalConfig && deepCompareConfig(originalConfig, payload, true)) {
       removeChange({ type: "channel", index: channel.index });
       return;
     }
 
-    setChange({ type: "channel", index: channel.index }, payload, channel);
+    setChange({ type: "channel", index: channel.index }, payload, originalConfig);
   };
 
   const preSharedKeyRegenerate = async () => {

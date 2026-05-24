@@ -26,14 +26,57 @@ import { toByteArray } from "base64-js";
 import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
+const MAX_CHANNELS = 8;
+
 export interface ImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   loraConfig?: Protobuf.Config.Config_LoRaConfig;
 }
 
+function cloneModuleSettings(settings?: Protobuf.Channel.ModuleSettings) {
+  return settings ? create(Protobuf.Channel.ModuleSettingsSchema, settings) : undefined;
+}
+
+function mergeChannelSettings(settings?: Protobuf.Channel.ChannelSettings) {
+  return create(Protobuf.Channel.ChannelSettingsSchema, {
+    channelNum: settings?.channelNum ?? 0,
+    psk: new Uint8Array(settings?.psk ?? new Uint8Array(0)),
+    name: settings?.name ?? "",
+    id: settings?.id ?? 0,
+    uplinkEnabled: settings?.uplinkEnabled ?? false,
+    downlinkEnabled: settings?.downlinkEnabled ?? false,
+    moduleSettings: cloneModuleSettings(settings?.moduleSettings),
+    mute: settings?.mute ?? false,
+  });
+}
+
+function createEmptyChannelSettings() {
+  return create(Protobuf.Channel.ChannelSettingsSchema);
+}
+
+function getChannelRole(index: number, enabledCount: number) {
+  if (index === 0) {
+    return Protobuf.Channel.Channel_Role.PRIMARY;
+  }
+
+  return index < enabledCount
+    ? Protobuf.Channel.Channel_Role.SECONDARY
+    : Protobuf.Channel.Channel_Role.DISABLED;
+}
+
+function getSortedChannels(channels: Iterable<Protobuf.Channel.Channel>) {
+  return Array.from(channels).sort((a, b) => a.index - b.index);
+}
+
+function getEnabledSettings(channels: Protobuf.Channel.Channel[]) {
+  return channels
+    .filter((channel) => channel.role !== Protobuf.Channel.Channel_Role.DISABLED)
+    .map((channel) => mergeChannelSettings(channel.settings));
+}
+
 export const ImportDialog = ({ open, onOpenChange }: ImportDialogProps) => {
-  const { setChange, channels, config } = useDevice();
+  const { setChange, removeChange, channels, config } = useDevice();
   const { t } = useTranslation("dialog");
   const [importDialogInput, setImportDialogInput] = useState<string>("");
   const [channelSet, setChannelSet] = useState<Protobuf.AppOnly.ChannelSet>();
@@ -47,7 +90,8 @@ export const ImportDialog = ({ open, onOpenChange }: ImportDialogProps) => {
     try {
       const channelsUrl = new URL(importDialogInput);
       if (
-        (channelsUrl.hostname !== "meshtastic.org" && channelsUrl.pathname !== "/e/") ||
+        channelsUrl.hostname !== "meshtastic.org" ||
+        channelsUrl.pathname !== "/e/" ||
         !channelsUrl.hash
       ) {
         throw t("import.error.invalidUrl");
@@ -76,29 +120,43 @@ export const ImportDialog = ({ open, onOpenChange }: ImportDialogProps) => {
     }
   }, [importDialogInput, t]);
 
-  const apply = () => {
-    channelSet?.settings.forEach((ch: Protobuf.Channel.ChannelSettings, index: number) => {
-      if (importIndex[index] === -1) {
-        return;
+  const stageChannelSettingsList = (nextSettings: Protobuf.Channel.ChannelSettings[]) => {
+    const baseChannels = getSortedChannels(channels.values());
+    const baseEnabledSettings = getEnabledSettings(baseChannels);
+    const maxIndex = Math.max(baseEnabledSettings.length, nextSettings.length) - 1;
+
+    for (let index = 0; index < MAX_CHANNELS; index++) {
+      if (index > maxIndex) {
+        removeChange({ type: "channel", index });
+        continue;
       }
 
+      const settings = nextSettings[index];
       const payload = create(Protobuf.Channel.ChannelSchema, {
-        index: importIndex[index],
-        role:
-          importIndex[index] === 0
-            ? Protobuf.Channel.Channel_Role.PRIMARY
-            : Protobuf.Channel.Channel_Role.SECONDARY,
-        settings: ch,
+        index,
+        role: getChannelRole(index, nextSettings.length),
+        settings: settings ? mergeChannelSettings(settings) : createEmptyChannelSettings(),
       });
+      const original = channels.get(index);
 
-      if (!deepCompareConfig(channels.get(importIndex[index] ?? 0), payload, true)) {
-        setChange(
-          { type: "channel", index: importIndex[index] ?? 0 },
-          payload,
-          channels.get(importIndex[index] ?? 0),
-        );
+      if (original && deepCompareConfig(original, payload, true)) {
+        removeChange({ type: "channel", index });
+        continue;
       }
-    });
+
+      setChange({ type: "channel", index }, payload, original);
+    }
+  };
+
+  const apply = () => {
+    const importedSettings =
+      channelSet?.settings
+        .map((settings, index) => ({ settings, slot: importIndex[index] ?? index }))
+        .filter(({ slot }) => slot !== -1)
+        .sort((a, b) => a.slot - b.slot)
+        .map(({ settings }) => mergeChannelSettings(settings)) ?? [];
+
+    stageChannelSettingsList(importedSettings);
 
     if (channelSet?.loraConfig && updateConfig) {
       const payload = {
@@ -186,7 +244,7 @@ export const ImportDialog = ({ open, onOpenChange }: ImportDialogProps) => {
                         {Array.from({ length: 8 }, (_, i) => i).map((i) => (
                           <SelectItem
                             key={`index_${i}`}
-                            disabled={importIndex.includes(i) && index !== i}
+                            disabled={importIndex.includes(i) && importIndex[index] !== i}
                             value={i.toString()}
                           >
                             {i === 0 ? t("import.primary") : `${t("import.channelPrefix")}${i}`}

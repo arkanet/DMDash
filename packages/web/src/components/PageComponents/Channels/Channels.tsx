@@ -15,7 +15,14 @@ import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
 import { Protobuf } from "@meshtastic/core";
 import { fromByteArray, toByteArray } from "base64-js";
 import i18next from "i18next";
-import { ArrowLeftIcon, CopyIcon, QrCodeIcon, UploadIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  CopyIcon,
+  PlusIcon,
+  QrCodeIcon,
+  Trash2Icon,
+  UploadIcon,
+} from "lucide-react";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -23,6 +30,63 @@ import { QRCode } from "react-qrcode-logo";
 
 interface ConfigProps {
   onFormInit: <T extends object>(methods: UseFormReturn<T>) => void;
+  standalone?: boolean;
+}
+
+const MAX_CHANNELS = 8;
+
+function cloneModuleSettings(settings?: Protobuf.Channel.ModuleSettings) {
+  return settings ? create(Protobuf.Channel.ModuleSettingsSchema, settings) : undefined;
+}
+
+function mergeChannelSettings(
+  settings?: Protobuf.Channel.ChannelSettings,
+  patch: Partial<Protobuf.Channel.ChannelSettings> = {},
+) {
+  return create(Protobuf.Channel.ChannelSettingsSchema, {
+    channelNum: patch.channelNum ?? settings?.channelNum ?? 0,
+    psk: new Uint8Array(patch.psk ?? settings?.psk ?? new Uint8Array(0)),
+    name: patch.name ?? settings?.name ?? "",
+    id: patch.id ?? settings?.id ?? 0,
+    uplinkEnabled: patch.uplinkEnabled ?? settings?.uplinkEnabled ?? false,
+    downlinkEnabled: patch.downlinkEnabled ?? settings?.downlinkEnabled ?? false,
+    moduleSettings: cloneModuleSettings(patch.moduleSettings ?? settings?.moduleSettings),
+    mute: patch.mute ?? settings?.mute ?? false,
+  });
+}
+
+function cloneChannelSettings(settings?: Protobuf.Channel.ChannelSettings) {
+  return mergeChannelSettings(settings);
+}
+
+function createEmptyChannelSettings() {
+  return create(Protobuf.Channel.ChannelSettingsSchema);
+}
+
+function createDefaultChannelSettings() {
+  return mergeChannelSettings(createEmptyChannelSettings(), {
+    psk: new Uint8Array([1]),
+  });
+}
+
+function getChannelRole(index: number, enabledCount: number) {
+  if (index === 0) {
+    return Protobuf.Channel.Channel_Role.PRIMARY;
+  }
+
+  return index < enabledCount
+    ? Protobuf.Channel.Channel_Role.SECONDARY
+    : Protobuf.Channel.Channel_Role.DISABLED;
+}
+
+function getSortedChannels(channels: Iterable<Protobuf.Channel.Channel>) {
+  return Array.from(channels).sort((a, b) => a.index - b.index);
+}
+
+function getEnabledSettings(channels: Protobuf.Channel.Channel[]) {
+  return channels
+    .filter((channel) => channel.role !== Protobuf.Channel.Channel_Role.DISABLED)
+    .map((channel) => cloneChannelSettings(channel.settings));
 }
 
 export const getChannelName = (channel: Protobuf.Channel.Channel) => {
@@ -36,13 +100,29 @@ export const getChannelName = (channel: Protobuf.Channel.Channel) => {
         });
 };
 
-export const Channels = ({ onFormInit }: ConfigProps) => {
-  const { channels, config, hasChannelChange, getChange, setChange, setDialogOpen, isRemote } =
-    useConfigTarget();
+export const Channels = ({ onFormInit, standalone = false }: ConfigProps) => {
+  const {
+    channels,
+    config,
+    connection,
+    setConfig,
+    hasChannelChange,
+    getChange,
+    setChange,
+    removeChange,
+    getAllConfigChanges,
+    getAllChannelChanges,
+    getConfigChangeCount,
+    getChannelChangeCount,
+    addChannel,
+    setDialogOpen,
+    isRemote,
+  } = useConfigTarget();
   const { sendAdminMessage } = useDevice();
   const { addNode } = useNodeDB();
   const { toast } = useToast();
   const { t } = useTranslation("channels");
+  const [isSavingChannels, setIsSavingChannels] = useState(false);
   const [selectedChannels, setSelectedChannels] = useState<number[]>([0]);
   const [qrCodeAdd, setQrCodeAdd] = useState(false);
   const [contactUrl, setContactUrl] = useState("");
@@ -51,18 +131,35 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
   const [validChannelUrl, setValidChannelUrl] = useState(false);
   const [editingChannels, setEditingChannels] = useState(false);
   const [mobileEditChannelIndex, setMobileEditChannelIndex] = useState<number | undefined>();
+  const [selectedChannelIndex, setSelectedChannelIndex] = useState(0);
 
-  const allChannels = Array.from(channels.values());
+  const allChannels = getSortedChannels(channels.values());
+  const channelChanges = getAllChannelChanges();
   const getEffectiveChannel = (channel: Protobuf.Channel.Channel) =>
     (getChange({
       type: "channel",
       index: channel.index,
     }) as Protobuf.Channel.Channel | undefined) ?? channel;
 
-  const effectiveChannels = allChannels.map(getEffectiveChannel);
+  const effectiveChannelMap = new Map<number, Protobuf.Channel.Channel>(
+    allChannels.map((channel) => [channel.index, getEffectiveChannel(channel)]),
+  );
+  channelChanges.forEach((channel) => {
+    effectiveChannelMap.set(channel.index, channel);
+  });
+  const effectiveChannels = getSortedChannels(effectiveChannelMap.values());
+  const visibleChannels = effectiveChannels.filter(
+    (channel) => channel.role !== Protobuf.Channel.Channel_Role.DISABLED,
+  );
+  const channelChangeCount = getChannelChangeCount();
+  const configChangeCount = getConfigChangeCount();
+  const hasStandaloneChanges = channelChangeCount > 0 || configChangeCount > 0;
+  const selectedDesktopChannel =
+    visibleChannels.find((channel) => channel.index === selectedChannelIndex) ?? visibleChannels[0];
   const flags = useMemo(
-    () => new Map(allChannels.map((channel) => [channel.index, hasChannelChange(channel.index)])),
-    [allChannels, hasChannelChange],
+    () =>
+      new Map(effectiveChannels.map((channel) => [channel.index, hasChannelChange(channel.index)])),
+    [effectiveChannels, hasChannelChange],
   );
   const qrCodeUrl = useMemo(() => {
     const channelsToEncode = effectiveChannels
@@ -84,6 +181,105 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
     return `https://meshtastic.org/e/${qrCodeAdd ? "?add=true" : ""}#${base64}`;
   }, [effectiveChannels, config.lora, qrCodeAdd, selectedChannels]);
 
+  const resetStandaloneChanges = () => {
+    for (let index = 0; index < MAX_CHANNELS; index++) {
+      removeChange({ type: "channel", index });
+    }
+    removeChange({ type: "config", variant: "lora" });
+    setEditingChannels(false);
+    setSelectedChannelIndex(0);
+  };
+
+  const stageChannelSettingsList = (nextSettings: Protobuf.Channel.ChannelSettings[]) => {
+    const baseChannels = getSortedChannels(channels.values());
+    const baseEnabledSettings = getEnabledSettings(baseChannels);
+    const maxIndex = Math.max(baseEnabledSettings.length, nextSettings.length) - 1;
+
+    for (let index = 0; index < MAX_CHANNELS; index++) {
+      if (index > maxIndex) {
+        removeChange({ type: "channel", index });
+        continue;
+      }
+
+      const settings = nextSettings[index];
+      const payload = create(Protobuf.Channel.ChannelSchema, {
+        index,
+        role: getChannelRole(index, nextSettings.length),
+        settings: settings ? cloneChannelSettings(settings) : createEmptyChannelSettings(),
+      });
+      const original = channels.get(index);
+
+      if (original && deepCompareConfig(original, payload, true)) {
+        removeChange({ type: "channel", index });
+        continue;
+      }
+
+      setChange({ type: "channel", index }, payload, original);
+    }
+  };
+
+  const saveStandaloneChanges = async (successTitle = "Canali salvati") => {
+    const channelChanges = getAllChannelChanges();
+    const configChanges = getAllConfigChanges();
+    if (!standalone || (channelChanges.length === 0 && configChanges.length === 0)) {
+      return;
+    }
+
+    if (!connection) {
+      toast({ title: "Radio non connessa", description: "Connetti un device prima di salvare." });
+      return;
+    }
+
+    setIsSavingChannels(true);
+    try {
+      await Promise.all(channelChanges.map((channel) => connection.setChannel(channel)));
+      await Promise.all(configChanges.map((newConfig) => connection.setConfig(newConfig)));
+
+      if (configChanges.length > 0) {
+        await connection.commitEditSettings();
+      }
+
+      channelChanges.forEach((channel) => {
+        addChannel(channel);
+        removeChange({ type: "channel", index: channel.index });
+      });
+      configChanges.forEach((newConfig) => {
+        setConfig(newConfig);
+        switch (newConfig.payloadVariant.case) {
+          case "device":
+          case "position":
+          case "power":
+          case "network":
+          case "display":
+          case "lora":
+          case "bluetooth":
+          case "security":
+            removeChange({ type: "config", variant: newConfig.payloadVariant.case });
+            break;
+        }
+      });
+      toast({ title: successTitle });
+      setEditingChannels(false);
+    } catch (error) {
+      toast({
+        title: "Errore salvataggio",
+        description:
+          error instanceof Error ? error.message : "Impossibile salvare le modifiche canali.",
+      });
+    } finally {
+      setIsSavingChannels(false);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      visibleChannels.length > 0 &&
+      !visibleChannels.some((channel) => channel.index === selectedChannelIndex)
+    ) {
+      setSelectedChannelIndex(visibleChannels[0]?.index ?? 0);
+    }
+  }, [selectedChannelIndex, visibleChannels]);
+
   useEffect(() => {
     try {
       parseSharedContactUrl(contactUrl);
@@ -97,7 +293,8 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
     try {
       const channelsUrl = new URL(channelImportUrl);
       if (
-        (channelsUrl.hostname !== "meshtastic.org" && channelsUrl.pathname !== "/e/") ||
+        channelsUrl.hostname !== "meshtastic.org" ||
+        channelsUrl.pathname !== "/e/" ||
         !channelsUrl.hash
       ) {
         throw new Error("Invalid channel URL");
@@ -135,20 +332,7 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
 
       const channelSet = fromBinary(Protobuf.AppOnly.ChannelSetSchema, toByteArray(paddedString));
 
-      channelSet.settings.forEach((settings, index) => {
-        const payload = create(Protobuf.Channel.ChannelSchema, {
-          index,
-          role:
-            index === 0
-              ? Protobuf.Channel.Channel_Role.PRIMARY
-              : Protobuf.Channel.Channel_Role.SECONDARY,
-          settings,
-        });
-
-        if (!deepCompareConfig(channels.get(index), payload, true)) {
-          setChange({ type: "channel", index }, payload, channels.get(index));
-        }
-      });
+      stageChannelSettingsList(channelSet.settings.map(cloneChannelSettings));
 
       if (channelSet.loraConfig) {
         const payload = {
@@ -161,54 +345,69 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
       }
 
       setChannelImportUrl("");
+      if (standalone) {
+        void saveStandaloneChanges("Importazione salvata");
+        return;
+      }
+
       toast({ title: "Channels imported" });
     } catch {
       toast({ title: "Invalid channel URL" });
     }
   };
 
-  const updateMobileChannel = (
-    baseChannel: Protobuf.Channel.Channel,
-    patch: Partial<Protobuf.Channel.Channel>,
-  ) => {
-    const payload = create(Protobuf.Channel.ChannelSchema, {
-      ...baseChannel,
-      ...patch,
-    });
-
-    setChange(
-      { type: "channel", index: baseChannel.index },
-      payload,
-      channels.get(baseChannel.index),
-    );
-  };
-
   const updateMobileChannelSettings = (
     channel: Protobuf.Channel.Channel,
     patch: Partial<Protobuf.Channel.ChannelSettings>,
   ) => {
-    const settings = create(Protobuf.Channel.ChannelSettingsSchema, channel.settings);
-    Object.assign(settings, patch);
-    if (patch.moduleSettings) {
-      settings.moduleSettings = patch.moduleSettings;
-    } else if (channel.settings?.moduleSettings) {
-      settings.moduleSettings = create(
-        Protobuf.Channel.ModuleSettingsSchema,
-        channel.settings.moduleSettings,
-      );
-    }
-    updateMobileChannel(channel, { settings });
+    const activeSettings = getEnabledSettings(effectiveChannels);
+    const currentSettings = activeSettings[channel.index] ?? createEmptyChannelSettings();
+    activeSettings[channel.index] = mergeChannelSettings(currentSettings, patch);
+    stageChannelSettingsList(activeSettings);
   };
 
-  const disableMobileChannel = (channel: Protobuf.Channel.Channel) => {
+  const addChannelDraft = (openMobileEditor = false) => {
+    const activeSettings = getEnabledSettings(effectiveChannels);
+    if (activeSettings.length >= MAX_CHANNELS) {
+      toast({ title: "Limite canali raggiunto" });
+      return;
+    }
+
+    const nextIndex = activeSettings.length;
+    activeSettings.push(createDefaultChannelSettings());
+    stageChannelSettingsList(activeSettings);
+    setSelectedChannelIndex(nextIndex);
+    setSelectedChannels((current) => Array.from(new Set([...current, nextIndex])));
+
+    if (openMobileEditor) {
+      setEditingChannels(true);
+      setMobileEditChannelIndex(nextIndex);
+    }
+  };
+
+  const deleteChannelDraft = (channel: Protobuf.Channel.Channel) => {
     if (channel.index === 0) {
       toast({ title: "Il canale primario non puo essere eliminato" });
       return;
     }
-    updateMobileChannel(channel, {
-      role: Protobuf.Channel.Channel_Role.DISABLED,
+    const activeSettings = getEnabledSettings(effectiveChannels);
+    const nextSelectedIndex =
+      channel.index >= activeSettings.length - 1 ? Math.max(0, channel.index - 1) : channel.index;
+    activeSettings.splice(channel.index, 1);
+    stageChannelSettingsList(activeSettings);
+    setSelectedChannelIndex((current) => {
+      if (current === channel.index) {
+        return nextSelectedIndex;
+      }
+
+      return current > channel.index ? current - 1 : current;
     });
-    toast({ title: "Canale disattivato" });
+    setSelectedChannels((current) =>
+      current
+        .filter((index) => index !== channel.index)
+        .map((index) => (index > channel.index ? index - 1 : index)),
+    );
+    toast({ title: "Canale eliminato" });
   };
 
   return (
@@ -235,30 +434,29 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
           </div>
 
           <div className="space-y-2">
-            {allChannels.map((channel) => {
-              const effectiveChannel = getEffectiveChannel(channel);
-              const checked = selectedChannels.includes(channel.index);
+            {visibleChannels.map((effectiveChannel) => {
+              const checked = selectedChannels.includes(effectiveChannel.index);
               if (editingChannels) {
                 return (
                   <div
-                    key={channel.index}
+                    key={effectiveChannel.index}
                     className="flex w-full items-center gap-3 rounded-md bg-background-secondary px-4 py-4 text-left text-lg dark:bg-[#2d2d2d]"
                   >
                     <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-300 text-sm text-slate-900 dark:bg-[#353535] dark:text-zinc-200">
-                      {channel.index}
+                      {effectiveChannel.index}
                     </span>
                     <button
                       type="button"
                       className="h-12 min-w-0 flex-1 rounded-md border border-zinc-400 bg-transparent px-3 text-left text-base text-text-primary dark:border-zinc-600 dark:text-zinc-100"
-                      onClick={() => setMobileEditChannelIndex(channel.index)}
+                      onClick={() => setMobileEditChannelIndex(effectiveChannel.index)}
                     >
                       <span className="block truncate">{getChannelName(effectiveChannel)}</span>
                     </button>
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={channel.index === 0}
-                      onClick={() => disableMobileChannel(effectiveChannel)}
+                      disabled={effectiveChannel.index === 0}
+                      onClick={() => deleteChannelDraft(effectiveChannel)}
                       className="h-12 border-[#8d0606] px-3 text-[#8d0606] disabled:opacity-40"
                     >
                       Elimina
@@ -269,19 +467,19 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
 
               return (
                 <button
-                  key={channel.index}
+                  key={effectiveChannel.index}
                   type="button"
                   onClick={() =>
                     setSelectedChannels((current) =>
                       checked
-                        ? current.filter((index) => index !== channel.index)
-                        : [...current, channel.index],
+                        ? current.filter((index) => index !== effectiveChannel.index)
+                        : [...current, effectiveChannel.index],
                     )
                   }
                   className="flex w-full items-center gap-3 rounded-md bg-background-secondary px-4 py-4 text-left text-lg dark:bg-[#2d2d2d]"
                 >
                   <span className="inline-flex size-10 items-center justify-center rounded-full bg-slate-300 text-sm text-slate-900 dark:bg-[#353535] dark:text-zinc-200">
-                    {channel.index}
+                    {effectiveChannel.index}
                   </span>
                   <span className="min-w-0 flex-1 truncate">
                     {getChannelName(effectiveChannel)}
@@ -292,30 +490,66 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
             })}
           </div>
 
-          <Button
-            variant="outline"
-            onClick={() => setEditingChannels((current) => !current)}
-            className="h-12 w-full border-zinc-600 bg-transparent text-lg text-text-primary dark:text-zinc-100"
-          >
-            {editingChannels ? "Fine modifica" : "Modifica"}
-          </Button>
+          {editingChannels && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={visibleChannels.length >= MAX_CHANNELS}
+              onClick={() => addChannelDraft(true)}
+              className="h-12 w-full border-zinc-600 bg-transparent text-lg text-text-primary disabled:opacity-45 dark:text-zinc-100"
+            >
+              <PlusIcon className="mr-2 size-5" />
+              Aggiungi canale
+            </Button>
+          )}
 
-          <div className="grid grid-cols-2 gap-3">
+          {standalone && editingChannels ? null : (
             <Button
-              variant={!qrCodeAdd ? "default" : "outline"}
-              onClick={() => setQrCodeAdd(false)}
-              className="h-12 border-[#8d0606] bg-[#8d0606] text-lg text-white"
+              variant="outline"
+              onClick={() => setEditingChannels((current) => !current)}
+              className="h-12 w-full border-zinc-600 bg-transparent text-lg text-text-primary dark:text-zinc-100"
             >
-              Reset
+              {editingChannels ? "Fine modifica" : "Modifica"}
             </Button>
-            <Button
-              variant={qrCodeAdd ? "default" : "outline"}
-              onClick={() => setQrCodeAdd(true)}
-              className="h-12 border-[#8d0606] bg-[#8d0606] text-lg text-white"
-            >
-              Add
-            </Button>
-          </div>
+          )}
+
+          {standalone && editingChannels ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetStandaloneChanges}
+                className="h-12 text-lg"
+              >
+                Annulla
+              </Button>
+              <Button
+                type="button"
+                disabled={!hasStandaloneChanges || isSavingChannels}
+                onClick={() => void saveStandaloneChanges()}
+                className="h-12 bg-[#8d0606] text-lg text-white disabled:opacity-45"
+              >
+                Salva
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant={!qrCodeAdd ? "default" : "outline"}
+                onClick={() => setQrCodeAdd(false)}
+                className="h-12 border-[#8d0606] bg-[#8d0606] text-lg text-white"
+              >
+                Replace
+              </Button>
+              <Button
+                variant={qrCodeAdd ? "default" : "outline"}
+                onClick={() => setQrCodeAdd(true)}
+                className="h-12 border-[#8d0606] bg-[#8d0606] text-lg text-white"
+              >
+                Add
+              </Button>
+            </div>
+          )}
 
           <div className="bg-white p-3">
             <QRCode value={qrCodeUrl} size={260} qrStyle="squares" />
@@ -347,19 +581,28 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
               className="h-14 border-zinc-400 bg-transparent text-lg text-text-primary dark:border-zinc-600 dark:text-zinc-100"
             />
             <Button
-              disabled={!validChannelUrl}
+              disabled={!validChannelUrl || isSavingChannels}
               onClick={importChannels}
               className="h-12 w-full bg-[#8d0606] text-lg text-white disabled:opacity-45"
             >
-              Scan
+              Ok
             </Button>
           </div>
         </div>
       )}
 
-      <Tabs defaultValue="channel_0" className="max-md:hidden">
-        <TabsList className="w-full dark:bg-slate-700">
-          {allChannels.map((channel) => (
+      <Tabs
+        value={`channel_${selectedDesktopChannel?.index ?? 0}`}
+        onValueChange={(value) => {
+          const nextIndex = Number.parseInt(value.replace("channel_", ""), 10);
+          if (!Number.isNaN(nextIndex)) {
+            setSelectedChannelIndex(nextIndex);
+          }
+        }}
+        className="max-md:hidden"
+      >
+        <TabsList className="w-full gap-1 dark:bg-slate-700">
+          {visibleChannels.map((channel) => (
             <TabsTrigger
               key={`channel_${channel.index}`}
               value={`channel_${channel.index}`}
@@ -374,8 +617,28 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
               )}
             </TabsTrigger>
           ))}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={visibleChannels.length >= MAX_CHANNELS}
+            className="ml-auto h-8"
+            onClick={() => addChannelDraft(false)}
+          >
+            <PlusIcon className="mr-2" size={14} />
+            Aggiungi
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!selectedDesktopChannel || selectedDesktopChannel.index === 0}
+            className="h-8"
+            onClick={() => selectedDesktopChannel && deleteChannelDraft(selectedDesktopChannel)}
+          >
+            <Trash2Icon className="mr-2" size={14} />
+            Elimina
+          </Button>
           {!isRemote && (
-            <Button className="ml-auto mr-1 h-8" onClick={() => setDialogOpen("import", true)}>
+            <Button className="h-8" onClick={() => setDialogOpen("import", true)}>
               <UploadIcon className="mr-2" size={14} />
               {t("page.import")}
             </Button>
@@ -387,7 +650,21 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
             </Button>
           )}
         </TabsList>
-        {allChannels.map((channel) => (
+        {standalone && hasStandaloneChanges && (
+          <div className="mt-3 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={resetStandaloneChanges}>
+              Annulla
+            </Button>
+            <Button
+              type="button"
+              disabled={isSavingChannels}
+              onClick={() => void saveStandaloneChanges()}
+            >
+              Salva
+            </Button>
+          </div>
+        )}
+        {visibleChannels.map((channel) => (
           <TabsContent key={`channel_${channel.index}`} value={`channel_${channel.index}`}>
             <Suspense fallback={<Spinner size="lg" className="my-5" />}>
               <Channel key={channel.index} onFormInit={onFormInit} channel={channel} />
@@ -406,13 +683,13 @@ export const Channels = ({ onFormInit }: ConfigProps) => {
           {mobileEditChannelIndex !== undefined ? (
             <MobileChannelEditor
               channel={getEffectiveChannel(
-                allChannels.find((channel) => channel.index === mobileEditChannelIndex) ??
-                  allChannels[0]!,
+                visibleChannels.find((channel) => channel.index === mobileEditChannelIndex) ??
+                  visibleChannels[0]!,
               )}
               getName={getChannelName}
               onClose={() => setMobileEditChannelIndex(undefined)}
               onUpdate={updateMobileChannelSettings}
-              onDelete={disableMobileChannel}
+              onDelete={deleteChannelDraft}
             />
           ) : null}
         </DialogContent>
@@ -438,9 +715,7 @@ function MobileChannelEditor({
   onDelete: (channel: Protobuf.Channel.Channel) => void;
 }) {
   const { toast } = useToast();
-  const [draftSettings, setDraftSettings] = useState(() =>
-    create(Protobuf.Channel.ChannelSettingsSchema, channel.settings),
-  );
+  const [draftSettings, setDraftSettings] = useState(() => cloneChannelSettings(channel.settings));
   const [draftPsk, setDraftPsk] = useState(() =>
     fromByteArray(channel.settings?.psk ?? new Uint8Array(0)),
   );
@@ -448,12 +723,7 @@ function MobileChannelEditor({
 
   const updateDraft = (patch: Partial<Protobuf.Channel.ChannelSettings>) => {
     setDraftSettings((current) => {
-      const next = create(Protobuf.Channel.ChannelSettingsSchema, current);
-      Object.assign(next, patch);
-      if (patch.moduleSettings) {
-        next.moduleSettings = patch.moduleSettings;
-      }
-      return next;
+      return mergeChannelSettings(current, patch);
     });
   };
 
@@ -465,8 +735,9 @@ function MobileChannelEditor({
       toastInvalidPsk();
       return;
     }
-    const nextSettings = create(Protobuf.Channel.ChannelSettingsSchema, draftSettings);
-    nextSettings.psk = psk;
+    const nextSettings = mergeChannelSettings(draftSettings, {
+      psk,
+    });
     onUpdate(channel, nextSettings);
     onClose();
   };

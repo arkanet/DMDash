@@ -14,7 +14,7 @@ export default function ChannelsPage(): JSX.Element {
       noPadding
       contentClassName="overflow-auto bg-background-primary"
     >
-      <Channels onFormInit={noopFormInit} />
+      <Channels onFormInit={noopFormInit} standalone />
     </PageLayout>
   );
 }
