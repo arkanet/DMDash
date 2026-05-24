@@ -24,6 +24,7 @@ export const NodeMarker = memo(function NodeMarker({
   offset,
   avatarClassName,
   showLabel = false,
+  showMobileLabel = false,
   labelPosition = "above",
   isVisible = true,
   onClick,
@@ -39,6 +40,7 @@ export const NodeMarker = memo(function NodeMarker({
   offset?: PxOffset;
   avatarClassName?: string;
   showLabel?: boolean;
+  showMobileLabel?: boolean;
   labelPosition?: "above" | "below";
   isVisible?: boolean;
   onClick: (id: number, e: { originalEvent: MouseEvent }) => void;
@@ -102,11 +104,12 @@ export const NodeMarker = memo(function NodeMarker({
           </TooltipPortal>
         </Tooltip>
       </TooltipProvider>
-      {showLabel && label && (
+      {(showLabel || showMobileLabel) && label && (
         <button
           type="button"
           className={cn(
             "absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-900 backdrop-blur-xs cursor-pointer max-md:text-sm",
+            !showLabel && showMobileLabel && "hidden max-md:block",
             labelPosition === "below"
               ? "top-11 translate-y-0 max-md:top-11"
               : "top-16 -translate-y-full max-md:top-7",

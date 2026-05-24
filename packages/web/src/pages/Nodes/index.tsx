@@ -1569,16 +1569,6 @@ const NodesPage = (): JSX.Element => {
     };
     const actionMenu = (
       <div className="flex max-h-[70vh] flex-col overflow-y-auto py-2 text-lg">
-        <button
-          className={MOBILE_NODE_MENU_ITEM_CLASS}
-          type="button"
-          onClick={() => {
-            setMobileActionNode(undefined);
-            setSelectedNodeInfo(node.num);
-          }}
-        >
-          Node Info
-        </button>
         {!isLocalNode ? (
           <>
             <button
@@ -1716,6 +1706,27 @@ const NodesPage = (): JSX.Element => {
             </button>
           </>
         ) : null}
+        <div className="my-2 border-t border-slate-200 dark:border-zinc-800" />
+        <button
+          className={MOBILE_NODE_MENU_ITEM_CLASS}
+          type="button"
+          onClick={() => {
+            setMobileActionNode(undefined);
+            setSelectedNodeInfo(node.num);
+          }}
+        >
+          More Node Info
+        </button>
+        <button
+          className={MOBILE_NODE_MENU_ITEM_CLASS}
+          type="button"
+          onClick={() => {
+            setMobileActionNode(undefined);
+            handleNodeInfoDialog(node.num);
+          }}
+        >
+          Plus Node Info
+        </button>
       </div>
     );
 
@@ -2185,7 +2196,7 @@ const NodesPage = (): JSX.Element => {
   );
 };
 
-function MobileNodeInfoDialog({
+export function MobileNodeInfoDialog({
   node,
   neighborRecords,
   onClose,

@@ -119,7 +119,8 @@ export const NodesLayer = ({
           isFavorite={node.isFavorite ?? false}
           avatarClassName={getNodeMarkerClassName?.(node)}
           showLabel={identiconsEnabled || isExpanded}
-          labelPosition={isExpanded ? "below" : "above"}
+          showMobileLabel={!identiconsEnabled}
+          labelPosition={isExpanded || !identiconsEnabled ? "below" : "above"}
           isVisible={isVisible}
           onClick={(num, e) => {
             e.originalEvent?.stopPropagation();
@@ -196,6 +197,8 @@ export const NodesLayer = ({
         isFavorite={true}
         avatarClassName={getNodeMarkerClassName?.(myNode)}
         showLabel={identiconsEnabled}
+        showMobileLabel={!identiconsEnabled}
+        labelPosition={!identiconsEnabled ? "below" : "above"}
         onClick={(_, e) => onMarkerClick(myNode.num, [0, 0], e)}
       />,
     );
