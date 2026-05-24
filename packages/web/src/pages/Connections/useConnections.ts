@@ -23,7 +23,7 @@ import { useCallback, useRef } from "react";
 const transports = new Map<ConnectionId, BluetoothDevice | SerialPort>();
 const heartbeats = new Map<ConnectionId, ReturnType<typeof setInterval>>();
 const connectionSubscriptions = new Map<ConnectionId, () => void>();
-const bluetoothReconnectTimers = new Map<ConnectionId, ReturnType<typeof setTimeout>>();
+const connectionReconnectTimers = new Map<ConnectionId, ReturnType<typeof setTimeout>>();
 const bluetoothDisconnectListeners = new Map<
   ConnectionId,
   { device: BluetoothDevice; listener: EventListener }
@@ -33,9 +33,11 @@ const backgroundReconnects = new Set<ConnectionId>();
 
 const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const CONFIG_HEARTBEAT_INTERVAL_MS = 5000; // 5s during configuration
-const BLUETOOTH_RECONNECT_DELAY_MS = 1500;
+const CONNECTION_RECONNECT_DELAY_MS = 1500;
 const BLUETOOTH_RECONNECT_MESSAGE =
   "Bluetooth Device is no longer in range. Reconnecting automatically.";
+const EXPECTED_RECONNECT_MESSAGE = "Device reboot in progress. Reconnecting automatically.";
+const CONNECTION_LOST_MESSAGE = "Connection lost.";
 
 type ConnectOptions = {
   allowPrompt?: boolean;
@@ -43,11 +45,35 @@ type ConnectOptions = {
   reconnect?: boolean;
 };
 
-function clearBluetoothReconnect(id: ConnectionId): void {
-  const timer = bluetoothReconnectTimers.get(id);
+function isExpectedReconnectActive(connection: Connection | undefined): boolean {
+  return Boolean(
+    connection?.expectedReconnectUntil && connection.expectedReconnectUntil > Date.now(),
+  );
+}
+
+function shouldAutoReconnect(connection: Connection | undefined): boolean {
+  return Boolean(
+    connection && (connection.type === "bluetooth" || isExpectedReconnectActive(connection)),
+  );
+}
+
+function getConnectionLostMessage(connection: Connection | undefined): string {
+  if (isExpectedReconnectActive(connection)) {
+    return EXPECTED_RECONNECT_MESSAGE;
+  }
+
+  if (connection?.type === "bluetooth") {
+    return BLUETOOTH_RECONNECT_MESSAGE;
+  }
+
+  return CONNECTION_LOST_MESSAGE;
+}
+
+function clearConnectionReconnect(id: ConnectionId): void {
+  const timer = connectionReconnectTimers.get(id);
   if (timer) {
     clearTimeout(timer);
-    bluetoothReconnectTimers.delete(id);
+    connectionReconnectTimers.delete(id);
   }
   backgroundReconnects.delete(id);
 }
@@ -125,7 +151,7 @@ export function useConnections() {
   const removeConnection = useCallback(
     async (id: ConnectionId) => {
       userDisconnects.add(id);
-      clearBluetoothReconnect(id);
+      clearConnectionReconnect(id);
       removeBluetoothDisconnectListener(id);
 
       const conn = useDeviceStore
@@ -219,15 +245,15 @@ export function useConnections() {
     [setActiveConnectionId, stopConnectionTasks, updateSavedConnection],
   );
 
-  const scheduleBluetoothReconnect = useCallback(
+  const scheduleConnectionReconnect = useCallback(
     (id: ConnectionId) => {
-      if (userDisconnects.has(id) || bluetoothReconnectTimers.has(id)) {
+      if (userDisconnects.has(id) || connectionReconnectTimers.has(id)) {
         return;
       }
 
       const queueReconnect = () => {
         const timer = setTimeout(() => {
-          bluetoothReconnectTimers.delete(id);
+          connectionReconnectTimers.delete(id);
 
           if (userDisconnects.has(id)) {
             return;
@@ -237,7 +263,7 @@ export function useConnections() {
             .getState()
             .getSavedConnections()
             .find((c) => c.id === id);
-          if (!conn || conn.type !== "bluetooth") {
+          if (!conn || !shouldAutoReconnect(conn)) {
             return;
           }
 
@@ -270,16 +296,20 @@ export function useConnections() {
 
           void reconnect
             .then((ok) => {
-              if (!ok && !userDisconnects.has(id)) {
+              const currentConnection = useDeviceStore
+                .getState()
+                .getSavedConnections()
+                .find((connection) => connection.id === id);
+              if (!ok && !userDisconnects.has(id) && shouldAutoReconnect(currentConnection)) {
                 queueReconnect();
               }
             })
             .finally(() => {
               backgroundReconnects.delete(id);
             });
-        }, BLUETOOTH_RECONNECT_DELAY_MS);
+        }, CONNECTION_RECONNECT_DELAY_MS);
 
-        bluetoothReconnectTimers.set(id, timer);
+        connectionReconnectTimers.set(id, timer);
       };
 
       queueReconnect();
@@ -295,10 +325,14 @@ export function useConnections() {
         return;
       }
 
-      markConnectionLost(id);
-      scheduleBluetoothReconnect(id);
+      const currentConnection = useDeviceStore
+        .getState()
+        .getSavedConnections()
+        .find((connection) => connection.id === id);
+      markConnectionLost(id, getConnectionLostMessage(currentConnection));
+      scheduleConnectionReconnect(id);
     },
-    [markConnectionLost, scheduleBluetoothReconnect],
+    [markConnectionLost, scheduleConnectionReconnect],
   );
 
   const setupMeshDevice = useCallback(
@@ -336,21 +370,21 @@ export function useConnections() {
           .getSavedConnections()
           .find((connection) => connection.id === id);
 
-        if (
-          !currentConnection ||
-          currentConnection.type !== "bluetooth" ||
-          userDisconnects.has(id)
-        ) {
+        if (!currentConnection || userDisconnects.has(id)) {
           return;
         }
 
         if (currentConnection.status === "error" || currentConnection.status === "reconnecting") {
-          scheduleBluetoothReconnect(id);
+          if (shouldAutoReconnect(currentConnection)) {
+            scheduleConnectionReconnect(id);
+          }
           return;
         }
 
-        markConnectionLost(id);
-        scheduleBluetoothReconnect(id);
+        markConnectionLost(id, getConnectionLostMessage(currentConnection));
+        if (shouldAutoReconnect(currentConnection)) {
+          scheduleConnectionReconnect(id);
+        }
       };
       const handleHeartbeatFailure = (error: unknown, label: string) => {
         const currentConnection = useDeviceStore
@@ -358,11 +392,14 @@ export function useConnections() {
           .getSavedConnections()
           .find((connection) => connection.id === id);
 
-        if (currentConnection?.type === "bluetooth" && !userDisconnects.has(id)) {
-          handleRuntimeDisconnect();
+        if (!currentConnection || userDisconnects.has(id)) {
           return;
         }
 
+        markConnectionLost(id, getConnectionLostMessage(currentConnection));
+        if (shouldAutoReconnect(currentConnection)) {
+          scheduleConnectionReconnect(id);
+        }
         console.warn(`[useConnections] ${label}:`, error);
       };
 
@@ -463,7 +500,11 @@ export function useConnections() {
               .getState()
               .getSavedConnections()
               .find((connection) => connection.id === id);
-            if (currentConnection?.type === "bluetooth" && !userDisconnects.has(id)) {
+            if (
+              currentConnection &&
+              shouldAutoReconnect(currentConnection) &&
+              !userDisconnects.has(id)
+            ) {
               handleRuntimeDisconnect();
               return;
             }
@@ -485,7 +526,7 @@ export function useConnections() {
       setActiveConnectionId,
       stopConnectionTasks,
       markConnectionLost,
-      scheduleBluetoothReconnect,
+      scheduleConnectionReconnect,
       updateSavedConnection,
       updateStatus,
     ],
@@ -512,7 +553,7 @@ export function useConnections() {
 
       userDisconnects.delete(id);
       if (!opts?.background) {
-        clearBluetoothReconnect(id);
+        clearConnectionReconnect(id);
       }
       const nextStatus: ConnectionStatus =
         opts?.reconnect || opts?.background || conn.status === "error"
@@ -536,7 +577,7 @@ export function useConnections() {
           const isTLS = url.protocol === "https:";
           const transport = await TransportHTTP.create(url.host, isTLS);
           setupMeshDevice(id, transport);
-          clearBluetoothReconnect(id);
+          clearConnectionReconnect(id);
           // Status will be set to "configured" by onConfigComplete event
           return true;
         }
@@ -544,7 +585,7 @@ export function useConnections() {
         if (conn.type === "tcp") {
           const transport = await TransportTCPBridge.create(conn.host, conn.port);
           setupMeshDevice(id, transport);
-          clearBluetoothReconnect(id);
+          clearConnectionReconnect(id);
           return true;
         }
 
@@ -583,7 +624,7 @@ export function useConnections() {
           const transport = await TransportWebBluetooth.createFromDevice(bleDevice);
           setupMeshDevice(id, transport, bleDevice);
           setBluetoothDisconnectListener(id, bleDevice, () => handleBluetoothGattDisconnect(id));
-          clearBluetoothReconnect(id);
+          clearConnectionReconnect(id);
 
           // Status will be set to "configured" by onConfigComplete event
           return true;
@@ -648,26 +689,34 @@ export function useConnections() {
 
           const transport = await TransportWebSerial.createFromPort(port);
           setupMeshDevice(id, transport, undefined, port);
-          clearBluetoothReconnect(id);
+          clearConnectionReconnect(id);
           // Status will be set to "configured" by onConfigComplete event
           return true;
         }
       } catch (err: unknown) {
+        const isExpectedReconnect = isExpectedReconnectActive(conn);
         const message =
-          opts?.background && conn.type === "bluetooth"
-            ? BLUETOOTH_RECONNECT_MESSAGE
-            : err instanceof Error
-              ? err.message
-              : String(err);
+          opts?.background && isExpectedReconnect
+            ? EXPECTED_RECONNECT_MESSAGE
+            : opts?.background && conn.type === "bluetooth"
+              ? BLUETOOTH_RECONNECT_MESSAGE
+              : err instanceof Error
+                ? err.message
+                : String(err);
         updateStatus(id, "error", message);
-        if (conn.type === "bluetooth" && !userDisconnects.has(id)) {
-          scheduleBluetoothReconnect(id);
+        const currentConnection =
+          useDeviceStore
+            .getState()
+            .getSavedConnections()
+            .find((connection) => connection.id === id) ?? conn;
+        if (shouldAutoReconnect(currentConnection) && !userDisconnects.has(id)) {
+          scheduleConnectionReconnect(id);
         }
         return false;
       }
       return false;
     },
-    [handleBluetoothGattDisconnect, scheduleBluetoothReconnect, setupMeshDevice, updateStatus],
+    [handleBluetoothGattDisconnect, scheduleConnectionReconnect, setupMeshDevice, updateStatus],
   );
   connectRef.current = connect;
 
@@ -678,7 +727,7 @@ export function useConnections() {
         return;
       }
       userDisconnects.add(id);
-      clearBluetoothReconnect(id);
+      clearConnectionReconnect(id);
       removeBluetoothDisconnectListener(id);
 
       try {

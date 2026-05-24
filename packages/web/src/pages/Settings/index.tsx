@@ -6,9 +6,12 @@ import { LeftSidebarButton } from "@components/UI/Sidebar/LeftSidebarButton.tsx"
 import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
 import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
-import { EXPECTED_DEVICE_RECONNECT_TIMEOUT_MS } from "@core/constants/connection.ts";
-import { useDeviceStore, useNodeDB } from "@core/stores";
+import { useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
+import {
+  isExpectedRebootDisconnectError,
+  markExpectedDeviceReconnect,
+} from "@core/utils/rebootReconnect.ts";
 import { Protobuf, Types } from "@meshtastic/core";
 import { DeviceConfig } from "@pages/Settings/DeviceConfig.tsx";
 import { ModuleConfig } from "@pages/Settings/ModuleConfig.tsx";
@@ -25,15 +28,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { RadioConfig } from "./RadioConfig.tsx";
-
-const EXPECTED_REBOOT_COMMIT_ERROR_PATTERN =
-  /bluetooth|gatt|disconnect|disconnected|closed|networkerror|notsupportederror|timeout|packet does not exist/i;
-
-function isExpectedRebootCommitError(error: unknown): boolean {
-  const message = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
-
-  return EXPECTED_REBOOT_COMMIT_ERROR_PATTERN.test(message);
-}
 
 function getPositionAdminPayload(
   message: Protobuf.Admin.AdminMessage,
@@ -248,16 +242,13 @@ const ConfigPage = () => {
 
       if (shouldCommitSettings) {
         if (!isRemote && connectionId) {
-          useDeviceStore.getState().updateSavedConnection(connectionId, {
-            expectedReconnectUntil: Date.now() + EXPECTED_DEVICE_RECONNECT_TIMEOUT_MS,
-            expectedReconnectReason: "device-reboot",
-          });
+          markExpectedDeviceReconnect(connectionId);
         }
 
         const commitPromise = connection?.commitEditSettings();
         if (shouldCommitInBackground) {
           void commitPromise?.catch((error) => {
-            if (!isExpectedRebootCommitError(error)) {
+            if (!isExpectedRebootDisconnectError(error)) {
               console.warn("commitEditSettings failed after scheduling reconnect", error);
             }
           });

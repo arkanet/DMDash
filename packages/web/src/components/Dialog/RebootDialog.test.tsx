@@ -6,6 +6,7 @@ import { RebootDialog } from "./RebootDialog.tsx";
 
 const rebootMock = vi.fn();
 const rebootOtaMock = vi.fn();
+const updateSavedConnectionMock = vi.fn();
 let mockConnection:
   | {
       rebootOta: (delay: number) => Promise<number>;
@@ -15,11 +16,21 @@ let mockConnection:
   reboot: rebootMock,
   rebootOta: rebootOtaMock,
 };
+let mockConnectionId: number | null = 42;
 
 vi.mock("@core/stores", () => ({
   useDevice: () => ({
     connection: mockConnection,
+    connectionId: mockConnectionId,
   }),
+}));
+
+vi.mock("@core/stores/deviceStore/index.ts", () => ({
+  useDeviceStore: {
+    getState: () => ({
+      updateSavedConnection: updateSavedConnectionMock,
+    }),
+  },
 }));
 
 vi.mock("@components/UI/Button.tsx", async () => {
@@ -62,9 +73,11 @@ describe("RebootDialog", () => {
     vi.useFakeTimers();
     rebootMock.mockReset();
     rebootOtaMock.mockReset();
+    updateSavedConnectionMock.mockReset();
     rebootMock.mockResolvedValue(1);
     rebootOtaMock.mockResolvedValue(1);
     mockConnection = { reboot: rebootMock, rebootOta: rebootOtaMock };
+    mockConnectionId = 42;
   });
 
   afterEach(() => {
@@ -148,6 +161,53 @@ describe("RebootDialog", () => {
 
     expect(rebootMock).toHaveBeenCalledWith(5);
     expect(onOpenChangeMock).toHaveBeenCalledWith(false);
+  });
+
+  it("marks expected reconnect when rebooting and clears it when cancelling", async () => {
+    vi.setSystemTime(new Date("2026-05-24T12:00:00.000Z"));
+    const onOpenChangeMock = vi.fn();
+    render(<RebootDialog open onOpenChange={onOpenChangeMock} />);
+
+    act(() => {
+      fireEvent.change(screen.getByPlaceholderText(/enter delay/i), {
+        target: { value: "4" },
+      });
+    });
+    act(() => {
+      fireEvent.click(screen.getByTestId("scheduleRebootBtn"));
+    });
+
+    expect(updateSavedConnectionMock).toHaveBeenLastCalledWith(42, {
+      expectedReconnectUntil: Date.now() + 4_000 + 60_000,
+      expectedReconnectReason: "device-reboot",
+    });
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    });
+
+    expect(updateSavedConnectionMock).toHaveBeenLastCalledWith(42, {
+      expectedReconnectUntil: undefined,
+      expectedReconnectReason: undefined,
+    });
+  });
+
+  it("does not report expected connection-loss errors during reboot", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    rebootMock.mockRejectedValue(new Error("Bluetooth GATT Server disconnected"));
+
+    try {
+      render(<RebootDialog open onOpenChange={() => {}} />);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /reboot now/i }));
+        await Promise.resolve();
+      });
+
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it("does not call reboot if connection is undefined", async () => {

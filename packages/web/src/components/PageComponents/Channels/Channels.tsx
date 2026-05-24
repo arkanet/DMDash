@@ -12,6 +12,10 @@ import { useConfigTarget } from "@core/hooks/useConfigTarget.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
 import { useDevice, useNodeDB } from "@core/stores";
 import { deepCompareConfig } from "@core/utils/deepCompareConfig.ts";
+import {
+  isExpectedRebootDisconnectError,
+  markExpectedDeviceReconnect,
+} from "@core/utils/rebootReconnect.ts";
 import { Protobuf } from "@meshtastic/core";
 import { fromByteArray, toByteArray } from "base64-js";
 import i18next from "i18next";
@@ -105,6 +109,7 @@ export const Channels = ({ onFormInit, standalone = false }: ConfigProps) => {
     channels,
     config,
     connection,
+    connectionId,
     setConfig,
     hasChannelChange,
     getChange,
@@ -236,7 +241,22 @@ export const Channels = ({ onFormInit, standalone = false }: ConfigProps) => {
       await Promise.all(configChanges.map((newConfig) => connection.setConfig(newConfig)));
 
       if (configChanges.length > 0) {
-        await connection.commitEditSettings();
+        const shouldCommitInBackground = !isRemote && Boolean(connectionId);
+
+        if (!isRemote && connectionId) {
+          markExpectedDeviceReconnect(connectionId);
+        }
+
+        const commitPromise = connection.commitEditSettings();
+        if (shouldCommitInBackground) {
+          void commitPromise.catch((error) => {
+            if (!isExpectedRebootDisconnectError(error)) {
+              console.warn("commitEditSettings failed after scheduling reconnect", error);
+            }
+          });
+        } else {
+          await commitPromise;
+        }
       }
 
       channelChanges.forEach((channel) => {

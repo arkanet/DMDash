@@ -4,14 +4,26 @@ import { DialogManager } from "@components/Dialog/DialogManager.tsx";
 import { KeyBackupReminder } from "@components/KeyBackupReminder.tsx";
 import { ThemeDocumentController } from "@components/ThemeDocumentController.tsx";
 import { Toaster } from "@components/Toaster.tsx";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@components/UI/AlertDialog.tsx";
 import { ErrorPage } from "@components/UI/ErrorPage.tsx";
 import Footer from "@components/UI/Footer.tsx";
+import { LOST_CONNECTION_CRITICAL_GRACE_MS } from "@core/constants/connection.ts";
 import { type Device, SidebarProvider, useAppStore, useDeviceStore } from "@core/stores";
+import type { Connection } from "@core/stores/deviceStore/types.ts";
 import { DarkMeshRuntime } from "@app/darkmesh/runtime.tsx";
 import { Connections } from "@pages/Connections/index.tsx";
 import { Types } from "@meshtastic/core";
 import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { AlertTriangleIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { MapProvider } from "react-map-gl/maplibre";
@@ -105,12 +117,101 @@ function isUsableDevice(device: Device | undefined): device is Device {
   );
 }
 
+type LostConnectionNotice = {
+  severity: "warning" | "critical";
+  reason: string;
+  connectionName?: string;
+  connectionType?: Connection["type"];
+};
+
+function getConnectionReason(connection: Connection | undefined, fallback: string): string {
+  if (connection?.expectedReconnectReason === "device-reboot") {
+    return "Automatic reconnect timed out after a device reboot.";
+  }
+
+  return connection?.error || fallback;
+}
+
+function createLostConnectionNotice(
+  connection: Connection | undefined,
+  severity: LostConnectionNotice["severity"],
+  fallbackReason: string,
+): LostConnectionNotice {
+  return {
+    severity,
+    reason: getConnectionReason(connection, fallbackReason),
+    connectionName: connection?.name,
+    connectionType: connection?.type,
+  };
+}
+
+function LostConnectionDialog({
+  notice,
+  onDismiss,
+}: {
+  notice: LostConnectionNotice | null;
+  onDismiss: () => void;
+}) {
+  const isCritical = notice?.severity === "critical";
+
+  return (
+    <AlertDialog
+      open={Boolean(notice)}
+      onOpenChange={(open) => {
+        if (!open) {
+          onDismiss();
+        }
+      }}
+    >
+      <AlertDialogContent
+        className={
+          isCritical
+            ? "border-red-700 dark:border-red-700"
+            : "border-amber-500 dark:border-amber-500"
+        }
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangleIcon
+              className={isCritical ? "size-5 text-red-600" : "size-5 text-amber-500"}
+            />
+            Lost Connection
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-3 text-left text-slate-700 dark:text-slate-200">
+            <span className="block">
+              Non e' stato possibile ristabilire automaticamente la connessione al dispositivo.
+            </span>
+            {notice?.connectionName ? (
+              <span className="block">
+                Connection: {notice.connectionName}
+                {notice.connectionType ? ` (${notice.connectionType})` : ""}
+              </span>
+            ) : null}
+            <span className="block">Motivo: {notice?.reason}</span>
+            <span className="block">
+              Gravita: {isCritical ? "critical" : "warning"}. Riconnetti il device dalla pagina
+              Connections.
+            </span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={onDismiss}>Chiudi</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export function App() {
   useMobileViewport();
 
   const { getDevice, getConnectionForDevice } = useDeviceStore();
   const { selectedDeviceId } = useAppStore();
   const navigate = useNavigate();
+  const [lostConnectionNotice, setLostConnectionNotice] = useState<LostConnectionNotice | null>(
+    null,
+  );
+  const [lostConnectionGraceUntil, setLostConnectionGraceUntil] = useState<number | null>(null);
   const pathname = useLocation({
     select: (location) => location.pathname,
   });
@@ -121,17 +222,27 @@ export function App() {
   const isConnectionsRoute = pathname === "/" || pathname === "/connections";
   const hasUsableDevice = isUsableDevice(device);
   const expectedReconnectUntil = expectedReconnectConnection?.expectedReconnectUntil ?? 0;
+  const expectedReconnectConnectionId = expectedReconnectConnection?.id;
   const isHoldingExpectedReconnect = !hasUsableDevice && expectedReconnectUntil > Date.now();
-  const deviceForAppShell = hasUsableDevice || isHoldingExpectedReconnect ? device : undefined;
-  const shouldRedirectToConnections =
+  const shouldGuardLostConnection =
     !hasUsableDevice && !isHoldingExpectedReconnect && !isPublicGuideRoute && !isConnectionsRoute;
+  const isHoldingLostConnectionGrace = Boolean(
+    device &&
+    shouldGuardLostConnection &&
+    (lostConnectionGraceUntil === null || lostConnectionGraceUntil > Date.now()),
+  );
+  const deviceForAppShell =
+    hasUsableDevice || isHoldingExpectedReconnect || isHoldingLostConnectionGrace
+      ? device
+      : undefined;
+  const shouldRedirectToConnections = shouldGuardLostConnection && !isHoldingLostConnectionGrace;
 
   useEffect(() => {
     if (hasUsableDevice || isPublicGuideRoute || isConnectionsRoute) {
       return;
     }
 
-    if (!expectedReconnectConnection?.id || !expectedReconnectUntil) {
+    if (!expectedReconnectConnectionId || !expectedReconnectUntil) {
       return;
     }
 
@@ -139,7 +250,7 @@ export function App() {
       const state = useDeviceStore.getState();
       const currentConnection = state
         .getSavedConnections()
-        .find((connection) => connection.id === expectedReconnectConnection.id);
+        .find((connection) => connection.id === expectedReconnectConnectionId);
       const currentDevice = currentConnection?.meshDeviceId
         ? state.getDevice(currentConnection.meshDeviceId)
         : state.getDevice(selectedDeviceId);
@@ -148,10 +259,13 @@ export function App() {
         return;
       }
 
-      state.updateSavedConnection(expectedReconnectConnection.id, {
+      state.updateSavedConnection(expectedReconnectConnectionId, {
         expectedReconnectUntil: undefined,
         expectedReconnectReason: undefined,
       });
+      setLostConnectionNotice(
+        createLostConnectionNotice(currentConnection, "critical", "Automatic reconnect timed out."),
+      );
       void navigate({ to: "/connections", replace: true });
     };
 
@@ -164,7 +278,7 @@ export function App() {
     const timeout = window.setTimeout(redirectAfterExpectedReconnectWindow, timeoutMs);
     return () => window.clearTimeout(timeout);
   }, [
-    expectedReconnectConnection?.id,
+    expectedReconnectConnectionId,
     expectedReconnectUntil,
     hasUsableDevice,
     isConnectionsRoute,
@@ -174,10 +288,47 @@ export function App() {
   ]);
 
   useEffect(() => {
-    if (shouldRedirectToConnections) {
-      void navigate({ to: "/connections", replace: true });
+    if (!shouldGuardLostConnection) {
+      setLostConnectionGraceUntil(null);
+      return;
     }
-  }, [navigate, shouldRedirectToConnections]);
+
+    if (!device) {
+      void navigate({ to: "/connections", replace: true });
+      return;
+    }
+
+    const nextGraceUntil =
+      lostConnectionGraceUntil ?? Date.now() + LOST_CONNECTION_CRITICAL_GRACE_MS;
+    if (lostConnectionGraceUntil === null) {
+      setLostConnectionGraceUntil(nextGraceUntil);
+    }
+
+    const showCriticalLostConnection = () => {
+      const state = useDeviceStore.getState();
+      const currentDevice = state.getDevice(selectedDeviceId);
+      const connectionForDevice = currentDevice
+        ? state.getConnectionForDevice(currentDevice.id)
+        : undefined;
+      setLostConnectionNotice(
+        createLostConnectionNotice(
+          connectionForDevice,
+          "critical",
+          "The selected device connection is no longer available.",
+        ),
+      );
+      void navigate({ to: "/connections", replace: true });
+    };
+
+    const timeoutMs = nextGraceUntil - Date.now();
+    if (timeoutMs <= 0) {
+      showCriticalLostConnection();
+      return;
+    }
+
+    const timeout = window.setTimeout(showCriticalLostConnection, timeoutMs);
+    return () => window.clearTimeout(timeout);
+  }, [device, lostConnectionGraceUntil, navigate, selectedDeviceId, shouldGuardLostConnection]);
 
   return (
     // <ThemeProvider defaultTheme="system" storageKey="theme">
@@ -189,6 +340,10 @@ export function App() {
         }}
       /> */}
       <Toaster />
+      <LostConnectionDialog
+        notice={lostConnectionNotice}
+        onDismiss={() => setLostConnectionNotice(null)}
+      />
       <ThemeDocumentController pathname={pathname} />
       <TanStackRouterDevtools position="bottom-right" />
       <DeviceWrapper deviceId={selectedDeviceId}>

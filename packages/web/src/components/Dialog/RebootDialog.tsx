@@ -11,9 +11,13 @@ import {
 import { Input } from "@components/UI/Input.tsx";
 import { Label } from "@components/UI/Label.tsx";
 import { Separator } from "@components/UI/Separator.tsx";
-import { EXPECTED_DEVICE_RECONNECT_TIMEOUT_MS } from "@core/constants/connection.ts";
 import { toast } from "@core/hooks/useToast.ts";
-import { useDevice, useDeviceStore } from "@core/stores";
+import { useDevice } from "@core/stores";
+import {
+  clearExpectedDeviceReconnect,
+  isExpectedRebootDisconnectError,
+  markExpectedDeviceReconnect,
+} from "@core/utils/rebootReconnect.ts";
 import { ClockIcon, OctagonXIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -57,15 +61,20 @@ export const RebootDialog = ({ open, onOpenChange }: RebootDialogProps) => {
       return false;
     }
 
+    const shouldExpectReconnect = delay >= 0;
     if (connectionId) {
-      useDeviceStore.getState().updateSavedConnection(connectionId, {
-        expectedReconnectUntil:
-          delay >= 0 ? Date.now() + delay * 1000 + EXPECTED_DEVICE_RECONNECT_TIMEOUT_MS : undefined,
-        expectedReconnectReason: delay >= 0 ? "device-reboot" : undefined,
-      });
+      if (shouldExpectReconnect) {
+        markExpectedDeviceReconnect(connectionId, delay * 1000);
+      } else {
+        clearExpectedDeviceReconnect(connectionId);
+      }
     }
 
     void Promise.resolve(rebootCommand.call(connection, delay)).catch((error) => {
+      if (shouldExpectReconnect && isExpectedRebootDisconnectError(error)) {
+        return;
+      }
+
       toast({
         title: t("reboot.failed", {
           defaultValue: "Failed to send reboot command",
