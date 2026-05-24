@@ -118,9 +118,9 @@ export const NodesLayer = ({
           hasError={hasNodeError(node.num)}
           isFavorite={node.isFavorite ?? false}
           avatarClassName={getNodeMarkerClassName?.(node)}
-          showLabel={identiconsEnabled || isExpanded}
-          showMobileLabel={!identiconsEnabled}
-          labelPosition={isExpanded || !identiconsEnabled ? "below" : "above"}
+          showLabel={identiconsEnabled && isExpanded}
+          showMobileLabel={true}
+          labelPosition="below"
           isVisible={isVisible}
           onClick={(num, e) => {
             e.originalEvent?.stopPropagation();
@@ -197,8 +197,8 @@ export const NodesLayer = ({
         isFavorite={true}
         avatarClassName={getNodeMarkerClassName?.(myNode)}
         showLabel={identiconsEnabled}
-        showMobileLabel={!identiconsEnabled}
-        labelPosition={!identiconsEnabled ? "below" : "above"}
+        showMobileLabel={true}
+        labelPosition="below"
         onClick={(_, e) => onMarkerClick(myNode.num, [0, 0], e)}
       />,
     );

@@ -52,6 +52,17 @@ export const NodeMarker = memo(function NodeMarker({
     "--dy": `${dy}px`,
     pointerEvents: "auto",
   } as React.CSSProperties;
+  const labelStyle = {
+    "--dx": `${dx}px`,
+    "--dy": `${dy}px`,
+    pointerEvents: "auto",
+    transform:
+      labelPosition === "below"
+        ? "translate(calc(-50% + var(--dx)), var(--dy))"
+        : "translate(calc(-50% + var(--dx)), calc(var(--dy) - 100%))",
+  } as React.CSSProperties;
+  const labelVisibilityClass =
+    showLabel && showMobileLabel ? undefined : showLabel ? "max-md:hidden" : "hidden max-md:block";
 
   return (
     <Marker
@@ -108,13 +119,11 @@ export const NodeMarker = memo(function NodeMarker({
         <button
           type="button"
           className={cn(
-            "absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-900 backdrop-blur-xs cursor-pointer max-md:text-sm",
-            !showLabel && showMobileLabel && "hidden max-md:block",
-            labelPosition === "below"
-              ? "top-11 translate-y-0 max-md:top-11"
-              : "top-16 -translate-y-full max-md:top-7",
+            "absolute left-1/2 whitespace-nowrap rounded bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-900 backdrop-blur-xs cursor-pointer max-md:text-sm",
+            labelVisibilityClass,
+            labelPosition === "below" ? "top-11 max-md:top-11" : "top-16 max-md:top-7",
           )}
-          style={style}
+          style={labelStyle}
           onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
         >
           {label}
