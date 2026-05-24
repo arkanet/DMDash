@@ -1,7 +1,7 @@
 import { create, toBinary } from "@bufbuild/protobuf";
 import * as Protobuf from "@meshtastic/protobufs";
 import { describe, expect, it } from "vitest";
-import { Queue } from "./queue.ts";
+import { getRoutingErrorName, Queue } from "./queue.ts";
 
 function buildToRadioPacket(id: number, wantAck: boolean): Uint8Array {
   const meshPacket = create(Protobuf.Mesh.MeshPacketSchema, {
@@ -29,6 +29,13 @@ function buildToRadioPacket(id: number, wantAck: boolean): Uint8Array {
 }
 
 describe("Queue", () => {
+  it("formats known and unknown routing errors", () => {
+    expect(getRoutingErrorName(Protobuf.Mesh.Routing_Error.NOT_AUTHORIZED)).toBe(
+      "NOT_AUTHORIZED (33)",
+    );
+    expect(getRoutingErrorName(999 as Protobuf.Mesh.Routing_Error)).toBe("UNKNOWN (999)");
+  });
+
   it("resolves packets that do not wait for ack after writing", async () => {
     const queue = new Queue();
     const writes: Uint8Array[] = [];

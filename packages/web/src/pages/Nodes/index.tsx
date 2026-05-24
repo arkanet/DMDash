@@ -36,7 +36,7 @@ import { useToast } from "@core/hooks/useToast.ts";
 import { create, toBinary } from "@bufbuild/protobuf";
 import { requestNeighborInfo, startVisualTraceroute } from "@core/services/darkmesh/nodeActions.ts";
 import { useAppStore, useDevice, useDeviceStore, useNodeDB } from "@core/stores";
-import { Protobuf, Types } from "@meshtastic/core";
+import { Protobuf, Types, Utils } from "@meshtastic/core";
 import {
   buildSharedContactUrl,
   getNodeShortName,
@@ -50,6 +50,7 @@ import {
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
 import { distanceBetweenPositions, hasPos, positionPoint } from "@core/utils/geo.ts";
+import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
 import { isNodeStatusUnread, normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChartSimple } from "@fortawesome/free-solid-svg-icons";
@@ -158,6 +159,25 @@ const MOBILE_NODE_MENU_ITEM_CLASS =
   "px-5 py-3 text-left text-slate-900 hover:bg-slate-100 dark:text-zinc-100 dark:hover:bg-[#242424]";
 const MOBILE_NODE_FILTER_ITEM_CLASS =
   "flex w-full items-center justify-between px-4 py-3 text-left text-slate-900 hover:bg-slate-100 dark:text-zinc-100 dark:hover:bg-[#242424]";
+
+function isPacketError(error: unknown): error is Types.PacketError {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "id" in error &&
+    "error" in error &&
+    typeof (error as Types.PacketError).id === "number"
+  );
+}
+
+function formatNodeActionError(error: unknown, includePacketId = true): string {
+  if (isPacketError(error)) {
+    const routingError = Utils.getRoutingErrorName(error.error);
+    return includePacketId ? `Pacchetto ${error.id}: ${routingError}` : routingError;
+  }
+
+  return error instanceof Error ? error.message : String(error);
+}
 
 function loadMobileNodePrefs() {
   if (typeof window === "undefined") return undefined;
@@ -1446,12 +1466,13 @@ const NodesPage = (): JSX.Element => {
         value: true,
       },
     });
+    const adminChannel = resolveAdminChannelIndex(device.channels);
 
     await connection.sendPacket(
       toBinary(Protobuf.Admin.AdminMessageSchema, message),
       Protobuf.Portnums.PortNum.ADMIN_APP,
       nodeNum,
-      Types.ChannelNumber.Admin,
+      adminChannel,
       true,
       true,
     );
@@ -1460,14 +1481,15 @@ const NodesPage = (): JSX.Element => {
   const runMobileNodeAction = async (
     successTitle: string,
     action: () => Promise<unknown> | unknown,
+    options?: { errorTitle?: string; includePacketIdInError?: boolean },
   ) => {
     try {
       await action();
       toast({ title: successTitle });
     } catch (error) {
       toast({
-        title: "Azione non riuscita",
-        description: error instanceof Error ? error.message : String(error),
+        title: options?.errorTitle ?? "Azione non riuscita",
+        description: formatNodeActionError(error, options?.includePacketIdInError),
       });
     }
   };
@@ -1602,8 +1624,13 @@ const NodesPage = (): JSX.Element => {
               onClick={() => {
                 setMobileActionNode(undefined);
                 setPendingMetadataNode(node.num);
-                void runMobileNodeAction("Richiesta metadata inviata", () =>
-                  requestDeviceMetadata(node.num),
+                void runMobileNodeAction(
+                  "Richiesta metadata inviata",
+                  () => requestDeviceMetadata(node.num),
+                  {
+                    errorTitle: "Error Metadata request",
+                    includePacketIdInError: false,
+                  },
                 );
               }}
             >

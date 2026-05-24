@@ -6,6 +6,17 @@ import { logger } from "./logger";
 
 const nonBlockingWriteFailurePayloads = new Set(["heartbeat", "wantConfigId"]);
 
+const routingErrorNames = new Map<number, string>(
+  Object.entries(Protobuf.Mesh.Routing_Error)
+    .filter((entry): entry is [string, number] => typeof entry[1] === "number")
+    .map(([name, value]) => [value, name]),
+);
+
+export function getRoutingErrorName(error: Protobuf.Mesh.Routing_Error | number): string {
+  const name = routingErrorNames.get(error);
+  return name ? `${name} (${error})` : `UNKNOWN (${error})`;
+}
+
 function getToRadioPayloadCase(data: Uint8Array): string | undefined {
   try {
     return fromBinary(Protobuf.Mesh.ToRadioSchema, data).payloadVariant.case ?? undefined;
@@ -107,7 +118,7 @@ export class Queue {
      Transformed packet error to conditional logger.error. Original:
      // console.error(`Error received for packet ${e.id}: ${Protobuf.Mesh.Routing_Error[e.error]}`);
     */
-    logger.error?.(`Error received for packet ${e.id}: ${Protobuf.Mesh.Routing_Error[e.error]}`);
+    logger.error?.(`Error received for packet ${e.id}: ${getRoutingErrorName(e.error)}`);
     this.errorNotifier.dispatch(e);
   }
 

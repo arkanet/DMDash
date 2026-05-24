@@ -548,7 +548,10 @@ export class MeshDevice {
   /**
    * Gets devices metadata
    */
-  public async getMetadata(nodeNum: number): Promise<number> {
+  public async getMetadata(
+    nodeNum: number,
+    channel: ChannelNumber = ChannelNumber.Primary,
+  ): Promise<number> {
     this.log.debug(Emitter[Emitter.GetMetadata], `🏷️ Requesting metadata from ${nodeNum}`);
 
     const getDeviceMetricsRequestMessage = create(Protobuf.Admin.AdminMessageSchema, {
@@ -562,7 +565,7 @@ export class MeshDevice {
       toBinary(Protobuf.Admin.AdminMessageSchema, getDeviceMetricsRequestMessage),
       Protobuf.Portnums.PortNum.ADMIN_APP,
       nodeNum,
-      ChannelNumber.Admin,
+      channel,
     );
   }
 

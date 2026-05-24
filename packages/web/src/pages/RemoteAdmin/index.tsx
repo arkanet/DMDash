@@ -33,6 +33,7 @@ import {
 } from "@core/stores/deviceStore/changeRegistry.ts";
 import { useDevice, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
+import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
 import { DeviceConfig } from "@pages/Settings/DeviceConfig.tsx";
 import { ModuleConfig } from "@pages/Settings/ModuleConfig.tsx";
 import { Protobuf, Types } from "@meshtastic/core";
@@ -219,14 +220,6 @@ const applyModuleConfigMessage = (
   }
 
   return next;
-};
-
-const resolveAdminChannelIndex = (channels: Map<Types.ChannelNumber, Protobuf.Channel.Channel>) => {
-  const adminChannel = Array.from(channels.values()).find(
-    (channel) => channel.settings?.name?.toLowerCase() === "admin",
-  );
-
-  return (adminChannel?.index ?? Types.ChannelNumber.Primary) as Types.ChannelNumber;
 };
 
 const resolveRemoteAdminSection = (pathname: string, nodeNum: number): RemoteAdminSection => {
