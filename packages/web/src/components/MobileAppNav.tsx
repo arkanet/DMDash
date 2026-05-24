@@ -224,7 +224,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
         <img
           src="/darkmesh-dashboard-logo.png"
           alt="DarkMesh"
-          className="size-12 max-h-12 shrink-0 object-contain"
+          className="size-12 max-h-12 shrink-0 rounded-xl border border-white/10 bg-black/80 object-contain p-1 shadow-[0_0_18px_rgba(0,0,0,0.18)]"
         />
         <div className="min-w-0 flex-1 truncate text-[1.9rem] font-semibold italic leading-none">
           DarkMesh
