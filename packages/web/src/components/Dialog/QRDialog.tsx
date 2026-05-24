@@ -118,9 +118,9 @@ export const QRDialog = ({ open, onOpenChange, loraConfig, channels }: QRDialogP
             </button>
           </div>
         </div>
-        <DialogFooter>
-          <Label>{t("qr.sharableUrl")}</Label>
-          <Input value={qrCodeUrl} disabled />
+        <DialogFooter className="items-start sm:items-center">
+          <Label className="shrink-0">{t("qr.sharableUrl")}</Label>
+          <Input value={qrCodeUrl} readOnly showCopyButton />
         </DialogFooter>
       </DialogContent>
     </Dialog>
