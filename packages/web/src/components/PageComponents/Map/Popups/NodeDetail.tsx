@@ -15,6 +15,7 @@ import { buildSharedContactUrl } from "../../../../darkmesh/utils.ts";
 import {
   EnvironmentMetricsPanel,
   NeighborInfoPanel,
+  PowerMetricsPanel,
 } from "@components/PageComponents/DarkMesh/NodeInfoPanels.tsx";
 import NodeMetricsChart from "@components/NodeMetricsChart.tsx";
 import BatteryStatus from "@components/BatteryStatus.tsx";
@@ -32,6 +33,7 @@ import {
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
 import {
+  requestDeviceMetadata,
   requestEnvironmentMetrics,
   requestNeighborInfo,
   startVisualTraceroute,
@@ -56,6 +58,7 @@ import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import {
   BarChart2,
+  FileTextIcon,
   LockIcon,
   LockOpenIcon,
   MapIcon,
@@ -66,6 +69,7 @@ import {
   UsersIcon,
   Info,
   Edit,
+  ZapIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { logger } from "@core/utils/logger";
@@ -73,6 +77,7 @@ import { useTranslation } from "react-i18next";
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
 import { hasPos } from "@core/utils/geo.ts";
 import { cn } from "@core/utils/cn.ts";
+import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
 
 export interface NodeDetailProps {
   node: ProtobufType.Mesh.NodeInfo;
@@ -84,6 +89,16 @@ export interface NodeDetailProps {
 const MAP_POPUP_TOOLTIP_CONTENT_CLASS =
   "z-[1000] rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm";
 
+function formatFirmwareVersion(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const lastDot = trimmed.lastIndexOf(".");
+  return lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed;
+}
+
 export const NodeDetail = ({
   node,
   onSelectNode,
@@ -92,7 +107,15 @@ export const NodeDetail = ({
 }: NodeDetailProps) => {
   const navigate = useNavigate();
   const { t } = useTranslation("nodes");
-  const { connection, hardware, id: deviceId, getNeighborInfo, setDialogOpen } = useDevice();
+  const {
+    connection,
+    hardware,
+    id: deviceId,
+    getNeighborInfo,
+    setDialogOpen,
+    metadata: deviceMetadata,
+    channels,
+  } = useDevice();
   const { setNodeNumDetails } = useAppStore();
   const nodeDB = useNodeDB();
   const { updateFavorite } = useFavoriteNode();
@@ -106,6 +129,7 @@ export const NodeDetail = ({
 
   const [showNeighbor, setShowNeighbor] = useState(false);
   const [showEnvironment, setShowEnvironment] = useState(false);
+  const [showPowerMetrics, setShowPowerMetrics] = useState(false);
   const [showPublicKey, setShowPublicKey] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>("");
@@ -153,9 +177,21 @@ export const NodeDetail = ({
       ? t("unset")
       : rawHardwareType.replaceAll("_", " ")
     : `${hwModel}`;
+  const firmwareVersion = formatFirmwareVersion(
+    deviceMetadata.get(node.num)?.firmwareVersion ??
+      (node.num === hardware.myNodeNum ? deviceMetadata.get(0)?.firmwareVersion : undefined) ??
+      (node as ProtobufType.Mesh.NodeInfo & { metadata?: { firmwareVersion?: string } }).metadata
+        ?.firmwareVersion ??
+      (node as ProtobufType.Mesh.NodeInfo & { deviceMetadata?: { firmwareVersion?: string } })
+        .deviceMetadata?.firmwareVersion,
+  );
+  const hardwareDetails = [hardwareType !== t("unset") ? hardwareType : undefined, firmwareVersion]
+    .filter(Boolean)
+    .join(" ");
 
   const neighborInfo = getNeighborInfo(node.num);
   const environmentMetrics = nodeDB.getEnvironmentMetrics(node.num);
+  const powerMetrics = nodeDB.getPowerMetrics(node.num);
   const publicKey =
     node.user?.publicKey && node.user.publicKey.length > 0
       ? fromByteArray(node.user.publicKey)
@@ -269,6 +305,7 @@ export const NodeDetail = ({
 
       await requestNeighborInfo(connection, node.num);
       setShowEnvironment(false);
+      setShowPowerMetrics(false);
       setShowNeighbor(true);
     } catch (error) {
       /*
@@ -291,6 +328,7 @@ export const NodeDetail = ({
       toast({ title: t("nodeDetail.metrics.requestSent", "Request Environmental Info Sent...") });
       await requestEnvironmentMetrics(connection, node.num);
       setShowNeighbor(false);
+      setShowPowerMetrics(false);
       setShowEnvironment(true);
     } catch (error) {
       /*
@@ -302,6 +340,27 @@ export const NodeDetail = ({
       toast({
         title: t("nodeDetail.metrics.error", "Failed to request environmental metrics"),
       });
+    }
+  }
+
+  function handleTogglePowerMetrics() {
+    if (showPowerMetrics) {
+      setShowPowerMetrics(false);
+      return;
+    }
+
+    setShowNeighbor(false);
+    setShowEnvironment(false);
+    setShowPowerMetrics(true);
+  }
+
+  async function handleRequestDeviceMetadata() {
+    try {
+      toast({ title: t("nodeDetail.metadata.requestSent", "Request metadata sent") });
+      await requestDeviceMetadata(connection, node.num, resolveAdminChannelIndex(channels));
+    } catch (error) {
+      logger.warn?.("popup metadata request failed", error);
+      toast({ title: t("nodeDetail.metadata.error", "Failed to request metadata") });
     }
   }
 
@@ -494,6 +553,28 @@ export const NodeDetail = ({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
+                    aria-label={t("nodeDetail.power.toggle", "Power Metrics")}
+                    onClick={handleTogglePowerMetrics}
+                  >
+                    <ZapIcon size={14} className="cursor-pointer hover:text-blue-500" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipPortal>
+                  <TooltipContent
+                    side="top"
+                    align="center"
+                    sideOffset={6}
+                    className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
+                  >
+                    {t("nodeDetail.power.toggle", "Power Metrics")}
+                  </TooltipContent>
+                </TooltipPortal>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
                     aria-label={
                       node.isFavorite
                         ? t("nodeDetail.favorite.label")
@@ -645,6 +726,28 @@ export const NodeDetail = ({
                 </TooltipPortal>
               </Tooltip>
 
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t("nodeDetail.metadata.request", "Metadata")}
+                    onClick={handleRequestDeviceMetadata}
+                  >
+                    <FileTextIcon size={15} className="cursor-pointer hover:text-blue-500" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipPortal>
+                  <TooltipContent
+                    side="top"
+                    align="center"
+                    sideOffset={6}
+                    className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
+                  >
+                    {t("nodeDetail.metadata.request", "Metadata")}
+                  </TooltipContent>
+                </TooltipPortal>
+              </Tooltip>
+
               <Dialog open={shareOpen} onOpenChange={setShareOpen}>
                 <DialogContent>
                   <DialogHeader>
@@ -714,7 +817,7 @@ export const NodeDetail = ({
                   return name;
                 })()}
               </Heading>
-              {hardwareType !== t("unset") && <Subtle>{hardwareType}</Subtle>}
+              {hardwareDetails && <Subtle>{hardwareDetails}</Subtle>}
 
               {!!node.deviceMetrics?.batteryLevel && (
                 <BatteryStatus deviceMetrics={node.deviceMetrics} />
@@ -901,6 +1004,17 @@ export const NodeDetail = ({
                 variant="popup"
                 className="w-56"
                 title={t("nodeDetail.metrics.header", "Environmental Metrics")}
+              />
+            )}
+
+            {showPowerMetrics && (
+              <PowerMetricsPanel
+                metrics={powerMetrics}
+                dense
+                variant="popup"
+                className="w-56"
+                title={t("nodeDetail.power.header", "Power Metrics")}
+                showEmptyState
               />
             )}
           </div>

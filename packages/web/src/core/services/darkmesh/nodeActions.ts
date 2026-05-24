@@ -170,3 +170,35 @@ export async function requestEnvironmentMetrics(
 
   throw new Error("Environment request is not available on the current connection");
 }
+
+export async function requestDeviceMetadata(
+  connection: ConnectionLike | undefined,
+  nodeNum: number,
+  adminChannel?: Types.ChannelNumber,
+) {
+  if (connection && typeof connection.sendPacket === "function") {
+    const message = create(Protobuf.Admin.AdminMessageSchema, {
+      payloadVariant: {
+        case: "getDeviceMetadataRequest",
+        value: true,
+      },
+    });
+
+    await connection.sendPacket(
+      toBinary(Protobuf.Admin.AdminMessageSchema, message),
+      Protobuf.Portnums.PortNum.ADMIN_APP,
+      nodeNum,
+      adminChannel,
+      false,
+      true,
+    );
+    return;
+  }
+
+  if (connection && typeof connection.getMetadata === "function") {
+    await connection.getMetadata(nodeNum);
+    return;
+  }
+
+  throw new Error("Metadata request is not available on the current connection");
+}

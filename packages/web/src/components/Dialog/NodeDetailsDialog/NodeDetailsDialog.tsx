@@ -1,6 +1,7 @@
 import {
   EnvironmentMetricsPanel,
   NeighborInfoPanel,
+  PowerMetricsPanel,
 } from "@components/PageComponents/DarkMesh/NodeInfoPanels.tsx";
 import { DeviceImage } from "@components/generic/DeviceImage.tsx";
 import { TimeAgo } from "@components/generic/TimeAgo.tsx";
@@ -38,6 +39,7 @@ import {
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
 import {
+  requestDeviceMetadata,
   requestEnvironmentMetrics,
   requestNeighborInfo,
   startVisualTraceroute,
@@ -83,6 +85,7 @@ import { logger } from "@core/utils/logger";
 import { useTranslation } from "react-i18next";
 import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validation.ts";
 import { normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
+import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
 import { TracerouteResponseDialog } from "@components/Dialog/TracerouteResponseDialog.tsx";
 
 export interface NodeDetailsDialogProps {
@@ -93,6 +96,41 @@ export interface NodeDetailsDialogProps {
   offsetPercent?: number;
 }
 
+function formatFirmwareVersion(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const lastDot = trimmed.lastIndexOf(".");
+  return lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed;
+}
+
+function hasMetricValue(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value !== 0;
+}
+
+function hasEnvironmentMetrics(metrics?: Protobuf.Telemetry.EnvironmentMetrics): boolean {
+  if (!metrics) {
+    return false;
+  }
+
+  return [
+    metrics.temperature,
+    metrics.relativeHumidity,
+    metrics.barometricPressure,
+    metrics.iaq,
+    metrics.windSpeed,
+    metrics.windDirection,
+    metrics.voltage,
+    metrics.current,
+    metrics.rainfall1h,
+    metrics.rainfall24h,
+    metrics.soilMoisture,
+    metrics.soilTemperature,
+  ].some(hasMetricValue);
+}
+
 export const NodeDetailsDialog = ({
   open,
   onOpenChange,
@@ -100,7 +138,15 @@ export const NodeDetailsDialog = ({
   offsetPercent = -25,
 }: NodeDetailsDialogProps) => {
   const { t } = useTranslation("dialog");
-  const { setDialogOpen, connection, getNeighborInfo, id: deviceId } = useDevice();
+  const {
+    setDialogOpen,
+    connection,
+    getNeighborInfo,
+    id: deviceId,
+    metadata: deviceMetadata,
+    hardware,
+    channels,
+  } = useDevice();
   // prefer node-provided rxRssi where available
   const nodeDB = useNodeDB();
   const navigate = useNavigate();
@@ -114,6 +160,9 @@ export const NodeDetailsDialog = ({
   const environmentMetricsForRender = nodeForRender
     ? nodeDB.getEnvironmentMetrics(nodeForRender.num)
     : undefined;
+  const powerMetricsForRender = nodeForRender
+    ? nodeDB.getPowerMetrics(nodeForRender.num)
+    : undefined;
 
   const [isFavoriteState, setIsFavoriteState] = useState<boolean>(
     nodeForRender?.isFavorite ?? false,
@@ -122,8 +171,6 @@ export const NodeDetailsDialog = ({
   const [isRequestingPosition, setIsRequestingPosition] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>("");
-  const [showNeighborPanel, setShowNeighborPanel] = useState(false);
-  const [showEnvPanel, setShowEnvPanel] = useState(false);
   const [nestedStack, setNestedStack] = useState<number[]>([]);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
 
@@ -201,10 +248,22 @@ export const NodeDetailsDialog = ({
   }
 
   const currentNode = nodeForRender;
+  const firmwareVersion = formatFirmwareVersion(
+    deviceMetadata.get(currentNode.num)?.firmwareVersion ??
+      (currentNode.num === hardware.myNodeNum
+        ? deviceMetadata.get(0)?.firmwareVersion
+        : undefined) ??
+      (currentNode as Protobuf.Mesh.NodeInfo & { metadata?: { firmwareVersion?: string } }).metadata
+        ?.firmwareVersion ??
+      (currentNode as Protobuf.Mesh.NodeInfo & { deviceMetadata?: { firmwareVersion?: string } })
+        .deviceMetadata?.firmwareVersion,
+  );
   const currentPositionPoint = positionPoint(currentNode?.position);
   const computedShortName = getNodeShortName(currentNode) ?? t("unknown.shortName");
   const currentNodeError = nodeDB.getNodeError(currentNode.num);
   const neighborInfo = getNeighborInfo(currentNode?.num ?? effectiveNodeNum);
+  const hasNeighborInfoForRender = Boolean(neighborInfo?.neighbors?.length);
+  const hasEnvironmentMetricsForRender = hasEnvironmentMetrics(environmentMetricsForRender);
 
   function closeTracerouteDialog() {
     setSelectedTraceroute(undefined);
@@ -338,10 +397,6 @@ export const NodeDetailsDialog = ({
   }
 
   async function handleRequestNeighborFromDialog() {
-    const next = !showNeighborPanel;
-    setShowNeighborPanel(next);
-    if (!next) return;
-
     try {
       toast({ title: "Neighbor Info" });
       if (!connection) {
@@ -369,10 +424,6 @@ export const NodeDetailsDialog = ({
   }
 
   async function handleRequestEnvironmentFromDialog() {
-    const next = !showEnvPanel;
-    setShowEnvPanel(next);
-    if (!next) return;
-
     try {
       toast({ title: "Environmental Info" });
       await requestEnvironmentMetrics(connection, currentNode.num);
@@ -428,6 +479,18 @@ export const NodeDetailsDialog = ({
     }
   }
 
+  async function handleRequestDeviceMetadata() {
+    try {
+      toast({ title: t("nodeDetails.metadataRequestSent", "Request metadata sent") });
+      await requestDeviceMetadata(connection, currentNode.num, resolveAdminChannelIndex(channels));
+    } catch (error) {
+      logger.warn?.("dialog metadata request failed", error);
+      toast({
+        title: t("nodeDetails.metadataRequestError", "Failed to request metadata"),
+      });
+    }
+  }
+
   function handleNodeRemove() {
     setNodeNumToBeRemoved(currentNode.num);
     setDialogOpen("nodeRemoval", true);
@@ -477,6 +540,7 @@ export const NodeDetailsDialog = ({
   const rawMetrics = {
     ...(currentNode ?? {}),
     environmentMetrics: environmentMetricsForRender,
+    powerMetrics: powerMetricsForRender,
   };
 
   function openNestedNode(nodeNum: number) {
@@ -796,7 +860,16 @@ export const NodeDetailsDialog = ({
               <div className="flex flex-col flex-wrap space-x-1 space-y-1">
                 <div className="flex flex-row space-x-2">
                   <div className="w-full rounded-lg bg-slate-100 p-3 text-slate-900 dark:bg-slate-800 dark:text-slate-100">
-                    <p className="text-lg font-semibold">{t("nodeDetails.details")}</p>
+                    <div className="mb-2 grid grid-cols-2 items-center gap-2">
+                      <p className="text-lg font-semibold">{t("nodeDetails.details")}</p>
+                      <Button
+                        onClick={handleRequestDeviceMetadata}
+                        className="mt-0 justify-self-start"
+                      >
+                        <Info className="mr-2" />
+                        {t("nodeDetails.requestMetadata", "Metadata")}
+                      </Button>
+                    </div>
                     <table className="table-fixed w-full">
                       <tbody>
                         <tr>
@@ -836,6 +909,12 @@ export const NodeDetailsDialog = ({
                             ).replace(/_/g, " ")}
                           </td>
                         </tr>
+                        {firmwareVersion ? (
+                          <tr>
+                            <td>{t("nodeDetails.firmwareVersion", "Firmware version")}</td>
+                            <td>{firmwareVersion}</td>
+                          </tr>
+                        ) : null}
                         <tr>
                           <td>{t("nodeDetails.messageable")}</td>
                           <td>{currentNode.user?.isUnmessagable ? t("no") : t("yes")}</td>
@@ -846,15 +925,6 @@ export const NodeDetailsDialog = ({
                             {typeof currentNode.hopsAway === "number"
                               ? currentNode.hopsAway
                               : t("hopsUnknown.label", { ns: "ui" })}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>{t(" ")}</td>
-                          <td>
-                            <Button onClick={handleRequestNodeInfo} className="mt-0">
-                              <Info className="mr-2" />
-                              {t("Node Info")}
-                            </Button>
                           </td>
                         </tr>
                       </tbody>
@@ -908,7 +978,6 @@ export const NodeDetailsDialog = ({
 
               <div className="mt-3">
                 <div className={sectionClassName}>
-                  <p className="text-lg font-semibold">{t("nodeDetails.security")}</p>
                   <table className="table-auto w-full">
                     <tbody>
                       <tr>
@@ -924,9 +993,10 @@ export const NodeDetailsDialog = ({
                       <tr>
                         <td />
                         <td>
-                          {currentNode.isKeyManuallyVerified
-                            ? t("nodeDetails.KeyManuallyVerifiedTrue")
-                            : t("nodeDetails.KeyManuallyVerifiedFalse")}
+                          <Button onClick={handleRequestNodeInfo} className="mt-2">
+                            <Info className="mr-2" />
+                            {t("Node Info")}
+                          </Button>
                         </td>
                       </tr>
                     </tbody>
@@ -934,7 +1004,7 @@ export const NodeDetailsDialog = ({
                 </div>
 
                 <div className="mt-3 grid gap-3 grid-cols-1 justify-items-stretch">
-                  {showNeighborPanel && (
+                  {hasNeighborInfoForRender ? (
                     <NeighborInfoPanel
                       className="w-full"
                       nodeNum={currentNode?.num ?? effectiveNodeNum}
@@ -942,13 +1012,14 @@ export const NodeDetailsDialog = ({
                       onOpenNode={(num: number) => openNestedNode(num)}
                       onViewOnMap={handleViewNeighborOnMap}
                     />
-                  )}
-                  {showEnvPanel && (
+                  ) : null}
+                  {hasEnvironmentMetricsForRender ? (
                     <EnvironmentMetricsPanel
                       className="w-full"
                       metrics={environmentMetricsForRender}
                     />
-                  )}
+                  ) : null}
+                  <PowerMetricsPanel className="w-full" metrics={powerMetricsForRender} />
                 </div>
 
                 {nestedStack.map((n, idx) => (

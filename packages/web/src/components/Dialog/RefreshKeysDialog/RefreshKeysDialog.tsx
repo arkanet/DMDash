@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@components/UI/Dialog.tsx";
@@ -62,28 +63,32 @@ export const RefreshKeysDialog = ({ open, onOpenChange }: RefreshKeysDialogProps
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-w-8 flex flex-col gap-2" aria-describedby={undefined}>
+      <DialogContent className="flex w-[min(92vw,34rem)] max-w-[34rem] flex-col gap-4">
         <DialogClose onClick={handleCloseDialog} />
         <DialogHeader>
-          <DialogTitle>{text.title}</DialogTitle>
+          <DialogTitle className="pr-8 break-words">{text.title}</DialogTitle>
         </DialogHeader>
-        {text.description}
-        <ul className="mt-2">
-          <li className="flex place-items-center gap-2 items-start">
-            <div className="p-2 bg-slate-500 rounded-lg mt-1">
+        <DialogDescription className="break-words leading-relaxed">
+          {text.description}
+        </DialogDescription>
+        <ul>
+          <li className="flex items-start gap-3 max-sm:flex-col">
+            <div className="mt-1 rounded-lg bg-slate-500 p-2">
               <LockKeyholeOpenIcon size={30} className="text-white justify-center" />
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
               <div>
-                <p className="font-bold mb-0.5">{t("refreshKeys.label.acceptNewKeys")}</p>
-                <p>{t("refreshKeys.description.acceptNewKeys")}</p>
+                <p className="mb-0.5 font-bold">{t("refreshKeys.label.acceptNewKeys")}</p>
+                <p className="break-words">{t("refreshKeys.description.acceptNewKeys")}</p>
               </div>
-              <Button variant="default" name="requestNewKeys" onClick={handleNodeRemove}>
-                {t("button.requestNewKeys")}
-              </Button>
-              <Button variant="outline" name="dismiss" onClick={handleCloseDialog}>
-                {t("button.dismiss")}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="default" name="requestNewKeys" onClick={handleNodeRemove}>
+                  {t("button.requestNewKeys")}
+                </Button>
+                <Button variant="outline" name="dismiss" onClick={handleCloseDialog}>
+                  {t("button.dismiss")}
+                </Button>
+              </div>
             </div>
           </li>
         </ul>

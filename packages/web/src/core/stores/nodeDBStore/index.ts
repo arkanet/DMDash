@@ -34,6 +34,7 @@ type NodeDBData = {
 
 export interface NodeDB extends NodeDBData {
   environmentMetricsMap: Map<number, Protobuf.Telemetry.EnvironmentMetrics>;
+  powerMetricsMap: Map<number, Protobuf.Telemetry.PowerMetrics>;
   // Ephemeral state (not persisted)
   addNode: (nodeInfo: Protobuf.Mesh.NodeInfo) => void;
   removeNode: (nodeNum: number) => void;
@@ -66,6 +67,7 @@ export interface NodeDB extends NodeDBData {
   ) => Protobuf.Mesh.NodeInfo[];
   getMyNode: () => Protobuf.Mesh.NodeInfo | undefined;
   getEnvironmentMetrics: (nodeNum: number) => Protobuf.Telemetry.EnvironmentMetrics | undefined;
+  getPowerMetrics: (nodeNum: number) => Protobuf.Telemetry.PowerMetrics | undefined;
 
   getNodeError: (nodeNum: number) => NodeError | undefined;
   hasNodeError: (nodeNum: number) => boolean;
@@ -137,6 +139,7 @@ function nodeDBFactory(
   const nodeErrors = data?.nodeErrors ?? new Map<number, NodeError>();
   const myNodeNum = data?.myNodeNum;
   const environmentMetricsMap = new Map<number, Protobuf.Telemetry.EnvironmentMetrics>();
+  const powerMetricsMap = new Map<number, Protobuf.Telemetry.PowerMetrics>();
 
   return {
     id,
@@ -144,6 +147,7 @@ function nodeDBFactory(
     nodeMap,
     nodeErrors,
     environmentMetricsMap,
+    powerMetricsMap,
     // whether to skip favorite nodes when pruning (in-memory preference)
     skipFavoritesDuringPrune: false,
     setPruneSkipFavorites: (skip: boolean) =>
@@ -322,6 +326,19 @@ function nodeDBFactory(
                   : [],
               )
             : new Map<number, Protobuf.Telemetry.EnvironmentMetrics>();
+          nodeDB.powerMetricsMap = keepMyNode
+            ? new Map(
+                nodeDB.myNodeNum !== undefined && nodeDB.powerMetricsMap.has(nodeDB.myNodeNum)
+                  ? [
+                      [
+                        nodeDB.myNodeNum,
+                        nodeDB.powerMetricsMap.get(nodeDB.myNodeNum) ??
+                          create(Protobuf.Telemetry.PowerMetricsSchema),
+                      ],
+                    ]
+                  : [],
+              )
+            : new Map<number, Protobuf.Telemetry.PowerMetrics>();
         }),
       );
 
@@ -691,6 +708,11 @@ function nodeDBFactory(
               telemetry.from,
               telemetry.data.variant.value,
             );
+          } else if (telemetry.data.variant.case === "powerMetrics") {
+            nodeDB.powerMetricsMap = new Map(nodeDB.powerMetricsMap).set(
+              telemetry.from,
+              telemetry.data.variant.value,
+            );
           }
         }),
       );
@@ -1004,6 +1026,7 @@ function nodeDBFactory(
               const mergedNodes = new Map(oldDB.nodeMap);
               const mergedErrors = new Map(oldDB.nodeErrors);
               const mergedEnvironmentMetrics = new Map(oldDB.environmentMetricsMap);
+              const mergedPowerMetrics = new Map(oldDB.powerMetricsMap);
 
               const getNodesProxy = (
                 filter?: (node: Protobuf.Mesh.NodeInfo) => boolean,
@@ -1048,6 +1071,9 @@ function nodeDBFactory(
               for (const [num, metrics] of newDB.environmentMetricsMap) {
                 mergedEnvironmentMetrics.set(num, metrics);
               }
+              for (const [num, metrics] of newDB.powerMetricsMap) {
+                mergedPowerMetrics.set(num, metrics);
+              }
 
               // finalize: move maps into newDB and drop oldDB entry
               newDB.nodeMap = mergedNodes;
@@ -1072,6 +1098,7 @@ function nodeDBFactory(
               }
               newDB.nodeErrors = mergedErrors;
               newDB.environmentMetricsMap = mergedEnvironmentMetrics;
+              newDB.powerMetricsMap = mergedPowerMetrics;
               draft.nodeDBs.delete(oldDB.id);
             }
           }
@@ -1183,6 +1210,15 @@ function nodeDBFactory(
       }
 
       return nodeDB.environmentMetricsMap.get(nodeNum);
+    },
+
+    getPowerMetrics: (nodeNum) => {
+      const nodeDB = get().nodeDBs.get(id);
+      if (!nodeDB) {
+        throw new Error(`No nodeDB found (id: ${id})`);
+      }
+
+      return nodeDB.powerMetricsMap.get(nodeNum);
     },
 
     getNodeError: (nodeNum) => {

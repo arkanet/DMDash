@@ -128,6 +128,32 @@ describe("NodeDB store", () => {
     expect(db.getNode(77)?.num).toBe(77);
   });
 
+  it("stores latest power metrics by node id", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(1);
+
+    const powerMetrics = create(Protobuf.Telemetry.PowerMetricsSchema, {
+      ch1Voltage: 3.3,
+      ch1Current: 12.5,
+    });
+
+    db.addTelemetry({
+      from: 22,
+      rxTime: new Date(123_000),
+      rxSnr: 4,
+      data: create(Protobuf.Telemetry.TelemetrySchema, {
+        variant: {
+          case: "powerMetrics",
+          value: powerMetrics,
+        },
+      }),
+    } as any);
+
+    expect(db.getPowerMetrics(22)).toEqual(powerMetrics);
+    expect(db.getNode(22)?.lastHeard).toBe(123);
+    expect(db.getNode(22)?.snr).toBe(4);
+  });
+
   it("tracks unread and read status message state across updates", async () => {
     const { useNodeDBStore } = await freshStore();
     const db = useNodeDBStore.getState().addNodeDB(1);
@@ -202,6 +228,17 @@ describe("NodeDB store", () => {
     oldDB.setNodeNum(999);
     oldDB.addNode(makeNode(200));
     oldDB.setNodeError(200, "ERROR" as any);
+    const powerMetrics = create(Protobuf.Telemetry.PowerMetricsSchema, { ch1Voltage: 4.2 });
+    oldDB.addTelemetry({
+      from: 200,
+      rxTime: new Date(),
+      data: create(Protobuf.Telemetry.TelemetrySchema, {
+        variant: {
+          case: "powerMetrics",
+          value: powerMetrics,
+        },
+      }),
+    } as any);
 
     const newDB = st.addNodeDB(11);
     // newDB currently empty; setting same myNodeNum should copy maps from oldDB and delete old
@@ -211,6 +248,7 @@ describe("NodeDB store", () => {
     expect(st.getNodeDB(11)).toBeDefined();
     expect(newDB.getNode(200)).toBeTruthy();
     expect(newDB.getNodeError(200)).toEqual({ node: 200, error: "ERROR" });
+    expect(newDB.getPowerMetrics(200)).toEqual(powerMetrics);
   });
 
   it("partialize persists only data, and onRehydrateStorage rebuilds methods", async () => {

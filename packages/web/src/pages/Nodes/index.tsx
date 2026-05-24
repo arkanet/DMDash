@@ -418,6 +418,24 @@ function formatEnvironmentalValue(
   return `${normalized.toFixed(decimals)}${unit}`;
 }
 
+function hasPowerMetrics(metrics?: Protobuf.Telemetry.PowerMetrics): boolean {
+  if (!metrics) {
+    return false;
+  }
+
+  return getPowerMetricCards(metrics).some((card) => Boolean(card.value));
+}
+
+function formatFirmwareVersion(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const lastDot = trimmed.lastIndexOf(".");
+  return lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed;
+}
+
 function calculateDewPoint(tempCelsius: number, humidity: number): number {
   const a = 17.27;
   const b = 237.7;
@@ -766,6 +784,57 @@ function EnvironmentInfoGrid({ metrics }: { metrics?: Protobuf.Telemetry.Environ
   const visibleCards = cards.filter((card): card is EnvironmentInfoCardProps =>
     Boolean(card.value),
   );
+
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      {visibleCards.map((card) => (
+        <EnvironmentInfoCard key={card.id} {...card} />
+      ))}
+    </div>
+  );
+}
+
+function getPowerMetricCards(
+  metrics: Protobuf.Telemetry.PowerMetrics,
+): EnvironmentInfoCardDefinition[] {
+  return Array.from({ length: 8 }, (_, index) => {
+    const channel = index + 1;
+    const voltage = metrics[`ch${channel}Voltage` as keyof Protobuf.Telemetry.PowerMetrics] as
+      | number
+      | undefined;
+    const current = metrics[`ch${channel}Current` as keyof Protobuf.Telemetry.PowerMetrics] as
+      | number
+      | undefined;
+
+    return [
+      {
+        id: `ch${channel}Voltage`,
+        icon: BoltIcon,
+        label: `Channel ${channel}`,
+        value: formatEnvironmentalValue(voltage, "V", 2),
+      },
+      {
+        id: `ch${channel}Current`,
+        icon: PowerIcon,
+        label: `Channel ${channel}`,
+        value: formatEnvironmentalValue(current, "mA", 1),
+      },
+    ];
+  }).flat();
+}
+
+function PowerInfoGrid({ metrics }: { metrics?: Protobuf.Telemetry.PowerMetrics }) {
+  if (!metrics) {
+    return null;
+  }
+
+  const visibleCards = getPowerMetricCards(metrics).filter(
+    (card): card is EnvironmentInfoCardProps => Boolean(card.value),
+  );
+
+  if (visibleCards.length === 0) {
+    return null;
+  }
 
   return (
     <div className="grid grid-cols-3 gap-3">
@@ -2230,11 +2299,16 @@ export function MobileNodeInfoDialog({
     typeof uptimeSeconds === "number"
       ? `${Math.floor(uptimeSeconds / 86400)}d ${Math.floor((uptimeSeconds % 86400) / 3600)}h ${Math.floor((uptimeSeconds % 3600) / 60)}m`
       : undefined;
-  const firmware =
-    (node as Protobuf.Mesh.NodeInfo & { metadata?: { firmwareVersion?: string } }).metadata
-      ?.firmwareVersion ??
-    (node as Protobuf.Mesh.NodeInfo & { deviceMetadata?: { firmwareVersion?: string } })
-      .deviceMetadata?.firmwareVersion;
+  const firmware = formatFirmwareVersion(
+    device.metadata.get(node.num)?.firmwareVersion ??
+      (node.num === device.hardware.myNodeNum
+        ? device.metadata.get(0)?.firmwareVersion
+        : undefined) ??
+      (node as Protobuf.Mesh.NodeInfo & { metadata?: { firmwareVersion?: string } }).metadata
+        ?.firmwareVersion ??
+      (node as Protobuf.Mesh.NodeInfo & { deviceMetadata?: { firmwareVersion?: string } })
+        .deviceMetadata?.firmwareVersion,
+  );
   const hasNeighborInfo =
     neighborRecords.length > 0 || Boolean(device.getNeighborInfo(node.num)?.neighbors?.length);
   const neighborInfo = device.getNeighborInfo(node.num);
@@ -2243,6 +2317,8 @@ export function MobileNodeInfoDialog({
   const sharedContactUrl = buildSharedContactUrl(node);
   const environmentMetrics = nodeDB.getEnvironmentMetrics(node.num);
   const hasEnvironmentalMetrics = hasEnvironmentMetrics(environmentMetrics);
+  const powerMetrics = nodeDB.getPowerMetrics(node.num);
+  const hasAvailablePowerMetrics = hasPowerMetrics(powerMetrics);
 
   const copyValue = async (label: string, value?: string) => {
     if (!value) return;
@@ -2405,6 +2481,12 @@ export function MobileNodeInfoDialog({
                 onClick={() => copyValue("Uptime", uptime)}
               />
             ) : null}
+            <InfoLine
+              icon={RadioTowerIcon}
+              label="Last heard"
+              value={lastHeard}
+              onClick={() => copyValue("Last heard", lastHeard)}
+            />
             {firmware ? (
               <InfoLine
                 icon={CpuIcon}
@@ -2413,12 +2495,6 @@ export function MobileNodeInfoDialog({
                 onClick={() => copyValue("Firmware version", firmware)}
               />
             ) : null}
-            <InfoLine
-              icon={RadioTowerIcon}
-              label="Last heard"
-              value={lastHeard}
-              onClick={() => copyValue("Last heard", lastHeard)}
-            />
           </div>
         </InfoSection>
 
@@ -2435,6 +2511,12 @@ export function MobileNodeInfoDialog({
             <ChevronRightIcon className="size-5" />
           </button>
         </InfoSection>
+
+        {hasAvailablePowerMetrics ? (
+          <InfoSection title="Power">
+            <PowerInfoGrid metrics={powerMetrics} />
+          </InfoSection>
+        ) : null}
 
         {hasEnvironmentalMetrics ? (
           <InfoSection title="Environment">

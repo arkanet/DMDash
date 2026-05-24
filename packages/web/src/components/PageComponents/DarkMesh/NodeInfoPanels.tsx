@@ -27,13 +27,22 @@ interface EnvironmentMetricsPanelProps {
   variant?: "popup" | "dialog";
 }
 
+interface PowerMetricsPanelProps {
+  metrics?: Protobuf.Telemetry.PowerMetrics;
+  className?: string;
+  title?: string;
+  dense?: boolean;
+  variant?: "popup" | "dialog";
+  showEmptyState?: boolean;
+}
+
 function formatMetricValue(
   label: string,
   value: number | undefined,
   unit?: string,
   transform?: (raw: number) => number,
 ) {
-  if (value === undefined) {
+  if (!isMetricAvailable(value)) {
     return undefined;
   }
 
@@ -42,6 +51,26 @@ function formatMetricValue(
   return {
     label,
     value: `${normalized.toFixed(decimals)}${unit ?? ""}`,
+  };
+}
+
+function isMetricAvailable(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value !== 0;
+}
+
+function formatPowerMetricValue(
+  label: string,
+  value: number | undefined,
+  unit: string,
+  decimals: number,
+) {
+  if (!isMetricAvailable(value)) {
+    return undefined;
+  }
+
+  return {
+    label,
+    value: `${value.toFixed(decimals)}${unit}`,
   };
 }
 
@@ -193,6 +222,86 @@ export function NeighborInfoPanel({
               })}
             </ul>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function PowerMetricsPanel({
+  metrics,
+  className,
+  title,
+  dense = false,
+  variant = "dialog",
+  showEmptyState = false,
+}: PowerMetricsPanelProps) {
+  const { t } = useTranslation("dialog");
+
+  const entries = useMemo(
+    () =>
+      Array.from({ length: 8 }, (_, index) => {
+        const channel = index + 1;
+        const voltage = metrics?.[`ch${channel}Voltage` as keyof Protobuf.Telemetry.PowerMetrics] as
+          | number
+          | undefined;
+        const current = metrics?.[`ch${channel}Current` as keyof Protobuf.Telemetry.PowerMetrics] as
+          | number
+          | undefined;
+
+        return [
+          formatPowerMetricValue(
+            t("nodeDetail.power.channelVoltage", "Channel {{channel}} Voltage", { channel }),
+            voltage,
+            "V",
+            2,
+          ),
+          formatPowerMetricValue(
+            t("nodeDetail.power.channelCurrent", "Channel {{channel}} Current", { channel }),
+            current,
+            "mA",
+            1,
+          ),
+        ];
+      })
+        .flat()
+        .filter((entry): entry is { label: string; value: string } => Boolean(entry)),
+    [metrics, t],
+  );
+
+  if (entries.length === 0 && !showEmptyState) {
+    return null;
+  }
+
+  const darkClasses =
+    variant === "popup"
+      ? "dark:bg-slate-100 dark:text-slate-600"
+      : "dark:bg-slate-700 dark:text-slate-300";
+
+  return (
+    <div className={cn("rounded-lg bg-slate-100 p-3 text-slate-900", darkClasses, className)}>
+      <p className={cn("font-semibold", dense ? "text-sm" : "text-base")}>
+        {title ?? t("nodeDetails.powerMetrics", "Power Metrics")}
+      </p>
+
+      {entries.length === 0 ? (
+        <p className={cn("mt-2 text-slate-600 dark:text-slate-400", dense ? "text-xs" : "text-sm")}>
+          {t("nodeDetail.power.noData", "No power metrics available")}
+        </p>
+      ) : (
+        <div className="mt-2 overflow-auto">
+          <table className="w-full table-fixed">
+            <tbody>
+              {entries.map((entry) => (
+                <tr key={entry.label} className="align-top">
+                  <td className={cn("pr-2 font-medium", dense ? "text-[11px]" : "text-xs")}>
+                    {entry.label}
+                  </td>
+                  <td className={cn(dense ? "text-[11px]" : "text-xs")}>{entry.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
