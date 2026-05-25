@@ -1,17 +1,6 @@
-import { DialogManager } from "@components/Dialog/DialogManager.tsx";
 import type { useAppStore, useMessageStore } from "@core/stores";
-import DarkMeshDashboardPage from "@app/darkmesh/DashboardPage.tsx";
 import { Connections } from "@pages/Connections/index.tsx";
-import DebugPanelPage from "@pages/DebugPanel/index.tsx";
-import ChannelsPage from "@pages/ChannelsPage.tsx";
-import GuidePage from "@pages/Guide/index.tsx";
 import React from "react";
-const MapPage = React.lazy(() => import("@pages/Map/index.tsx"));
-import MessagesPage from "@pages/Messages.tsx";
-import NodesPage from "@pages/Nodes/index.tsx";
-import RemoteAdminPage from "@pages/RemoteAdmin/index.tsx";
-import ScheduledMessagesPage from "@pages/ScheduledMessagesPage/ScheduledMessagesPage.tsx";
-import ConfigPage from "@pages/Settings/index.tsx";
 import {
   createRootRouteWithContext,
   createRoute,
@@ -19,8 +8,25 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import type { useTranslation } from "react-i18next";
-import { z } from "zod/v4";
 import { App } from "./App.tsx";
+
+const ChannelsPage = React.lazy(() => import("@pages/ChannelsPage.tsx"));
+const DarkMeshDashboardPage = React.lazy(() => import("@app/darkmesh/DashboardPage.tsx"));
+const DebugPanelPage = React.lazy(() => import("@pages/DebugPanel/index.tsx"));
+const DialogManager = React.lazy(() =>
+  import("@components/Dialog/DialogManager.tsx").then((module) => ({
+    default: module.DialogManager,
+  })),
+);
+const GuidePage = React.lazy(() => import("@pages/Guide/index.tsx"));
+const MapPage = React.lazy(() => import("@pages/Map/index.tsx"));
+const MessagesPage = React.lazy(() => import("@pages/Messages.tsx"));
+const NodesPage = React.lazy(() => import("@pages/Nodes/index.tsx"));
+const RemoteAdminPage = React.lazy(() => import("@pages/RemoteAdmin/index.tsx"));
+const ScheduledMessagesPage = React.lazy(
+  () => import("@pages/ScheduledMessagesPage/ScheduledMessagesPage.tsx"),
+);
+const ConfigPage = React.lazy(() => import("@pages/Settings/index.tsx"));
 
 interface AppContext {
   stores: {
@@ -28,6 +34,34 @@ interface AppContext {
     message: ReturnType<typeof useMessageStore>;
   };
   i18n: ReturnType<typeof useTranslation>;
+}
+
+function parseBoundedIntParam(value: string, label: string, min: number, max: number): number {
+  const numberValue = Number(value);
+
+  if (!Number.isInteger(numberValue) || numberValue < min || numberValue > max) {
+    throw new Error(`${label} must be an integer between ${min} and ${max}.`);
+  }
+
+  return numberValue;
+}
+
+function parseBoundedNumberParam(value: string, label: string, min: number, max: number): number {
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue) || numberValue < min || numberValue > max) {
+    throw new Error(`${label} must be a number between ${min} and ${max}.`);
+  }
+
+  return numberValue;
+}
+
+function parseMessageType(value: string): "direct" | "broadcast" {
+  if (value === "direct" || value === "broadcast") {
+    return value;
+  }
+
+  throw new Error('Type must be "direct" or "broadcast".');
 }
 
 export const rootRoute = createRootRouteWithContext<AppContext>()({
@@ -70,13 +104,8 @@ export const messagesWithParamsRoute = createRoute({
   path: "/messages/$type/$chatId",
   component: MessagesPage,
   parseParams: (params) => ({
-    type: z
-      .enum(["direct", "broadcast"])
-      .refine((val) => val === "direct" || val === "broadcast", {
-        message: 'Type must be "direct" or "broadcast".',
-      })
-      .parse(params.type),
-    chatId: z.coerce.number().int().min(0).max(4294967294).parse(params.chatId), // max is 0xffffffff - 1
+    type: parseMessageType(params.type),
+    chatId: parseBoundedIntParam(params.chatId, "chatId", 0, 4294967294), // max is 0xffffffff - 1
   }),
 });
 
@@ -86,23 +115,16 @@ const mapRoute = createRoute({
   component: MapPage,
 });
 
-const coordParamsSchema = z.object({
-  // Accept "strings" from the URL, coerce to number, then validate
-  long: z.coerce
-    .number()
-    .refine((n) => Number.isFinite(n) && n >= -180 && n <= 180, "Invalid longitude (-180..180)."),
-  lat: z.coerce
-    .number()
-    .refine((n) => Number.isFinite(n) && n >= -90 && n <= 90, "Invalid latitude (-90..90)."),
-  // Typical web map zoom levels ~0..22 (adjust if your map lib differs)
-  zoom: z.coerce.number().int().min(0, "Zoom too small.").max(22, "Zoom too large."),
-});
-
 export const mapWithParamsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/map/$long/$lat/$zoom",
   component: MapPage,
-  parseParams: (raw) => coordParamsSchema.parse(raw),
+  parseParams: (params) => ({
+    long: parseBoundedNumberParam(params.long, "longitude", -180, 180),
+    lat: parseBoundedNumberParam(params.lat, "latitude", -90, 90),
+    // Typical web map zoom levels are around 0..22.
+    zoom: parseBoundedIntParam(params.zoom, "zoom", 0, 22),
+  }),
   // // This controls how params are serialized when you navigate/link
   // stringifyParams: (p) => ({
   //   long: String(p.long),
@@ -146,7 +168,7 @@ export const remoteAdminRoute = createRoute({
   path: "/remote-admin/$nodeNum",
   component: RemoteAdminPage,
   parseParams: (params) => ({
-    nodeNum: z.coerce.number().int().min(0).max(4294967294).parse(params.nodeNum),
+    nodeNum: parseBoundedIntParam(params.nodeNum, "nodeNum", 0, 4294967294),
   }),
 });
 

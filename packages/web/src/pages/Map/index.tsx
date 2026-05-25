@@ -35,7 +35,15 @@ import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import { CompassIcon, FunnelIcon, LocateFixedIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Layer, Source, type MapLayerMouseEvent, type MapRef, useMap } from "react-map-gl/maplibre";
+import {
+  Layer,
+  MapProvider,
+  Source,
+  type MapLayerMouseEvent,
+  type MapRef,
+  useMap,
+} from "react-map-gl/maplibre";
+import "maplibre-gl/dist/maplibre-gl.css";
 import useTracerouteStore from "@core/stores/tracerouteStore";
 import { useParams } from "@tanstack/react-router";
 
@@ -167,7 +175,7 @@ function isMobileResponsiveViewport(): boolean {
 }
 
 // Main page component
-const MapPage: React.FC = () => {
+const MapPageContent: React.FC = () => {
   const [, setPinnedPopupNode] = useState<number | undefined>(undefined);
   const [popupState, setPopupState] = useState<PopupState | undefined>(undefined);
 
@@ -1672,5 +1680,11 @@ const MapPage: React.FC = () => {
     </PageLayout>
   );
 };
+
+const MapPage: React.FC = () => (
+  <MapProvider>
+    <MapPageContent />
+  </MapProvider>
+);
 
 export default MapPage;

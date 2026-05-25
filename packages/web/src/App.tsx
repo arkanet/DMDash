@@ -1,7 +1,4 @@
 import { DeviceWrapper } from "@app/DeviceWrapper.tsx";
-import { CommandPalette } from "@components/CommandPalette/index.tsx";
-import { DialogManager } from "@components/Dialog/DialogManager.tsx";
-import { KeyBackupReminder } from "@components/KeyBackupReminder.tsx";
 import { ThemeDocumentController } from "@components/ThemeDocumentController.tsx";
 import { Toaster } from "@components/Toaster.tsx";
 import {
@@ -22,11 +19,32 @@ import { DarkMeshRuntime } from "@app/darkmesh/runtime.tsx";
 import { Connections } from "@pages/Connections/index.tsx";
 import { Types } from "@meshtastic/core";
 import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { AlertTriangleIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { MapProvider } from "react-map-gl/maplibre";
+
+const CommandPalette = lazy(() =>
+  import("@components/CommandPalette/index.tsx").then((module) => ({
+    default: module.CommandPalette,
+  })),
+);
+const DialogManager = lazy(() =>
+  import("@components/Dialog/DialogManager.tsx").then((module) => ({
+    default: module.DialogManager,
+  })),
+);
+const KeyBackupReminder = lazy(() =>
+  import("@components/KeyBackupReminder.tsx").then((module) => ({
+    default: module.KeyBackupReminder,
+  })),
+);
+const RouterDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import("@tanstack/react-router-devtools").then((module) => ({
+        default: module.TanStackRouterDevtools,
+      })),
+    )
+  : null;
 
 function useMobileViewport() {
   useEffect(() => {
@@ -62,6 +80,26 @@ function useMobileViewport() {
       root.style.removeProperty("--app-viewport-height");
     };
   }, []);
+}
+
+function useCommandPaletteShortcut(enabled: boolean) {
+  const setCommandPaletteOpen = useAppStore((state) => state.setCommandPaletteOpen);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === "k" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        setCommandPaletteOpen(true);
+      }
+    };
+
+    globalThis.addEventListener("keydown", handleKeydown);
+    return () => globalThis.removeEventListener("keydown", handleKeydown);
+  }, [enabled, setCommandPaletteOpen]);
 }
 
 function DeviceConnectionProgress({
@@ -206,7 +244,8 @@ export function App() {
   useMobileViewport();
 
   const { getDevice, getConnectionForDevice } = useDeviceStore();
-  const { selectedDeviceId } = useAppStore();
+  const selectedDeviceId = useAppStore((state) => state.selectedDeviceId);
+  const commandPaletteOpen = useAppStore((state) => state.commandPaletteOpen);
   const navigate = useNavigate();
   const [lostConnectionNotice, setLostConnectionNotice] = useState<LostConnectionNotice | null>(
     null,
@@ -236,6 +275,7 @@ export function App() {
       ? device
       : undefined;
   const shouldRedirectToConnections = shouldGuardLostConnection && !isHoldingLostConnectionGrace;
+  useCommandPaletteShortcut(Boolean(deviceForAppShell));
 
   useEffect(() => {
     if (hasUsableDevice || isPublicGuideRoute || isConnectionsRoute) {
@@ -345,7 +385,11 @@ export function App() {
         onDismiss={() => setLostConnectionNotice(null)}
       />
       <ThemeDocumentController pathname={pathname} />
-      <TanStackRouterDevtools position="bottom-right" />
+      {RouterDevtools ? (
+        <Suspense fallback={null}>
+          <RouterDevtools position="bottom-right" />
+        </Suspense>
+      ) : null}
       <DeviceWrapper deviceId={selectedDeviceId}>
         <div className="mobile-viewport-fill flex h-full min-h-0 w-full flex-col bg-background-primary text-text-primary">
           <SidebarProvider>
@@ -364,12 +408,12 @@ export function App() {
                 <div className="flex h-full min-h-0 w-full flex-1">
                   <DeviceConnectionProgress phase={deviceForAppShell.connectionPhase} />
                   <DarkMeshRuntime />
-                  <DialogManager />
-                  <KeyBackupReminder />
-                  <CommandPalette />
-                  <MapProvider>
-                    <Outlet />
-                  </MapProvider>
+                  <Suspense fallback={null}>
+                    <DialogManager />
+                    <KeyBackupReminder />
+                    {commandPaletteOpen ? <CommandPalette /> : null}
+                  </Suspense>
+                  <Outlet />
                 </div>
               ) : isPublicGuideRoute ? (
                 <Outlet />

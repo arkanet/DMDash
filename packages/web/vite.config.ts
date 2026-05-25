@@ -60,7 +60,11 @@ const VENDOR_CHUNK_GROUPS = [
   },
   {
     name: "forms",
-    packages: ["react-hook-form", "@hookform/resolvers", "zod"],
+    packages: ["react-hook-form", "@hookform/resolvers"],
+  },
+  {
+    name: "validation",
+    packages: ["zod"],
   },
   {
     name: "state",

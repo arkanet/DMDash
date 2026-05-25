@@ -1,4 +1,3 @@
-import AddConnectionDialog from "@app/components/Dialog/AddConnectionDialog/AddConnectionDialog";
 import { TimeAgo } from "@app/components/generic/TimeAgo";
 import LanguageSwitcher from "@app/components/LanguageSwitcher";
 import { ConnectionStatusBadge } from "@app/components/PageComponents/Connections/ConnectionStatusBadge";
@@ -40,8 +39,12 @@ import {
   StarOff,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+const AddConnectionDialog = lazy(
+  () => import("@app/components/Dialog/AddConnectionDialog/AddConnectionDialog"),
+);
 
 const DARKMESH_RETURN_LINKS = [
   { href: "https://darkmesh.neocities.org/", label: "DarkMesh" },
@@ -315,22 +318,26 @@ export const Connections = () => {
           </div>
         )}
 
-        <AddConnectionDialog
-          open={addOpen}
-          onOpenChange={setAddOpen}
-          isHTTPS={isURLHTTPS}
-          onSave={async (partial, btDevice) => {
-            const created = addConnection(partial, btDevice);
-            setAddOpen(false);
-            toast({
-              title: t("toasts.added"),
-              description: t("toasts.savedByName", {
-                name: created.name,
-                interpolation: { escapeValue: false },
-              }),
-            });
-          }}
-        />
+        {addOpen ? (
+          <Suspense fallback={null}>
+            <AddConnectionDialog
+              open={addOpen}
+              onOpenChange={setAddOpen}
+              isHTTPS={isURLHTTPS}
+              onSave={async (partial, btDevice) => {
+                const created = addConnection(partial, btDevice);
+                setAddOpen(false);
+                toast({
+                  title: t("toasts.added"),
+                  description: t("toasts.savedByName", {
+                    name: created.name,
+                    interpolation: { escapeValue: false },
+                  }),
+                });
+              }}
+            />
+          </Suspense>
+        ) : null}
       </div>
     </div>
   );

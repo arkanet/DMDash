@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 /** Map feature keys -> env var names (Vite exposes only VITE_*). */
 export const FLAG_ENV = {
   persistNodeDB: "VITE_PERSIST_NODE_DB",
@@ -12,17 +10,6 @@ export type FlagKey = keyof typeof FLAG_ENV;
 export type Flags = Record<FlagKey, boolean>;
 
 type Listener = () => void;
-
-const present = z
-  .string()
-  .optional()
-  .transform((v) => v !== undefined);
-
-const mutableShape: Record<string, z.ZodTypeAny> = {};
-for (const envName of Object.values(FLAG_ENV)) {
-  mutableShape[envName] = present;
-}
-const EnvSchema = z.object(mutableShape);
 
 class FeatureFlags {
   private base: Flags;
@@ -78,9 +65,8 @@ class FeatureFlags {
 }
 
 export function createFeatureFlags(env: Record<string, unknown>): FeatureFlags {
-  const parsed = EnvSchema.parse(env);
   const base = Object.fromEntries(
-    (Object.keys(FLAG_ENV) as FlagKey[]).map((k) => [k, parsed[FLAG_ENV[k]] as boolean]),
+    (Object.keys(FLAG_ENV) as FlagKey[]).map((key) => [key, env[FLAG_ENV[key]] !== undefined]),
   ) as Flags;
   return new FeatureFlags(base);
 }
