@@ -26,7 +26,8 @@
 
 
 @theme {
-  --breakpoint-md: 950px;
+  --breakpoint-md: 951px;
+  --breakpoint-lg: 1089px;
 
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -174,7 +175,7 @@
   animation: darkmesh-traceroute-panel-enter 0.5s ease-out;
 }
 
-@media (min-width: 950px) {
+@media (min-width: 951px) {
   .darkmesh-mobile-traceroute-panel-enter {
     animation: none;
   }
@@ -432,6 +433,20 @@ body {
 }
 
 @layer components {
+  @media (min-width: 951px) and (max-width: 1088px) {
+    .nodes-table-md-fit-shell {
+      overflow: hidden;
+    }
+
+    .nodes-table-md-fit-content {
+      width: var(--nodes-table-fit-width, 100%);
+      height: var(--nodes-table-fit-height, 100%);
+      max-width: none;
+      transform-origin: top left;
+      zoom: var(--nodes-table-fit-zoom, 1);
+    }
+  }
+
   .maplibregl-popup.darkmesh-map-popup {
     max-width: fit-content !important;
   }

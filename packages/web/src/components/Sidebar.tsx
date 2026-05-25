@@ -134,7 +134,7 @@ export const Sidebar = ({ children }: SidebarProps) => {
         </button>
         <h2
           className={cn(
-            "text-sm font-semibold tracking-[0.08em] text-gray-800 dark:text-gray-100 whitespace-nowrap lg:text-base",
+            "text-sm font-semibold tracking-[0.08em] text-gray-800 dark:text-gray-100 whitespace-nowrap md:origin-left md:scale-90 lg:scale-100 lg:text-base",
             "transition-all duration-300 ease-in-out",
             isCollapsed ? "opacity-0 max-w-0 invisible ml-0" : "opacity-100 max-w-xs visible ml-2",
           )}

@@ -174,7 +174,7 @@ export const DeviceInfoPanel = ({
             <p
               className={cn(
                 "text-sm font-medium text-gray-800 dark:text-gray-200",
-                "transition-opacity duration-300 ease-in-out truncate",
+                "min-w-0 break-words transition-opacity duration-300 ease-in-out",
               )}
             >
               {user.longName}

@@ -127,6 +127,7 @@ import {
 
 const NODEDB_DEBOUNCE_MS = 250;
 const ONLINE_NODE_MAX_AGE_SECONDS = 900;
+const NODES_TABLE_FIT_MAX_VIEWPORT_WIDTH = 1088;
 
 function isMobileResponsiveViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
@@ -914,8 +915,64 @@ const NodesPage = (): JSX.Element => {
   const pendingTracerouteNodeRef = useRef<number | undefined>(undefined);
   const pendingTracerouteStartedAtRef = useRef<number | undefined>(undefined);
   const pendingNeighborNodeRef = useRef<number | undefined>(undefined);
+  const desktopTableShellRef = useRef<HTMLDivElement | null>(null);
   const [filterState, setFilterState] = useState<FilterState>(() => defaultFilterValues);
   const deferredFilterState = useDeferredValue(filterState);
+
+  useEffect(() => {
+    const shell = desktopTableShellRef.current;
+    if (!shell) {
+      return;
+    }
+
+    const fitMedia = window.matchMedia("(min-width: 951px) and (max-width: 1088px)");
+
+    const clearFit = () => {
+      shell.style.removeProperty("--nodes-table-fit-width");
+      shell.style.removeProperty("--nodes-table-fit-height");
+      shell.style.removeProperty("--nodes-table-fit-zoom");
+    };
+
+    const updateFit = () => {
+      if (!fitMedia.matches) {
+        clearFit();
+        return;
+      }
+
+      const shellRect = shell.getBoundingClientRect();
+      if (shellRect.width <= 0 || shellRect.height <= 0) {
+        return;
+      }
+
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+      const layoutChromeWidth = Math.max(0, viewportWidth - shellRect.width);
+      const targetWidth = Math.max(
+        shellRect.width,
+        NODES_TABLE_FIT_MAX_VIEWPORT_WIDTH - layoutChromeWidth,
+      );
+      const zoom = Math.min(1, Math.max(0.75, shellRect.width / targetWidth));
+
+      shell.style.setProperty("--nodes-table-fit-width", `${targetWidth}px`);
+      shell.style.setProperty("--nodes-table-fit-height", `${shellRect.height / zoom}px`);
+      shell.style.setProperty("--nodes-table-fit-zoom", zoom.toFixed(4));
+    };
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateFit) : undefined;
+    resizeObserver?.observe(shell);
+    fitMedia.addEventListener("change", updateFit);
+    window.addEventListener("resize", updateFit);
+    window.visualViewport?.addEventListener("resize", updateFit);
+    updateFit();
+
+    return () => {
+      resizeObserver?.disconnect();
+      fitMedia.removeEventListener("change", updateFit);
+      window.removeEventListener("resize", updateFit);
+      window.visualViewport?.removeEventListener("resize", updateFit);
+      clearFit();
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -2128,9 +2185,12 @@ const NodesPage = (): JSX.Element => {
           </PopoverContent>
         </Popover>
       </div>
-      <div className="hidden min-h-0 flex-1 overflow-hidden md:block">
+      <div
+        ref={desktopTableShellRef}
+        className="nodes-table-md-fit-shell hidden min-h-0 flex-1 overflow-hidden md:block"
+      >
         <div className="h-full max-w-full overflow-hidden">
-          <div className="h-full text-xs">
+          <div className="nodes-table-md-fit-content h-full text-xs">
             <Table headings={tableHeadings} rows={tableRows} />
           </div>
         </div>
