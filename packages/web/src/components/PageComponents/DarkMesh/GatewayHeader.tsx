@@ -218,19 +218,19 @@ function SignalMetric({
   return (
     <div
       className={cn(
-        "flex flex-1 flex-col justify-center rounded-xl px-2.5 py-1.5 max-md:rounded-md max-md:px-1 max-md:py-0.5",
+        "flex flex-1 flex-col items-center justify-center rounded-xl px-2.5 py-1.5 text-center max-md:rounded-md max-md:px-1 max-md:py-0.5",
         className,
       )}
       style={{ backgroundColor: effectiveTone.background }}
     >
       <div
-        className="whitespace-nowrap text-[0.6rem] uppercase tracking-[0.14em] md:text-[10px]"
+        className="whitespace-nowrap text-center text-[0.6rem] uppercase tracking-[0.14em] md:text-[10px]"
         style={{ color: effectiveTone.label }}
       >
         {label}
       </div>
       <div
-        className="mt-0.5 whitespace-nowrap text-[0.62rem] font-semibold md:text-[0.8125rem]"
+        className="mt-0.5 whitespace-nowrap text-center text-[0.62rem] font-semibold md:text-[0.8125rem]"
         style={{ color: effectiveTone.value }}
       >
         {value}
@@ -414,7 +414,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
       >
         <div
           className={cn(
-            "flex min-w-0 flex-1 flex-col justify-center border-r-0 px-3.5 py-3",
+            "flex min-w-0 flex-1 flex-col justify-center border-r-0 px-3.5 py-3 md:scale-90",
             isDarkTheme ? "text-zinc-100" : "text-zinc-900",
           )}
           style={{
@@ -453,7 +453,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
         </div>
 
         <div
-          className="ml-auto flex w-fit max-w-none shrink-0 items-center p-0.5"
+          className="ml-auto flex w-fit max-w-none shrink-0 items-center p-0.5 text-center"
           style={{
             backgroundColor: `var(--gateway-bg, ${isDarkTheme ? "#222" : "#f1f1f1"})`,
           }}
@@ -464,7 +464,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
               value={formatSnr(gateway?.rxSnr)}
               tone={snrTone}
               isDarkTheme={isDarkTheme}
-              className="min-w-0 md:mr-1 md:mb-1 md:w-30"
+              className="min-w-0 md:mr-1 md:mb-1 md:scale-90"
             />
 
             <SignalMetric
@@ -472,7 +472,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
               value={formatRssi(gateway?.rxRssi)}
               tone={rssiTone}
               isDarkTheme={isDarkTheme}
-              className="min-w-0 md:mr-1 md:mb-1 md:w-30"
+              className="min-w-0 md:mr-1 md:mb-1 md:scale-90"
             />
           </div>
 
@@ -482,7 +482,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
               value={formatPercent(airUtil)}
               tone={airTone}
               isDarkTheme={isDarkTheme}
-              className="min-w-0 md:mr-1 md:mb-1"
+              className="min-w-0 md:mr-1 md:mb-1 md:scale-90"
             />
 
             <SignalMetric
@@ -490,7 +490,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
               value={formatPercent(channelUtil)}
               tone={channelTone}
               isDarkTheme={isDarkTheme}
-              className="min-w-0 md:mr-1 md:mb-1"
+              className="min-w-0 md:mr-1 md:mb-1 md:scale-90"
             />
           </div>
         </div>
