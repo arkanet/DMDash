@@ -1,5 +1,4 @@
 import { ErrorPage } from "@components/UI/ErrorPage.tsx";
-import Footer from "@components/UI/Footer.tsx";
 import { Spinner } from "@components/UI/Spinner.tsx";
 import { cn } from "@core/utils/cn.ts";
 import type { LucideIcon } from "lucide-react";
@@ -127,9 +126,6 @@ export const PageLayout = ({
           >
             {children}
           </main>
-          <div className="shrink-0">
-            <Footer />
-          </div>
         </div>
 
         {/* Right Sidebar */}

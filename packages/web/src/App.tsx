@@ -404,15 +404,12 @@ export function App() {
       <DeviceWrapper deviceId={selectedDeviceId}>
         <div className="mobile-viewport-fill flex h-full min-h-0 w-full flex-col bg-background-primary text-text-primary">
           <SidebarProvider>
-            <div className="flex h-full min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {isConnectionsRoute ? (
-                <div className="flex h-full min-h-0 w-full flex-1 flex-col">
+                <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
                   <div className="min-h-0 flex-1 overflow-y-auto">
                     {device ? <DeviceConnectionProgress phase={device.connectionPhase} /> : null}
                     <Outlet />
-                  </div>
-                  <div className="shrink-0">
-                    <Footer />
                   </div>
                 </div>
               ) : deviceForAppShell ? (
@@ -429,17 +426,17 @@ export function App() {
               ) : isPublicGuideRoute ? (
                 <Outlet />
               ) : shouldRedirectToConnections ? null : (
-                <div className="flex h-full min-h-0 flex-1 flex-col">
+                <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                   <div className="min-h-0 flex-1 overflow-y-auto">
                     <Connections />
-                  </div>
-                  <div className="shrink-0">
-                    <Footer />
                   </div>
                 </div>
               )}
             </div>
           </SidebarProvider>
+          <div className="shrink-0 border-t border-slate-300 bg-background-primary dark:border-slate-700">
+            <Footer />
+          </div>
         </div>
       </DeviceWrapper>
     </ErrorBoundary>
