@@ -818,6 +818,78 @@ export const MessagesPage = () => {
     setMentionOpen(true);
   };
 
+  const handleEncryptionStatusClick = () => {
+    if (!isDirect || !otherNode) {
+      return;
+    }
+
+    if (directMessageHasPublicKey) {
+      toast({
+        title: "This node has a public key for direct messages",
+        variant: "default",
+      });
+      return;
+    }
+
+    let toastRef: ReturnType<typeof toast> | undefined;
+    toastRef = toast({
+      title: "Direct messages require a public key",
+      description: directMessageBlockDescription,
+      variant: "destructive",
+      action: (
+        <ToastAction
+          altText="Request public key"
+          onClick={async () => {
+            try {
+              toastRef?.dismiss();
+              toast({ title: "Requesting public key..." });
+
+              if (!connection) throw new Error("No active connection to device");
+
+              if (typeof connection.sendPacket === "function") {
+                await connection.sendPacket(
+                  new Uint8Array(),
+                  Protobuf.Portnums.PortNum.NODEINFO_APP,
+                  otherNode.num,
+                  undefined,
+                  false,
+                  true,
+                );
+              } else if (typeof connection.getMetadata === "function") {
+                await connection.getMetadata(otherNode.num);
+              } else {
+                throw new Error("NodeInfo request not available on this connection");
+              }
+
+              toast({ title: "Request sent" });
+            } catch (err) {
+              console.warn("public key request failed", err);
+              toast({ title: "Failed to request public key" });
+            }
+          }}
+        >
+          Request public key
+        </ToastAction>
+      ),
+    });
+  };
+
+  const directMessageStatusButton =
+    isDirect && otherNode ? (
+      <button
+        type="button"
+        onClick={handleEncryptionStatusClick}
+        className="inline-flex size-9 items-center justify-center rounded-full text-foreground transition-colors duration-200 hover:bg-slate-100 dark:hover:bg-[#2f2f2f]"
+        aria-label="Direct message encryption status"
+      >
+        {directMessageHasPublicKey ? (
+          <LockIcon className="h-5 w-5 text-green-600" />
+        ) : (
+          <LockOpenIcon className="h-5 w-5 text-yellow-300" />
+        )}
+      </button>
+    ) : null;
+
   return (
     <PageLayout
       label={`${t("page.title", {
@@ -835,71 +907,11 @@ export const MessagesPage = () => {
       leftBar={leftSidebar}
       mobileSubNav={undefined}
       headerContent={<GatewayHeader />}
-      actions={
-        isDirect && otherNode
-          ? [
-              {
-                key: "encryption",
-                icon: directMessageHasPublicKey ? LockIcon : LockOpenIcon,
-                iconClasses: directMessageHasPublicKey ? "text-green-600" : "text-yellow-300",
-                onClick() {
-                  if (directMessageHasPublicKey) {
-                    toast({
-                      title: "This node has a public key for direct messages",
-                      variant: "default",
-                    });
-                    return;
-                  }
-
-                  // Offer a CTA to request the public key from the remote node
-                  let toastRef: ReturnType<typeof toast> | undefined;
-                  toastRef = toast({
-                    title: "Direct messages require a public key",
-                    description: directMessageBlockDescription,
-                    variant: "destructive",
-                    action: (
-                      <ToastAction
-                        altText="Request public key"
-                        onClick={async () => {
-                          try {
-                            toastRef?.dismiss();
-                            toast({ title: "Requesting public key..." });
-
-                            if (!connection) throw new Error("No active connection to device");
-
-                            if (typeof connection.sendPacket === "function") {
-                              await connection.sendPacket(
-                                new Uint8Array(),
-                                Protobuf.Portnums.PortNum.NODEINFO_APP,
-                                otherNode!.num,
-                                undefined,
-                                false,
-                                true,
-                              );
-                            } else if (typeof connection.getMetadata === "function") {
-                              await connection.getMetadata(otherNode!.num);
-                            } else {
-                              throw new Error("NodeInfo request not available on this connection");
-                            }
-
-                            toast({ title: "Request sent" });
-                          } catch (err) {
-                            console.warn("public key request failed", err);
-                            toast({ title: "Failed to request public key" });
-                          }
-                        }}
-                      >
-                        Request public key
-                      </ToastAction>
-                    ),
-                  });
-                },
-              },
-            ]
-          : []
-      }
     >
       <div className="hidden flex-1 flex-col overflow-hidden md:flex">
+        {directMessageStatusButton ? (
+          <div className="flex justify-end px-2 py-1">{directMessageStatusButton}</div>
+        ) : null}
         {renderChatContent()}
 
         <div className="flex-none dark:bg-slate-900 p-2">
@@ -948,6 +960,7 @@ export const MessagesPage = () => {
                     : t("emptyState.title")}
               </div>
               <div className="ml-auto flex shrink-0 items-center gap-2">
+                {directMessageStatusButton}
                 <FolderArchive className="size-6 text-zinc-400" aria-hidden="true" />
                 <Switch
                   checked={mobileCompressionEnabled}
@@ -960,7 +973,7 @@ export const MessagesPage = () => {
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {renderChatContent()}
             </div>
-            <div className="flex-none bg-background-primary p-2 dark:bg-[#101010]">
+            <div className="flex-none bg-background-primary p-2 pb-[calc(env(safe-area-inset-bottom)+2.75rem)] dark:bg-[#101010]">
               <MessageInput
                 to={isDirect ? numericChatId : MessageType.Broadcast}
                 onSend={sendText}

@@ -402,7 +402,7 @@ export function App() {
         </Suspense>
       ) : null}
       <DeviceWrapper deviceId={selectedDeviceId}>
-        <div className="mobile-viewport-fill flex h-full min-h-0 w-full flex-col bg-background-primary text-text-primary">
+        <div className="mobile-viewport-fill flex h-full min-h-0 w-full flex-col bg-background-primary pb-12 text-text-primary md:pb-10">
           <SidebarProvider>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {isConnectionsRoute ? (
@@ -434,10 +434,8 @@ export function App() {
               )}
             </div>
           </SidebarProvider>
-          <div className="shrink-0 border-t border-slate-300 bg-background-primary dark:border-slate-700">
-            <Footer />
-          </div>
         </div>
+        <Footer />
       </DeviceWrapper>
     </ErrorBoundary>
   ); // </ThemeProvider>
