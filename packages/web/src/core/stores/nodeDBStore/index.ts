@@ -379,6 +379,7 @@ function nodeDBFactory(
       const nowSec = Math.floor(Date.now() / 1000);
       const cutoffSec = nowSec - NODE_RETENTION_DAYS * 24 * 60 * 60;
       let prunedCount = 0;
+      const prunedNodeNums: number[] = [];
 
       set(
         produce<PrivateNodeDBState>((draft) => {
@@ -405,6 +406,7 @@ function nodeDBFactory(
               newNodeMap.set(nodeNum, node);
             } else {
               prunedCount++;
+              prunedNodeNums.push(nodeNum);
               console.log(
                 `[NodeDB] Pruning stale node ${nodeNum} (last heard ${Math.floor((nowSec - node.lastHeard) / 86400)} days ago)`,
               );
@@ -418,6 +420,13 @@ function nodeDBFactory(
       if (prunedCount > 0) {
         console.log(
           `[NodeDB] Pruned ${prunedCount} stale node(s) older than ${NODE_RETENTION_DAYS} days`,
+        );
+        void Promise.all(
+          prunedNodeNums.map((nodeNum) =>
+            nodeinfoPersistence
+              .deleteNode(id, nodeNum)
+              .catch((_e) => console.warn("nodeinfoPersistence.deleteNode failed", _e)),
+          ),
         );
       }
 
@@ -437,6 +446,7 @@ function nodeDBFactory(
       const nowSec = Math.floor(Date.now() / 1000);
       const cutoffSec = nowSec - days * 24 * 60 * 60;
       let prunedCount = 0;
+      const prunedNodeNums: number[] = [];
 
       set(
         produce<PrivateNodeDBState>((draft) => {
@@ -458,6 +468,7 @@ function nodeDBFactory(
               newNodeMap.set(nodeNum, node);
             } else {
               prunedCount++;
+              prunedNodeNums.push(nodeNum);
               console.log(
                 `[NodeDB] Pruning stale node ${nodeNum} (last heard ${Math.floor((nowSec - node.lastHeard) / 86400)} days ago)`,
               );
@@ -470,6 +481,13 @@ function nodeDBFactory(
 
       if (prunedCount > 0) {
         console.log(`[NodeDB] Pruned ${prunedCount} stale node(s) older than ${days} days`);
+        void Promise.all(
+          prunedNodeNums.map((nodeNum) =>
+            nodeinfoPersistence
+              .deleteNode(id, nodeNum)
+              .catch((_e) => console.warn("nodeinfoPersistence.deleteNode failed", _e)),
+          ),
+        );
       }
 
       return prunedCount;

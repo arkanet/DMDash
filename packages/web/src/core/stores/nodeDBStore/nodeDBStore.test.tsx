@@ -1,10 +1,10 @@
 import { create } from "@bufbuild/protobuf";
 import { Protobuf } from "@meshtastic/core";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { toByteArray } from "base64-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const idbMem = new Map<string, string>();
+const idbMem = new Map<string, any>();
 vi.mock("idb-keyval", () => ({
   get: vi.fn((key: string) => Promise.resolve(idbMem.get(key))),
   set: vi.fn((key: string, val: string) => {
@@ -296,14 +296,24 @@ describe("NodeDB store", () => {
     expect(filtered.map((n) => n.num).sort()).toEqual([12]); // still excludes 11
   });
 
-  it("will prune nodes after 14 days of inactivitiy", async () => {
+  it("will prune nodes after 14 days of inactivity and clear persisted entries", async () => {
     const { useNodeDBStore } = await freshStore();
     const st = useNodeDBStore.getState();
-    st.addNodeDB(1).addNode(makeNode(1, { lastHeard: Date.now() / 1000 - 15 * 24 * 3600 })); // 15 days ago
-    st.addNodeDB(1).addNode(makeNode(2, { lastHeard: Date.now() / 1000 - 7 * 24 * 3600 })); // 7 days ago
+    const nowSec = Math.floor(Date.now() / 1000);
+    const db = st.addNodeDB(1);
+    db.processPacket({ from: 1, time: nowSec - 15 * 24 * 3600 } as any); // 15 days ago
+    db.processPacket({ from: 2, time: nowSec - 7 * 24 * 3600 } as any); // 7 days ago
 
-    st.getNodeDB(1)!.pruneStaleNodes();
-    expect(st.getNodeDB(1)?.getNode(2)).toBeDefined();
+    await Promise.resolve();
+    idbMem.set("nodeinfo:1:1", makeNode(1));
+    idbMem.set("nodeinfo:1:2", makeNode(2));
+    idbMem.set("nodeinfo:index:1", [1, 2]);
+
+    expect(db.pruneStaleNodes()).toBe(1);
+    expect(db.getNode(1)).toBeUndefined();
+    expect(db.getNode(2)).toBeDefined();
+    await waitFor(() => expect(idbMem.has("nodeinfo:1:1")).toBe(false));
+    expect(idbMem.has("nodeinfo:1:2")).toBe(true);
   });
 
   it("removeNodeDB persists removal across reload", async () => {
