@@ -244,7 +244,7 @@ export default function GuidePage({ variant = "landing" }: GuidePageProps) {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#090909] px-6 text-zinc-100">
+      <div className="flex min-h-full flex-1 items-center justify-center bg-[#090909] px-6 py-6 text-zinc-100">
         <div className="max-w-xl rounded-[28px] border border-white/10 bg-[#141414]/92 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
           <h1 className="text-2xl font-semibold text-white">Guide unavailable</h1>
           <p className="mt-3 text-sm leading-6 text-zinc-300">
@@ -266,18 +266,18 @@ export default function GuidePage({ variant = "landing" }: GuidePageProps) {
 
   if (!srcDoc) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#090909] px-6 text-zinc-200">
+      <div className="flex min-h-full flex-1 items-center justify-center bg-[#090909] px-6 py-6 text-zinc-200">
         <p className="text-sm uppercase tracking-[0.18em] text-zinc-400">Loading guide</p>
       </div>
     );
   }
 
   return (
-    <div className="guide-viewport flex min-h-screen w-screen flex-1 bg-[#090909]">
+    <div className="guide-viewport flex min-h-0 flex-1 bg-[#090909] pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
       <iframe
         title={config.title}
         srcDoc={srcDoc}
-        className="guide-frame h-screen w-full border-0 bg-[#090909]"
+        className="guide-frame h-full min-h-0 w-full border-0 bg-[#090909]"
       />
     </div>
   );
