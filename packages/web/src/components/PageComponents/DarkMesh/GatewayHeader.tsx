@@ -425,7 +425,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
         >
           <div
             className={cn(
-              "truncate text-[0.8rem] font-semibold md:text-[1rem]",
+              "text-[0.8rem] font-semibold md:text-[1rem]",
               isDarkTheme ? "text-zinc-100" : "text-gray-800",
             )}
             style={{
