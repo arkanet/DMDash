@@ -57,7 +57,7 @@ const DARKMESH_RETURN_LINKS = [
 export const Connections = () => {
   const {
     connections,
-    addConnection,
+    addConnectionAndConnect,
     connect,
     disconnect,
     removeConnection,
@@ -245,13 +245,23 @@ export const Connections = () => {
                   if (ok) {
                     setPendingNavigationConnectionId(c.id);
                   }
+                  const waitsForDeviceConfiguration = c.type === "bluetooth" || c.type === "serial";
                   toast({
-                    title: ok ? t("toasts.connected") : t("toasts.failed"),
+                    title: ok
+                      ? waitsForDeviceConfiguration
+                        ? t("toasts.connecting", "Connecting")
+                        : t("toasts.connected")
+                      : t("toasts.failed"),
                     description: ok
-                      ? t("toasts.nowConnected", {
-                          name: c.name,
-                          interpolation: { escapeValue: false },
-                        })
+                      ? waitsForDeviceConfiguration
+                        ? t(
+                            "toasts.configuringDevice",
+                            "Completing pairing and device configuration.",
+                          )
+                        : t("toasts.nowConnected", {
+                            name: c.name,
+                            interpolation: { escapeValue: false },
+                          })
                       : t("toasts.checkConnection"),
                   });
                 }}
@@ -288,29 +298,30 @@ export const Connections = () => {
                 }}
                 onRetry={async () => {
                   const ok = await connect(c.id, {
-                    allowPrompt: c.type !== "bluetooth",
+                    allowPrompt: true,
                     reconnect: true,
                   });
                   if (ok) {
                     setPendingNavigationConnectionId(c.id);
                   }
+                  const waitsForDeviceConfiguration = c.type === "bluetooth" || c.type === "serial";
                   toast({
-                    title:
-                      ok || c.type !== "bluetooth"
-                        ? ok
-                          ? t("toasts.connected")
-                          : t("toasts.failed")
-                        : t("toasts.reconnecting", "Reconnecting"),
+                    title: ok
+                      ? waitsForDeviceConfiguration
+                        ? t("toasts.reconnecting", "Reconnecting")
+                        : t("toasts.connected")
+                      : t("toasts.failed"),
                     description: ok
-                      ? t("toasts.nowConnected", {
-                          name: c.name,
-                          interpolation: { escapeValue: false },
-                        })
-                      : c.type === "bluetooth"
-                        ? t("toasts.retryingAuthorizedDevice", {
-                            defaultValue: "Retrying on the previously authorized Bluetooth device.",
+                      ? waitsForDeviceConfiguration
+                        ? t(
+                            "toasts.configuringDevice",
+                            "Completing pairing and device configuration.",
+                          )
+                        : t("toasts.nowConnected", {
+                            name: c.name,
+                            interpolation: { escapeValue: false },
                           })
-                        : t("toasts.pickConnectionAgain"),
+                      : t("toasts.checkConnection"),
                   });
                 }}
               />
@@ -325,8 +336,16 @@ export const Connections = () => {
               onOpenChange={setAddOpen}
               isHTTPS={isURLHTTPS}
               onSave={async (partial, btDevice) => {
-                const created = addConnection(partial, btDevice);
+                const created = await addConnectionAndConnect(partial, btDevice);
                 setAddOpen(false);
+                if (!created) {
+                  toast({
+                    title: t("toasts.failed"),
+                    description: t("toasts.checkConnection"),
+                  });
+                  return;
+                }
+                setPendingNavigationConnectionId(created.id);
                 toast({
                   title: t("toasts.added"),
                   description: t("toasts.savedByName", {

@@ -24,6 +24,8 @@ const transports = new Map<ConnectionId, BluetoothDevice | SerialPort>();
 const heartbeats = new Map<ConnectionId, ReturnType<typeof setInterval>>();
 const connectionSubscriptions = new Map<ConnectionId, () => void>();
 const connectionReconnectTimers = new Map<ConnectionId, ReturnType<typeof setTimeout>>();
+const connectionReconnectAttempts = new Map<ConnectionId, number>();
+const connectionReconnectStartedAt = new Map<ConnectionId, number>();
 const bluetoothDisconnectListeners = new Map<
   ConnectionId,
   { device: BluetoothDevice; listener: EventListener }
@@ -33,9 +35,11 @@ const backgroundReconnects = new Set<ConnectionId>();
 
 const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const CONFIG_HEARTBEAT_INTERVAL_MS = 5000; // 5s during configuration
-const CONNECTION_RECONNECT_DELAY_MS = 1500;
-const BLUETOOTH_RECONNECT_MESSAGE =
-  "Bluetooth Device is no longer in range. Reconnecting automatically.";
+const CONNECTION_RECONNECT_INITIAL_DELAY_MS = 2500;
+const CONNECTION_RECONNECT_MAX_DELAY_MS = 15_000;
+const CONNECTION_RECONNECT_JITTER_MS = 750;
+const CONNECTION_RECONNECT_TIMEOUT_MS = 3 * 60 * 1000;
+const BLUETOOTH_RECONNECT_MESSAGE = "Bluetooth connection dropped. Reconnecting automatically.";
 const EXPECTED_RECONNECT_MESSAGE = "Device reboot in progress. Reconnecting automatically.";
 const CONNECTION_LOST_MESSAGE = "Connection lost.";
 
@@ -52,8 +56,11 @@ function isExpectedReconnectActive(connection: Connection | undefined): boolean 
 }
 
 function shouldAutoReconnect(connection: Connection | undefined): boolean {
+  const hasEstablishedBluetoothSession =
+    connection?.type === "bluetooth" && Boolean(connection.lastConnectedAt);
+
   return Boolean(
-    connection && (connection.type === "bluetooth" || isExpectedReconnectActive(connection)),
+    connection && (hasEstablishedBluetoothSession || isExpectedReconnectActive(connection)),
   );
 }
 
@@ -78,6 +85,56 @@ function clearConnectionReconnect(id: ConnectionId): void {
   backgroundReconnects.delete(id);
 }
 
+function resetConnectionReconnect(id: ConnectionId): void {
+  clearConnectionReconnect(id);
+  connectionReconnectAttempts.delete(id);
+  connectionReconnectStartedAt.delete(id);
+}
+
+function getNextConnectionReconnectDelay(id: ConnectionId): number {
+  const attempt = connectionReconnectAttempts.get(id) ?? 0;
+  connectionReconnectAttempts.set(id, attempt + 1);
+
+  const backoffDelay = Math.min(
+    CONNECTION_RECONNECT_INITIAL_DELAY_MS * 2 ** attempt,
+    CONNECTION_RECONNECT_MAX_DELAY_MS,
+  );
+  const jitter = Math.floor(Math.random() * CONNECTION_RECONNECT_JITTER_MS);
+
+  return backoffDelay + jitter;
+}
+
+function startConnectionReconnectWindow(id: ConnectionId): void {
+  if (!connectionReconnectStartedAt.has(id)) {
+    connectionReconnectStartedAt.set(id, Date.now());
+  }
+}
+
+function hasConnectionReconnectTimedOut(
+  id: ConnectionId,
+  connection: Connection | undefined,
+): boolean {
+  if (!connection || isExpectedReconnectActive(connection)) {
+    return false;
+  }
+
+  const startedAt = connectionReconnectStartedAt.get(id);
+  return Boolean(startedAt && Date.now() - startedAt >= CONNECTION_RECONNECT_TIMEOUT_MS);
+}
+
+function getReconnectTimeoutMessage(connection: Connection | undefined): string {
+  if (connection?.type === "bluetooth") {
+    return "Automatic Bluetooth reconnect timed out. Move closer to the device or re-select it.";
+  }
+
+  return "Automatic reconnect timed out.";
+}
+
+function isPromptRequiredReconnectError(error: unknown): boolean {
+  const message = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
+  return /bluetooth device not available|serial port not available|notfounderror/i.test(message);
+}
+
 function removeBluetoothDisconnectListener(id: ConnectionId): void {
   const registered = bluetoothDisconnectListeners.get(id);
   if (!registered) {
@@ -96,6 +153,22 @@ function setBluetoothDisconnectListener(
   removeBluetoothDisconnectListener(id);
   device.addEventListener("gattserverdisconnected", listener);
   bluetoothDisconnectListeners.set(id, { device, listener });
+}
+
+function stopHeartbeat(id: ConnectionId): void {
+  const heartbeatId = heartbeats.get(id);
+  if (!heartbeatId) {
+    return;
+  }
+
+  clearInterval(heartbeatId);
+  heartbeats.delete(id);
+  console.log(`[useConnections] Heartbeat stopped for connection ${id}`);
+}
+
+function replaceHeartbeat(id: ConnectionId, heartbeatId: ReturnType<typeof setInterval>): void {
+  stopHeartbeat(id);
+  heartbeats.set(id, heartbeatId);
 }
 
 export function useConnections() {
@@ -118,12 +191,7 @@ export function useConnections() {
   );
 
   const stopConnectionTasks = useCallback((id: ConnectionId) => {
-    const heartbeatId = heartbeats.get(id);
-    if (heartbeatId) {
-      clearInterval(heartbeatId);
-      heartbeats.delete(id);
-      console.log(`[useConnections] Heartbeat stopped for connection ${id}`);
-    }
+    stopHeartbeat(id);
 
     const unsubscribeConnectionEvents = connectionSubscriptions.get(id);
     if (unsubscribeConnectionEvents) {
@@ -138,11 +206,14 @@ export function useConnections() {
       const updates: Partial<Connection> = {
         status,
         error: error || undefined,
-        ...(status === "disconnected" ? { lastConnectedAt: Date.now() } : {}),
+        ...(status === "configured" ? { lastConnectedAt: Date.now() } : {}),
         ...(status === "configured"
           ? { expectedReconnectUntil: undefined, expectedReconnectReason: undefined }
           : {}),
       };
+      if (status === "configured") {
+        resetConnectionReconnect(id);
+      }
       updateSavedConnection(id, updates);
     },
     [updateSavedConnection],
@@ -151,7 +222,7 @@ export function useConnections() {
   const removeConnection = useCallback(
     async (id: ConnectionId) => {
       userDisconnects.add(id);
-      clearConnectionReconnect(id);
+      resetConnectionReconnect(id);
       removeBluetoothDisconnectListener(id);
 
       const conn = useDeviceStore
@@ -223,6 +294,7 @@ export function useConnections() {
       stopConnectionTasks(id);
       const state = useDeviceStore.getState();
       const conn = state.getSavedConnections().find((c) => c.id === id);
+      const shouldReconnect = shouldAutoReconnect(conn);
 
       if (conn?.meshDeviceId) {
         const device = state.getDevice(conn.meshDeviceId);
@@ -238,7 +310,7 @@ export function useConnections() {
       }
 
       updateSavedConnection(id, {
-        status: "error",
+        status: shouldReconnect ? "reconnecting" : "error",
         error,
       });
     },
@@ -251,7 +323,10 @@ export function useConnections() {
         return;
       }
 
+      startConnectionReconnectWindow(id);
+
       const queueReconnect = () => {
+        const reconnectDelay = getNextConnectionReconnectDelay(id);
         const timer = setTimeout(() => {
           connectionReconnectTimers.delete(id);
 
@@ -264,6 +339,15 @@ export function useConnections() {
             .getSavedConnections()
             .find((c) => c.id === id);
           if (!conn || !shouldAutoReconnect(conn)) {
+            return;
+          }
+
+          if (hasConnectionReconnectTimedOut(id, conn)) {
+            resetConnectionReconnect(id);
+            updateSavedConnection(id, {
+              status: "error",
+              error: getReconnectTimeoutMessage(conn),
+            });
             return;
           }
 
@@ -300,21 +384,26 @@ export function useConnections() {
                 .getState()
                 .getSavedConnections()
                 .find((connection) => connection.id === id);
-              if (!ok && !userDisconnects.has(id) && shouldAutoReconnect(currentConnection)) {
+              if (
+                !ok &&
+                !userDisconnects.has(id) &&
+                shouldAutoReconnect(currentConnection) &&
+                !hasConnectionReconnectTimedOut(id, currentConnection)
+              ) {
                 queueReconnect();
               }
             })
             .finally(() => {
               backgroundReconnects.delete(id);
             });
-        }, CONNECTION_RECONNECT_DELAY_MS);
+        }, reconnectDelay);
 
         connectionReconnectTimers.set(id, timer);
       };
 
       queueReconnect();
     },
-    [connectRef],
+    [connectRef, updateSavedConnection],
   );
 
   const handleBluetoothGattDisconnect = useCallback(
@@ -329,10 +418,26 @@ export function useConnections() {
         .getState()
         .getSavedConnections()
         .find((connection) => connection.id === id);
+      const linkedDevice = currentConnection?.meshDeviceId
+        ? useDeviceStore.getState().getDevice(currentConnection.meshDeviceId)
+        : undefined;
+      const hasConfiguredRuntime =
+        currentConnection?.status === "configured" ||
+        linkedDevice?.connectionPhase === "configured";
+
+      if (!currentConnection || !hasConfiguredRuntime || !shouldAutoReconnect(currentConnection)) {
+        updateSavedConnection(id, {
+          status: "error",
+          error: CONNECTION_LOST_MESSAGE,
+        });
+        resetConnectionReconnect(id);
+        return;
+      }
+
       markConnectionLost(id, getConnectionLostMessage(currentConnection));
       scheduleConnectionReconnect(id);
     },
-    [markConnectionLost, scheduleConnectionReconnect],
+    [markConnectionLost, scheduleConnectionReconnect, updateSavedConnection],
   );
 
   const setupMeshDevice = useCallback(
@@ -345,6 +450,7 @@ export function useConnections() {
         | Awaited<ReturnType<typeof TransportWebSerial.createFromPort>>,
       btDevice?: BluetoothDevice,
       serialPort?: SerialPort,
+      autoReconnectDuringSetup = false,
     ): number => {
       stopConnectionTasks(id);
 
@@ -359,11 +465,33 @@ export function useConnections() {
         deviceId = undefined;
       }
       deviceId = deviceId ?? randId();
+      const linkedDeviceId = deviceId;
 
       const device = addDevice(deviceId);
       const nodeDB = addNodeDB(deviceId);
       const messageStore = addMessageStore(deviceId);
       const meshDevice = new MeshDevice(transport, deviceId);
+      const getCurrentRuntimeState = () => {
+        const state = useDeviceStore.getState();
+        const currentConnection = state
+          .getSavedConnections()
+          .find((connection) => connection.id === id);
+        const currentDevice = state.getDevice(linkedDeviceId);
+
+        return { currentConnection, currentDevice };
+      };
+      const isCurrentRuntimeConfigured = () => {
+        const { currentConnection, currentDevice } = getCurrentRuntimeState();
+
+        return (
+          currentConnection?.status === "configured" ||
+          currentDevice?.connectionPhase === "configured"
+        );
+      };
+      const shouldReconnectAfterRuntimeDisconnect = (currentConnection: Connection) =>
+        shouldAutoReconnect(currentConnection) &&
+        !userDisconnects.has(id) &&
+        (autoReconnectDuringSetup || isCurrentRuntimeConfigured());
       const handleRuntimeDisconnect = () => {
         const currentConnection = useDeviceStore
           .getState()
@@ -374,15 +502,23 @@ export function useConnections() {
           return;
         }
 
+        const shouldReconnect = shouldReconnectAfterRuntimeDisconnect(currentConnection);
+        if (!shouldReconnect && !isCurrentRuntimeConfigured()) {
+          device.setConnectionPhase("disconnected");
+          updateStatus(id, "error", CONNECTION_LOST_MESSAGE);
+          resetConnectionReconnect(id);
+          return;
+        }
+
         if (currentConnection.status === "error" || currentConnection.status === "reconnecting") {
-          if (shouldAutoReconnect(currentConnection)) {
+          if (shouldReconnect) {
             scheduleConnectionReconnect(id);
           }
           return;
         }
 
         markConnectionLost(id, getConnectionLostMessage(currentConnection));
-        if (shouldAutoReconnect(currentConnection)) {
+        if (shouldReconnect) {
           scheduleConnectionReconnect(id);
         }
       };
@@ -396,8 +532,18 @@ export function useConnections() {
           return;
         }
 
+        const shouldReconnect = shouldReconnectAfterRuntimeDisconnect(currentConnection);
+        if (!shouldReconnect && !isCurrentRuntimeConfigured()) {
+          const message = error instanceof Error ? error.message : CONNECTION_LOST_MESSAGE;
+          device.setConnectionPhase("disconnected");
+          updateStatus(id, "error", message);
+          resetConnectionReconnect(id);
+          console.warn(`[useConnections] ${label}:`, error);
+          return;
+        }
+
         markConnectionLost(id, getConnectionLostMessage(currentConnection));
-        if (shouldAutoReconnect(currentConnection)) {
+        if (shouldReconnect) {
           scheduleConnectionReconnect(id);
         }
         console.warn(`[useConnections] ${label}:`, error);
@@ -417,8 +563,8 @@ export function useConnections() {
       const isReconnectAttempt = conn?.status === "reconnecting";
       setActiveConnectionId(id);
       device.setConnectionId(id);
-      device.setConnectionPhase("connecting");
-      updateStatus(id, isReconnectAttempt ? "reconnecting" : "connected");
+      device.setConnectionPhase("configuring");
+      updateStatus(id, isReconnectAttempt ? "reconnecting" : "configuring");
 
       // Listen for config complete event (with nonce/ID)
       const unsubConfigComplete = meshDevice.events.onConfigComplete.subscribe(
@@ -428,18 +574,15 @@ export function useConnections() {
           updateStatus(id, "configured");
 
           // Switch from fast config heartbeat to slow maintenance heartbeat
-          const oldHeartbeat = heartbeats.get(id);
-          if (oldHeartbeat) {
-            clearInterval(oldHeartbeat);
-            console.log(`[useConnections] Switching to maintenance heartbeat (5 min interval)`);
-          }
-
-          const maintenanceHeartbeat = setInterval(() => {
-            meshDevice.heartbeat().catch((error) => {
-              handleHeartbeatFailure(error, "Heartbeat failed");
-            });
-          }, HEARTBEAT_INTERVAL_MS);
-          heartbeats.set(id, maintenanceHeartbeat);
+          console.log(`[useConnections] Switching to maintenance heartbeat (5 min interval)`);
+          replaceHeartbeat(
+            id,
+            setInterval(() => {
+              meshDevice.heartbeat().catch((error) => {
+                handleHeartbeatFailure(error, "Heartbeat failed");
+              });
+            }, HEARTBEAT_INTERVAL_MS),
+          );
         },
       );
       const unsubDeviceStatus = meshDevice.events.onDeviceStatus.subscribe((status) => {
@@ -459,34 +602,44 @@ export function useConnections() {
           .find((connection) => connection.id === id);
         if (
           !currentConnection ||
-          (currentConnection.status !== "connected" && currentConnection.status !== "reconnecting")
+          (currentConnection.status !== "configuring" &&
+            currentConnection.status !== "reconnecting")
         ) {
           return;
         }
 
-        // Start configuration after the UI has observed the connected state.
-        device.setConnectionPhase("configuring");
-        updateStatus(
-          id,
-          currentConnection.status === "reconnecting" ? "reconnecting" : "configuring",
-        );
         console.log("[useConnections] Starting configuration");
 
         meshDevice
           .configure()
           .then(() => {
-            console.log("[useConnections] Configuration complete, starting heartbeat");
+            if (userDisconnects.has(id) || isCurrentRuntimeConfigured()) {
+              console.log(
+                "[useConnections] Configuration request settled after config complete; keeping maintenance heartbeat",
+              );
+              return;
+            }
+
+            console.log(
+              "[useConnections] Configuration request settled, starting config heartbeat",
+            );
             // Send initial heartbeat after configure completes
             meshDevice
               .heartbeat()
               .then(() => {
+                if (userDisconnects.has(id) || isCurrentRuntimeConfigured()) {
+                  return;
+                }
+
                 // Start fast heartbeat after first successful heartbeat
-                const configHeartbeatId = setInterval(() => {
-                  meshDevice.heartbeat().catch((error) => {
-                    handleHeartbeatFailure(error, "Config heartbeat failed");
-                  });
-                }, CONFIG_HEARTBEAT_INTERVAL_MS);
-                heartbeats.set(id, configHeartbeatId);
+                replaceHeartbeat(
+                  id,
+                  setInterval(() => {
+                    meshDevice.heartbeat().catch((error) => {
+                      handleHeartbeatFailure(error, "Config heartbeat failed");
+                    });
+                  }, CONFIG_HEARTBEAT_INTERVAL_MS),
+                );
                 console.log(
                   `[useConnections] Heartbeat started for connection ${id} (5s interval during config)`,
                 );
@@ -502,6 +655,7 @@ export function useConnections() {
               .find((connection) => connection.id === id);
             if (
               currentConnection &&
+              autoReconnectDuringSetup &&
               shouldAutoReconnect(currentConnection) &&
               !userDisconnects.has(id)
             ) {
@@ -553,7 +707,7 @@ export function useConnections() {
 
       userDisconnects.delete(id);
       if (!opts?.background) {
-        clearConnectionReconnect(id);
+        resetConnectionReconnect(id);
       }
       const nextStatus: ConnectionStatus =
         opts?.reconnect || opts?.background || conn.status === "error"
@@ -576,7 +730,7 @@ export function useConnections() {
           const url = new URL(conn.url);
           const isTLS = url.protocol === "https:";
           const transport = await TransportHTTP.create(url.host, isTLS);
-          setupMeshDevice(id, transport);
+          setupMeshDevice(id, transport, undefined, undefined, opts?.background);
           clearConnectionReconnect(id);
           // Status will be set to "configured" by onConfigComplete event
           return true;
@@ -584,7 +738,7 @@ export function useConnections() {
 
         if (conn.type === "tcp") {
           const transport = await TransportTCPBridge.create(conn.host, conn.port);
-          setupMeshDevice(id, transport);
+          setupMeshDevice(id, transport, undefined, undefined, opts?.background);
           clearConnectionReconnect(id);
           return true;
         }
@@ -622,7 +776,7 @@ export function useConnections() {
           }
 
           const transport = await TransportWebBluetooth.createFromDevice(bleDevice);
-          setupMeshDevice(id, transport, bleDevice);
+          setupMeshDevice(id, transport, bleDevice, undefined, opts?.background);
           setBluetoothDisconnectListener(id, bleDevice, () => handleBluetoothGattDisconnect(id));
           clearConnectionReconnect(id);
 
@@ -688,7 +842,7 @@ export function useConnections() {
           }
 
           const transport = await TransportWebSerial.createFromPort(port);
-          setupMeshDevice(id, transport, undefined, port);
+          setupMeshDevice(id, transport, undefined, port, opts?.background);
           clearConnectionReconnect(id);
           // Status will be set to "configured" by onConfigComplete event
           return true;
@@ -703,14 +857,30 @@ export function useConnections() {
               : err instanceof Error
                 ? err.message
                 : String(err);
-        updateStatus(id, "error", message);
         const currentConnection =
           useDeviceStore
             .getState()
             .getSavedConnections()
             .find((connection) => connection.id === id) ?? conn;
-        if (shouldAutoReconnect(currentConnection) && !userDisconnects.has(id)) {
+        const reconnectTimedOut = hasConnectionReconnectTimedOut(id, currentConnection);
+        const needsPrompt = isPromptRequiredReconnectError(err);
+        const canContinueAutomaticReconnect =
+          Boolean(opts?.background) || isExpectedReconnectActive(currentConnection);
+        const shouldReconnect =
+          canContinueAutomaticReconnect &&
+          shouldAutoReconnect(currentConnection) &&
+          !userDisconnects.has(id) &&
+          !reconnectTimedOut &&
+          !needsPrompt;
+        updateStatus(
+          id,
+          shouldReconnect ? "reconnecting" : "error",
+          reconnectTimedOut ? getReconnectTimeoutMessage(currentConnection) : message,
+        );
+        if (shouldReconnect) {
           scheduleConnectionReconnect(id);
+        } else {
+          resetConnectionReconnect(id);
         }
         return false;
       }
@@ -727,7 +897,7 @@ export function useConnections() {
         return;
       }
       userDisconnects.add(id);
-      clearConnectionReconnect(id);
+      resetConnectionReconnect(id);
       removeBluetoothDisconnectListener(id);
 
       try {

@@ -11,6 +11,23 @@ function toArrayBuffer(uint8array: Uint8Array): ArrayBuffer {
   return uint8array.slice().buffer;
 }
 
+const READ_RETRY_DELAYS_MS = [250, 750, 1500] as const;
+const ANDROID_GATT_CONNECT_SETTLE_MS = 500;
+const ANDROID_GATT_OPERATION_SETTLE_MS = 200;
+const ANDROID_LOG_NOTIFICATION_DELAY_MS = 10_000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isAndroidBluetoothHost(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    typeof navigator.userAgent === "string" &&
+    /android/i.test(navigator.userAgent)
+  );
+}
+
 /**
  * Provides Web Bluetooth transport for Meshtastic devices.
  *
@@ -34,6 +51,10 @@ export class TransportWebBluetooth implements Types.Transport {
   private closingByUser = false;
   private reading = false;
   private readQueued = false;
+  private readRetryTimer?: ReturnType<typeof setTimeout>;
+  private consecutiveReadErrors = 0;
+  private gattOperationQueue: Promise<void> = Promise.resolve();
+  private logNotificationTimer?: ReturnType<typeof setTimeout>;
   /** UUID for the "toRadio" write characteristic. */
   static ToRadioUuid = "f75c76d2-129e-4dad-a1dd-7866124401e7";
   /** UUID for the "fromRadio" read characteristic. */
@@ -51,6 +72,8 @@ export class TransportWebBluetooth implements Types.Transport {
     if (this.closingByUser) {
       return;
     }
+    this.clearReadRetry();
+    this.clearLogNotificationTimer();
     this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "gatt-disconnected");
   };
   private onFromNumChanged = () => {
@@ -96,6 +119,9 @@ export class TransportWebBluetooth implements Types.Transport {
     if (!gattServer) {
       throw new Error("Failed to connect to GATT server");
     }
+    if (isAndroidBluetoothHost()) {
+      await delay(ANDROID_GATT_CONNECT_SETTLE_MS);
+    }
 
     const service = await gattServer.getPrimaryService(TransportWebBluetooth.ServiceUuid);
     const toRadioCharacteristic = await service.getCharacteristic(
@@ -107,15 +133,6 @@ export class TransportWebBluetooth implements Types.Transport {
     const fromNumCharacteristic = await service.getCharacteristic(
       TransportWebBluetooth.FromNumUuid,
     );
-    const logRadioCharacteristic =
-      (await TransportWebBluetooth.getOptionalCharacteristic(
-        service,
-        TransportWebBluetooth.LogRadioUuid,
-      )) ??
-      (await TransportWebBluetooth.getOptionalCharacteristic(
-        service,
-        TransportWebBluetooth.LegacyLogRadioUuid,
-      ));
 
     if (!toRadioCharacteristic || !fromRadioCharacteristic || !fromNumCharacteristic) {
       throw new Error("Failed to find required characteristics");
@@ -125,7 +142,7 @@ export class TransportWebBluetooth implements Types.Transport {
       toRadioCharacteristic,
       fromRadioCharacteristic,
       fromNumCharacteristic,
-      logRadioCharacteristic,
+      service,
       gattServer,
     );
   }
@@ -149,13 +166,12 @@ export class TransportWebBluetooth implements Types.Transport {
     toRadioCharacteristic: BluetoothRemoteGATTCharacteristic,
     fromRadioCharacteristic: BluetoothRemoteGATTCharacteristic,
     fromNumCharacteristic: BluetoothRemoteGATTCharacteristic,
-    logRadioCharacteristic: BluetoothRemoteGATTCharacteristic | undefined,
+    private meshtasticService: BluetoothRemoteGATTService,
     gattServer: BluetoothRemoteGATTServer,
   ) {
     this.toRadioCharacteristic = toRadioCharacteristic;
     this.fromRadioCharacteristic = fromRadioCharacteristic;
     this.fromNumCharacteristic = fromNumCharacteristic;
-    this.logRadioCharacteristic = logRadioCharacteristic;
     this.gattServer = gattServer;
 
     this._fromDevice = new ReadableStream<Types.DeviceOutput>({
@@ -170,11 +186,16 @@ export class TransportWebBluetooth implements Types.Transport {
             "characteristicvaluechanged",
             this.onFromNumChanged,
           );
-          await this.fromNumCharacteristic.startNotifications();
-          await this.startLogNotifications();
+          await this.runGattOperation(() => this.fromNumCharacteristic.startNotifications());
+          if (!isAndroidBluetoothHost()) {
+            await this.startLogNotifications();
+          }
           this.emitStatus(Types.DeviceStatusEnum.DeviceConnected);
           // prime once in case data already queued
           this.readFromRadio();
+          if (isAndroidBluetoothHost()) {
+            this.scheduleLogNotifications();
+          }
         } catch {
           this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "notify-failed");
           this.gattServer.device.removeEventListener(
@@ -193,7 +214,7 @@ export class TransportWebBluetooth implements Types.Transport {
       write: async (chunk) => {
         try {
           const ab = toArrayBuffer(chunk);
-          await this.toRadioCharacteristic.writeValue(ab);
+          await this.runGattOperation(() => this.toRadioCharacteristic.writeValue(ab));
           this.readFromRadio(); // ensure we read any response
         } catch (error) {
           this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "write-error");
@@ -219,10 +240,14 @@ export class TransportWebBluetooth implements Types.Transport {
   async disconnect(): Promise<void> {
     try {
       this.closingByUser = true;
+      this.clearReadRetry();
+      this.clearLogNotificationTimer();
       this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "user");
       try {
         if (this.gattServer.connected) {
-          await this.fromNumCharacteristic.stopNotifications?.();
+          await this.runGattOperation(async () => {
+            await this.fromNumCharacteristic.stopNotifications?.();
+          });
         }
       } catch {}
       this.fromNumCharacteristic.removeEventListener(
@@ -231,7 +256,9 @@ export class TransportWebBluetooth implements Types.Transport {
       );
       try {
         if (this.gattServer.connected) {
-          await this.logRadioCharacteristic?.stopNotifications?.();
+          await this.runGattOperation(async () => {
+            await this.logRadioCharacteristic?.stopNotifications?.();
+          });
         }
       } catch {}
       this.logRadioCharacteristic?.removeEventListener(
@@ -249,6 +276,24 @@ export class TransportWebBluetooth implements Types.Transport {
   }
 
   private async startLogNotifications(): Promise<void> {
+    if (!this.gattServer.connected || this.closingByUser) {
+      return;
+    }
+
+    this.logRadioCharacteristic =
+      (await this.runGattOperation(() =>
+        TransportWebBluetooth.getOptionalCharacteristic(
+          this.meshtasticService,
+          TransportWebBluetooth.LogRadioUuid,
+        ),
+      )) ??
+      (await this.runGattOperation(() =>
+        TransportWebBluetooth.getOptionalCharacteristic(
+          this.meshtasticService,
+          TransportWebBluetooth.LegacyLogRadioUuid,
+        ),
+      ));
+
     if (!this.logRadioCharacteristic) {
       return;
     }
@@ -258,7 +303,7 @@ export class TransportWebBluetooth implements Types.Transport {
         "characteristicvaluechanged",
         this.onLogRadioChanged,
       );
-      await this.logRadioCharacteristic.startNotifications();
+      await this.runGattOperation(() => this.logRadioCharacteristic!.startNotifications());
     } catch {
       this.logRadioCharacteristic.removeEventListener(
         "characteristicvaluechanged",
@@ -269,6 +314,11 @@ export class TransportWebBluetooth implements Types.Transport {
   }
 
   private readFromRadio(): void {
+    if (this.readRetryTimer) {
+      this.readQueued = true;
+      return;
+    }
+
     if (this.reading) {
       this.readQueued = true;
       return;
@@ -280,7 +330,8 @@ export class TransportWebBluetooth implements Types.Transport {
       try {
         let hasMoreData = true;
         while (hasMoreData && this.gattServer.connected && this.fromRadioCharacteristic) {
-          const value = await this.fromRadioCharacteristic.readValue();
+          const value = await this.runGattOperation(() => this.fromRadioCharacteristic.readValue());
+          this.consecutiveReadErrors = 0;
           if (value.byteLength === 0) {
             hasMoreData = false;
             continue;
@@ -292,15 +343,48 @@ export class TransportWebBluetooth implements Types.Transport {
         }
       } catch {
         if (!this.closingByUser) {
+          if (!this.gattServer.connected) {
+            this.clearReadRetry();
+            this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "read-error");
+            return;
+          }
+
+          const retryDelay = READ_RETRY_DELAYS_MS[this.consecutiveReadErrors];
+          this.consecutiveReadErrors += 1;
+
+          if (retryDelay !== undefined) {
+            this.readRetryTimer = setTimeout(() => {
+              this.readRetryTimer = undefined;
+              if (!this.closingByUser && this.gattServer.connected) {
+                this.readFromRadio();
+              }
+            }, retryDelay);
+            return;
+          }
+
+          this.clearReadRetry();
           this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "read-error");
         }
       } finally {
         this.reading = false;
-        if (this.readQueued && this.gattServer.connected) {
+        if (this.readQueued && this.gattServer.connected && !this.readRetryTimer) {
           this.readFromRadio();
         }
       }
     })();
+  }
+
+  private scheduleLogNotifications(): void {
+    if (this.logNotificationTimer || this.closingByUser || !this.gattServer.connected) {
+      return;
+    }
+
+    this.logNotificationTimer = setTimeout(() => {
+      this.logNotificationTimer = undefined;
+      if (!this.closingByUser && this.gattServer.connected) {
+        void this.startLogNotifications();
+      }
+    }, ANDROID_LOG_NOTIFICATION_DELAY_MS);
   }
 
   private emitStatus(next: Types.DeviceStatusEnum, reason?: string): void {
@@ -316,5 +400,38 @@ export class TransportWebBluetooth implements Types.Transport {
 
   private enqueue(output: Types.DeviceOutput): void {
     this.fromDeviceController?.enqueue(output);
+  }
+
+  private clearReadRetry(): void {
+    if (this.readRetryTimer) {
+      clearTimeout(this.readRetryTimer);
+      this.readRetryTimer = undefined;
+    }
+    this.readQueued = false;
+    this.consecutiveReadErrors = 0;
+  }
+
+  private clearLogNotificationTimer(): void {
+    if (this.logNotificationTimer) {
+      clearTimeout(this.logNotificationTimer);
+      this.logNotificationTimer = undefined;
+    }
+  }
+
+  private async runGattOperation<T>(operation: () => Promise<T | undefined>): Promise<T> {
+    const run = this.gattOperationQueue.then(async () => {
+      try {
+        return await operation();
+      } finally {
+        if (isAndroidBluetoothHost()) {
+          await delay(ANDROID_GATT_OPERATION_SETTLE_MS);
+        }
+      }
+    });
+    this.gattOperationQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return (await run) as T;
   }
 }

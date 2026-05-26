@@ -25,14 +25,14 @@ function stubWebBluetooth() {
   const incomingQueue: Uint8Array[] = [];
   let lastWritten: Uint8Array | undefined;
   let isConnected = true;
-  let failNextRead = false;
+  let failReadCount = 0;
   let logValue = new DataView(new ArrayBuffer(0));
 
   // fromRadioCharacteristic: read bytes from queue, one buffer per read
   const fromRadioCharacteristic: BluetoothRemoteGATTCharacteristic = {
     async readValue() {
-      if (failNextRead) {
-        failNextRead = false;
+      if (failReadCount > 0) {
+        failReadCount -= 1;
         throw new Error("GATT operation failed for unknown reason");
       }
       const next = incomingQueue.shift() ?? new Uint8Array();
@@ -176,8 +176,8 @@ function stubWebBluetooth() {
       isConnected = false;
       deviceEmitter.dispatchEvent(new Event("gattserverdisconnected"));
     },
-    failNextRead: () => {
-      failNextRead = true;
+    failNextReads: (count = 1) => {
+      failReadCount = count;
     },
     cleanup: () => {
       vi.unstubAllGlobals();
@@ -278,16 +278,67 @@ describe("TransportWebBluetooth (contract)", () => {
     }
   });
 
-  it("read errors emit disconnect status without rejecting a fire-and-forget read", async () => {
+  it("retries transient read errors before reporting disconnect", async () => {
     const ble = stubWebBluetooth();
+    vi.useFakeTimers();
 
     try {
       const transport = await TransportWebBluetooth.create();
       const reader = transport.fromDevice.getReader();
       const writer = transport.toDevice.getWriter();
 
-      ble.failNextRead();
+      ble.failNextReads();
       await expect(writer.write(new Uint8Array([0xaa]))).resolves.toBeUndefined();
+      await Promise.resolve();
+
+      const packetBytes = new Uint8Array([0x01, 0x02, 0x03]);
+      ble.pushIncoming(packetBytes);
+      await vi.advanceTimersByTimeAsync(250);
+
+      let sawPacket = false;
+      for (let i = 0; i < 10; i++) {
+        const { value } = await reader.read();
+        if (
+          value?.type === "status" &&
+          value.data.status === Types.DeviceStatusEnum.DeviceDisconnected &&
+          value.data.reason === "read-error"
+        ) {
+          throw new Error("Transient read error should not disconnect");
+        }
+        if (value?.type === "packet") {
+          expect(value.data).toEqual(packetBytes);
+          sawPacket = true;
+          break;
+        }
+      }
+
+      expect(sawPacket).toBe(true);
+
+      writer.releaseLock();
+      reader.releaseLock();
+    } finally {
+      vi.useRealTimers();
+      ble.cleanup();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("repeated read errors emit disconnect status without rejecting a fire-and-forget read", async () => {
+    const ble = stubWebBluetooth();
+    vi.useFakeTimers();
+
+    try {
+      const transport = await TransportWebBluetooth.create();
+      const reader = transport.fromDevice.getReader();
+      const writer = transport.toDevice.getWriter();
+
+      ble.failNextReads(4);
+      await expect(writer.write(new Uint8Array([0xaa]))).resolves.toBeUndefined();
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(250);
+      await vi.advanceTimersByTimeAsync(750);
+      await vi.advanceTimersByTimeAsync(1500);
 
       let sawReadError = false;
       for (let i = 0; i < 10; i++) {
@@ -307,6 +358,7 @@ describe("TransportWebBluetooth (contract)", () => {
       writer.releaseLock();
       reader.releaseLock();
     } finally {
+      vi.useRealTimers();
       ble.cleanup();
       vi.restoreAllMocks();
       vi.unstubAllGlobals();

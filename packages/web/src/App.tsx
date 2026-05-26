@@ -256,22 +256,33 @@ export function App() {
   });
 
   const device = getDevice(selectedDeviceId);
-  const expectedReconnectConnection = device ? getConnectionForDevice(device.id) : undefined;
+  const selectedDeviceConnection = device ? getConnectionForDevice(device.id) : undefined;
   const isPublicGuideRoute = pathname === "/guide" || pathname.startsWith("/guide/");
   const isConnectionsRoute = pathname === "/" || pathname === "/connections";
   const hasUsableDevice = isUsableDevice(device);
-  const expectedReconnectUntil = expectedReconnectConnection?.expectedReconnectUntil ?? 0;
-  const expectedReconnectConnectionId = expectedReconnectConnection?.id;
+  const expectedReconnectUntil = selectedDeviceConnection?.expectedReconnectUntil ?? 0;
+  const expectedReconnectConnectionId = selectedDeviceConnection?.id;
   const isHoldingExpectedReconnect = !hasUsableDevice && expectedReconnectUntil > Date.now();
+  const isHoldingLocalReconnect =
+    !hasUsableDevice &&
+    selectedDeviceConnection?.status === "reconnecting" &&
+    (selectedDeviceConnection.type === "bluetooth" || selectedDeviceConnection.type === "serial");
   const shouldGuardLostConnection =
-    !hasUsableDevice && !isHoldingExpectedReconnect && !isPublicGuideRoute && !isConnectionsRoute;
+    !hasUsableDevice &&
+    !isHoldingExpectedReconnect &&
+    !isHoldingLocalReconnect &&
+    !isPublicGuideRoute &&
+    !isConnectionsRoute;
   const isHoldingLostConnectionGrace = Boolean(
     device &&
     shouldGuardLostConnection &&
     (lostConnectionGraceUntil === null || lostConnectionGraceUntil > Date.now()),
   );
   const deviceForAppShell =
-    hasUsableDevice || isHoldingExpectedReconnect || isHoldingLostConnectionGrace
+    hasUsableDevice ||
+    isHoldingExpectedReconnect ||
+    isHoldingLocalReconnect ||
+    isHoldingLostConnectionGrace
       ? device
       : undefined;
   const shouldRedirectToConnections = shouldGuardLostConnection && !isHoldingLostConnectionGrace;
