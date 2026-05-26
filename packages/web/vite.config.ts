@@ -216,6 +216,11 @@ export default defineConfig(({ mode }) => {
           "darkmesh-dashboard-512.png",
         ],
         registerType: "autoUpdate",
+        workbox: {
+          globPatterns: ["**/*.{html,png,webmanifest}"],
+          globIgnores: ["**/guide/**"],
+          cleanupOutdatedCaches: true,
+        },
         manifest: {
           name: "DarkMesh Dashboard",
           short_name: "DarkMesh Dashboard",

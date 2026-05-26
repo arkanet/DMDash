@@ -10,8 +10,8 @@ export interface ClearAllStoresDialogProps {
 export const ClearAllStoresDialog = ({ open, onOpenChange }: ClearAllStoresDialogProps) => {
   const { t } = useTranslation("dialog");
 
-  const handleClearAllStores = () => {
-    clearAllStores();
+  const handleClearAllStores = async () => {
+    await clearAllStores();
 
     // Reload the app to ensure all state is cleared
     window.location.href = "/";

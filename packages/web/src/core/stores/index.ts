@@ -3,6 +3,7 @@ import { type Device, useDeviceStore } from "@core/stores/deviceStore/index.ts";
 import { type MessageStore, useMessageStore } from "@core/stores/messageStore/index.ts";
 import { type NodeDB, useNodeDBStore } from "@core/stores/nodeDBStore/index.ts";
 import { bindStoreToDevice } from "@core/stores/utils/bindStoreToDevice.ts";
+import { clear as clearIdbKeyval } from "idb-keyval";
 
 export {
   CurrentDeviceContext,
@@ -52,8 +53,60 @@ export {
   useSidebar, // TODO: Bring hook into this file
 } from "@core/stores/sidebarStore/index.tsx";
 
-// Re-export idb-keyval functions for clearing all stores, expand this if we add more local storage types
-export { clear as clearAllStores } from "idb-keyval";
+function clearDocumentCookies(): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  for (const cookie of document.cookie.split(";")) {
+    const name = cookie.split("=")[0]?.trim();
+    if (!name) {
+      continue;
+    }
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+  }
+}
+
+export async function clearAllStores(): Promise<void> {
+  const cleanupTasks: Promise<void>[] = [clearIdbKeyval()];
+
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.clear();
+    } catch (error) {
+      console.warn("Failed to clear localStorage", error);
+    }
+
+    try {
+      window.sessionStorage.clear();
+    } catch (error) {
+      console.warn("Failed to clear sessionStorage", error);
+    }
+  }
+
+  if (typeof caches !== "undefined") {
+    cleanupTasks.push(
+      caches
+        .keys()
+        .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+        .then(() => undefined),
+    );
+  }
+
+  if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+    cleanupTasks.push(
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) =>
+          Promise.all(registrations.map((registration) => registration.unregister())),
+        )
+        .then(() => undefined),
+    );
+  }
+
+  clearDocumentCookies();
+  await Promise.all(cleanupTasks);
+}
 
 // Define hooks to access the stores
 export const useNodeDB = bindStoreToDevice(

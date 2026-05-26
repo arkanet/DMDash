@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ClearAllStoresDialog } from "./ClearAllStoresDialog.tsx";
 
@@ -45,14 +45,13 @@ describe("ClearAllStoresDialog", () => {
     });
   });
 
-  it("calls clearAllStores and navigates to '/' when confirm is clicked", () => {
+  it("calls clearAllStores and navigates to '/' when confirm is clicked", async () => {
     render(<ClearAllStoresDialog open onOpenChange={mockOnOpenChange} />);
     fireEvent.click(screen.getByRole("button", { name: "Clear all local storage" }));
 
     expect(mockClearAllStores).toHaveBeenCalledTimes(1);
-    expect(assignedHref).toBe("/"); // forced reload target
-    // We reload instead of toggling the dialog, so ensure we didn't call onOpenChange
-    expect(mockOnOpenChange).not.toHaveBeenCalled();
+    await waitFor(() => expect(assignedHref).toBe("/")); // forced reload target
+    expect(mockOnOpenChange).toHaveBeenCalledWith(false);
   });
 
   it("calls onOpenChange with false when cancel is clicked", () => {
