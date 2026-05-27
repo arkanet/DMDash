@@ -14,6 +14,8 @@ import { ErrorPage } from "@components/UI/ErrorPage.tsx";
 import Footer from "@components/UI/Footer.tsx";
 import { LOST_CONNECTION_CRITICAL_GRACE_MS } from "@core/constants/connection.ts";
 import { cn } from "@core/utils/cn.ts";
+import { DEMO_DEVICE_ID, ensureDemoNodeSimulatorSeeded } from "@core/utils/demoNodeSimulator.ts";
+import { isDemoModeEnabled } from "@core/utils/demoMode.ts";
 import { type Device, SidebarProvider, useAppStore, useDeviceStore } from "@core/stores";
 import type { Connection } from "@core/stores/deviceStore/types.ts";
 import { DarkMeshRuntime } from "@app/darkmesh/runtime.tsx";
@@ -136,7 +138,7 @@ function DeviceConnectionProgress({
 
   return (
     <div
-      className="pointer-events-none fixed top-0 right-0 left-0 z-[70] h-1 overflow-hidden bg-black/15"
+      className="pointer-events-none fixed top-0 right-0 left-0 z-70 h-1 overflow-hidden bg-black/15"
       aria-hidden="true"
     >
       <progress
@@ -255,6 +257,7 @@ export function App() {
   const pathname = useLocation({
     select: (location) => location.pathname,
   });
+  const demoModeEnabled = isDemoModeEnabled();
 
   const device = getDevice(selectedDeviceId);
   const selectedDeviceConnection = device ? getConnectionForDevice(device.id) : undefined;
@@ -269,6 +272,7 @@ export function App() {
     selectedDeviceConnection?.status === "reconnecting" &&
     (selectedDeviceConnection.type === "bluetooth" || selectedDeviceConnection.type === "serial");
   const shouldGuardLostConnection =
+    !demoModeEnabled &&
     !hasUsableDevice &&
     !isHoldingExpectedReconnect &&
     !isHoldingLocalReconnect &&
@@ -286,8 +290,19 @@ export function App() {
     isHoldingLostConnectionGrace
       ? device
       : undefined;
+  const shouldRenderDemoShell = demoModeEnabled && !isPublicGuideRoute && !isConnectionsRoute;
   const shouldRedirectToConnections = shouldGuardLostConnection && !isHoldingLostConnectionGrace;
+  const currentDeviceContextId =
+    shouldRenderDemoShell && !deviceForAppShell ? DEMO_DEVICE_ID : selectedDeviceId;
   useCommandPaletteShortcut(Boolean(deviceForAppShell));
+
+  useEffect(() => {
+    if (!shouldRenderDemoShell || deviceForAppShell) {
+      return;
+    }
+
+    ensureDemoNodeSimulatorSeeded();
+  }, [deviceForAppShell, shouldRenderDemoShell]);
 
   useEffect(() => {
     if (hasUsableDevice || isPublicGuideRoute || isConnectionsRoute) {
@@ -402,7 +417,7 @@ export function App() {
           <RouterDevtools position="bottom-right" />
         </Suspense>
       ) : null}
-      <DeviceWrapper deviceId={selectedDeviceId}>
+      <DeviceWrapper deviceId={currentDeviceContextId}>
         <div className="mobile-viewport-fill flex h-full min-h-0 w-full flex-col bg-background-primary text-text-primary">
           <SidebarProvider>
             <div
@@ -418,13 +433,19 @@ export function App() {
                     <Outlet />
                   </div>
                 </div>
-              ) : deviceForAppShell ? (
+              ) : deviceForAppShell || shouldRenderDemoShell ? (
                 <div className="flex h-full min-h-0 w-full flex-1">
-                  <DeviceConnectionProgress phase={deviceForAppShell.connectionPhase} />
-                  <DarkMeshRuntime />
+                  {deviceForAppShell ? (
+                    <>
+                      <DeviceConnectionProgress phase={deviceForAppShell.connectionPhase} />
+                      <DarkMeshRuntime />
+                      <Suspense fallback={null}>
+                        <KeyBackupReminder />
+                      </Suspense>
+                    </>
+                  ) : null}
                   <Suspense fallback={null}>
                     <DialogManager />
-                    <KeyBackupReminder />
                     {commandPaletteOpen ? <CommandPalette /> : null}
                   </Suspense>
                   <Outlet />

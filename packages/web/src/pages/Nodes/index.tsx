@@ -34,7 +34,12 @@ import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useIgnoreNode } from "@core/hooks/useIgnoreNode.ts";
 import { useToast } from "@core/hooks/useToast.ts";
 import { create, toBinary } from "@bufbuild/protobuf";
-import { requestNeighborInfo, startVisualTraceroute } from "@core/services/darkmesh/nodeActions.ts";
+import {
+  requestDeviceMetadata,
+  requestEnvironmentMetrics,
+  requestNeighborInfo,
+  startVisualTraceroute,
+} from "@core/services/darkmesh/nodeActions.ts";
 import { useAppStore, useDevice, useDeviceStore, useNodeDB } from "@core/stores";
 import { Protobuf, Types, Utils } from "@meshtastic/core";
 import {
@@ -51,6 +56,14 @@ import {
 } from "@core/utils/directMessageKeyExchange.ts";
 import { distanceBetweenPositions, hasPos, positionPoint } from "@core/utils/geo.ts";
 import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
+import {
+  DEMO_DEVICE_ID,
+  simulateDemoEnvironmentMetrics,
+  simulateDemoNeighborInfo,
+  simulateDemoNodeInfo,
+  simulateDemoPositionPacket,
+  simulateDemoTraceroute,
+} from "@core/utils/demoNodeSimulator.ts";
 import { isNodeStatusUnread, normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChartSimple } from "@fortawesome/free-solid-svg-icons";
@@ -344,7 +357,10 @@ function getNodeStatusText(node: Protobuf.Mesh.NodeInfo): string | undefined {
   return normalizeNodeStatus((node as Protobuf.Mesh.NodeInfo & { nodeStatus?: string }).nodeStatus);
 }
 
-function getBatteryLabel(node: Protobuf.Mesh.NodeInfo): { label: string; plugged: boolean } {
+function getBatteryLabel(node: Protobuf.Mesh.NodeInfo): {
+  label: string;
+  plugged: boolean;
+} {
   const metrics = node.deviceMetrics as
     | (Protobuf.Telemetry.DeviceMetrics & {
         powerSupplyStatus?: number;
@@ -617,7 +633,10 @@ function MobileNodeStatusBadge({ status, unread }: { status: string; unread: boo
           <TooltipContent className="max-w-56 rounded bg-slate-800 px-4 py-2 text-white dark:bg-slate-600">
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-200">
-                {t("nodeDetail.statusMessage", { ns: "nodes", defaultValue: "Status Message" })}
+                {t("nodeDetail.statusMessage", {
+                  ns: "nodes",
+                  defaultValue: "Status Message",
+                })}
               </p>
               <p className="whitespace-pre-wrap break-words text-xs font-normal italic text-white/95">
                 {status}
@@ -1020,6 +1039,7 @@ const NodesPage = (): JSX.Element => {
     }
     return s.getDevice(device.id)?.neighborInfo.get(pendingNode);
   });
+  const isDemoSimulation = device.id === DEMO_DEVICE_ID && !connection;
 
   const openTracerouteDialog = useCallback(
     (traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>) => {
@@ -1562,6 +1582,14 @@ const NodesPage = (): JSX.Element => {
   });
 
   const requestNodeInfo = async (nodeNum: number) => {
+    if (isDemoSimulation) {
+      const response = simulateDemoNodeInfo(device.id, nodeNum);
+      if (!response?.node) {
+        throw new Error("Informazioni nodo non disponibili nella demo");
+      }
+      return response;
+    }
+
     if (!connection) {
       throw new Error("Nessuna connessione disponibile");
     }
@@ -1582,6 +1610,14 @@ const NodesPage = (): JSX.Element => {
   };
 
   const requestDeviceMetadata = async (nodeNum: number) => {
+    if (isDemoSimulation) {
+      const response = simulateDemoNodeInfo(device.id, nodeNum);
+      if (!response?.metadata) {
+        throw new Error("Metadata non disponibili nella demo");
+      }
+      return response.metadata;
+    }
+
     if (!connection || typeof connection.sendPacket !== "function") {
       throw new Error("Metadata non disponibile sulla connessione corrente");
     }
@@ -1630,7 +1666,10 @@ const NodesPage = (): JSX.Element => {
         await navigator.clipboard.writeText(fromByteArray(publicKey));
         toast({ title: "Public key copiata" });
       } catch {
-        toast({ title: "Copia public key non riuscita", variant: "destructive" });
+        toast({
+          title: "Copia public key non riuscita",
+          variant: "destructive",
+        });
       }
     },
     [toast],
@@ -1681,6 +1720,17 @@ const NodesPage = (): JSX.Element => {
       node.deviceMetrics?.airUtilTx !== undefined;
     const hasDetailRows = hasPositionRow || hasIdentityRow || hasUtilRow || Boolean(nodeStatus);
     const startMobileNodeTraceroute = () => {
+      if (isDemoSimulation) {
+        void runMobileNodeAction("Traceroute avviato", async () => {
+          const traceroute = simulateDemoTraceroute(device.id, node.num);
+          if (!traceroute) {
+            throw new Error("Traceroute non disponibile nella demo");
+          }
+          openTracerouteDialog(traceroute);
+        });
+        return;
+      }
+
       pendingTracerouteNodeRef.current = node.num;
       pendingTracerouteStartedAtRef.current = Date.now();
       void runMobileNodeAction("Traceroute avviato", async () => {
@@ -1728,6 +1778,21 @@ const NodesPage = (): JSX.Element => {
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
+                if (isDemoSimulation) {
+                  const response = simulateDemoNodeInfo(device.id, node.num);
+                  if (!response?.node) {
+                    toast({
+                      title: "Azione non riuscita",
+                      description: "Informazioni nodo non disponibili nella demo",
+                    });
+                    return;
+                  }
+                  toast({
+                    title: "Informazioni utente ricevute",
+                    description: getNodeDisplayName(response.node),
+                  });
+                  return;
+                }
                 setPendingNodeInfoNode(node.num);
                 void runMobileNodeAction("Richiesta info inviata", () => requestNodeInfo(node.num));
               }}
@@ -1739,6 +1804,21 @@ const NodesPage = (): JSX.Element => {
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
+                if (isDemoSimulation) {
+                  const metadata = simulateDemoNodeInfo(device.id, node.num)?.metadata;
+                  if (!metadata) {
+                    toast({
+                      title: "Error Metadata request",
+                      description: "Metadata non disponibili nella demo",
+                    });
+                    return;
+                  }
+                  toast({
+                    title: "Metadata ricevuti",
+                    description: metadata.firmwareVersion || formatNameHex(node.num),
+                  });
+                  return;
+                }
                 setPendingMetadataNode(node.num);
                 void runMobileNodeAction(
                   "Richiesta metadata inviata",
@@ -1758,6 +1838,15 @@ const NodesPage = (): JSX.Element => {
               onClick={() => {
                 setMobileActionNode(undefined);
                 void runMobileNodeAction("Richiesta posizione inviata", () => {
+                  if (isDemoSimulation) {
+                    const location = simulateDemoPositionPacket(device.id, node.num);
+                    if (!location) {
+                      throw new Error("Posizione non disponibile nella demo");
+                    }
+                    setSelectedLocation(location);
+                    return location;
+                  }
+
                   if (typeof connection?.requestPosition !== "function") {
                     throw new Error(
                       "Richiesta posizione non disponibile sulla connessione corrente",
@@ -1784,10 +1873,22 @@ const NodesPage = (): JSX.Element => {
               type="button"
               onClick={() => {
                 setMobileActionNode(undefined);
+                if (isDemoSimulation) {
+                  const neighborInfo = simulateDemoNeighborInfo(device.id, node.num);
+                  if (!neighborInfo) {
+                    toast({
+                      title: "Azione non riuscita",
+                      description: "Neighbor info non disponibili nella demo",
+                    });
+                    return;
+                  }
+                  openNeighborDialog(node.num, neighborInfo);
+                  return;
+                }
                 pendingNeighborNodeRef.current = node.num;
                 setPendingNeighborNode(node.num);
                 void runMobileNodeAction("Neighbor discovery avviata", () =>
-                  requestNeighborInfo(connection, node.num),
+                  requestNeighborInfo(connection, node.num, device.id),
                 );
               }}
             >
@@ -2341,9 +2442,13 @@ export function MobileNodeInfoDialog({
   const identiconsEnabled = useAppStore((s) => s.identiconsEnabled);
   const [shareOpen, setShareOpen] = useState(false);
   const [activeLog, setActiveLog] = useState<"traceroute" | "neighbor" | undefined>();
+  const [selectedLocation, setSelectedLocation] = useState<
+    Types.PacketMetadata<Protobuf.Mesh.Position> | undefined
+  >();
   const [selectedTraceLog, setSelectedTraceLog] = useState<
     Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> | undefined
   >();
+  const isDemoSimulation = device.id === DEMO_DEVICE_ID && !device.connection;
   const shortName = getNodeShortName(node) ?? formatNameHex(node.num, node).slice(-4);
   const longName = getNodeLongName(node) ?? formatNameHex(node.num, node);
   const hardwareModel = formatHardwareModel(node.user?.hwModel);
@@ -2364,10 +2469,16 @@ export function MobileNodeInfoDialog({
       (node.num === device.hardware.myNodeNum
         ? device.metadata.get(0)?.firmwareVersion
         : undefined) ??
-      (node as Protobuf.Mesh.NodeInfo & { metadata?: { firmwareVersion?: string } }).metadata
-        ?.firmwareVersion ??
-      (node as Protobuf.Mesh.NodeInfo & { deviceMetadata?: { firmwareVersion?: string } })
-        .deviceMetadata?.firmwareVersion,
+      (
+        node as Protobuf.Mesh.NodeInfo & {
+          metadata?: { firmwareVersion?: string };
+        }
+      ).metadata?.firmwareVersion ??
+      (
+        node as Protobuf.Mesh.NodeInfo & {
+          deviceMetadata?: { firmwareVersion?: string };
+        }
+      ).deviceMetadata?.firmwareVersion,
   );
   const hasNeighborInfo =
     neighborRecords.length > 0 || Boolean(device.getNeighborInfo(node.num)?.neighbors?.length);
@@ -2434,6 +2545,127 @@ export function MobileNodeInfoDialog({
       onClick: () => setActiveLog("neighbor"),
     },
   ] as const;
+
+  const runInfoAction = async (successTitle: string, action: () => Promise<unknown> | unknown) => {
+    try {
+      const result = await action();
+      if (
+        result &&
+        typeof result === "object" &&
+        "firmwareVersion" in (result as Record<string, unknown>)
+      ) {
+        toast({
+          title: successTitle,
+          description: String((result as { firmwareVersion?: string }).firmwareVersion ?? longName),
+        });
+        return;
+      }
+
+      toast({ title: successTitle });
+    } catch (error) {
+      toast({
+        title: "Azione non riuscita",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRequestNodeInfo = async () => {
+    if (isDemoSimulation) {
+      const result = simulateDemoNodeInfo(device.id, node.num);
+      if (!result?.node) {
+        throw new Error("Informazioni nodo non disponibili nella demo");
+      }
+      return result.node;
+    }
+
+    if (!device.connection) {
+      throw new Error("Nessuna connessione disponibile");
+    }
+
+    if (typeof device.connection.sendPacket === "function") {
+      await device.connection.sendPacket(
+        new Uint8Array(),
+        Protobuf.Portnums.PortNum.NODEINFO_APP,
+        node.num,
+        undefined,
+        false,
+        true,
+      );
+      return;
+    }
+
+    if (typeof device.connection.getMetadata === "function") {
+      return device.connection.getMetadata(node.num);
+    }
+
+    throw new Error("Richiesta informazioni non disponibile sulla connessione corrente");
+  };
+
+  const handleRequestMetadata = async () => {
+    if (isDemoSimulation) {
+      const metadata = simulateDemoNodeInfo(device.id, node.num)?.metadata;
+      if (!metadata) {
+        throw new Error("Metadata non disponibili nella demo");
+      }
+      return metadata;
+    }
+
+    return requestDeviceMetadata(
+      device.connection,
+      node.num,
+      resolveAdminChannelIndex(device.channels),
+      device.id,
+    );
+  };
+
+  const handleRequestPosition = async () => {
+    if (isDemoSimulation) {
+      const location = simulateDemoPositionPacket(device.id, node.num);
+      if (!location) {
+        throw new Error("Posizione non disponibile nella demo");
+      }
+      setSelectedLocation(location);
+      return location;
+    }
+
+    if (typeof device.connection?.requestPosition !== "function") {
+      throw new Error("Richiesta posizione non disponibile sulla connessione corrente");
+    }
+
+    return device.connection.requestPosition(node.num);
+  };
+
+  const handleRequestEnvironment = async () => {
+    if (isDemoSimulation) {
+      const metrics = simulateDemoEnvironmentMetrics(device.id, node.num);
+      if (!metrics) {
+        throw new Error("Metriche ambientali non disponibili nella demo");
+      }
+      return metrics;
+    }
+
+    return requestEnvironmentMetrics(device.connection, node.num, device.id);
+  };
+
+  const handleRequestTraceroute = async () => {
+    if (isDemoSimulation) {
+      const trace = simulateDemoTraceroute(device.id, node.num);
+      if (!trace) {
+        throw new Error("Traceroute non disponibile nella demo");
+      }
+      setSelectedTraceLog(trace);
+      return trace;
+    }
+
+    await startVisualTraceroute(device.id, device.connection, node.num);
+  };
+
+  const handleRequestNeighborInfo = async () => {
+    await requestNeighborInfo(device.connection, node.num, device.id);
+    setActiveLog("neighbor");
+  };
 
   return (
     <div className="flex h-full flex-col bg-[#111] text-zinc-100">
@@ -2584,6 +2816,100 @@ export function MobileNodeInfoDialog({
           </InfoSection>
         ) : null}
 
+        <InfoSection title="Azioni">
+          <div className="space-y-1">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-4 py-3 text-left"
+              onClick={() => {
+                onClose();
+                navigate({
+                  to: "/messages/$type/$chatId",
+                  params: { type: "direct", chatId: String(node.num) },
+                });
+              }}
+            >
+              <span className="flex items-center gap-3">
+                <UserIcon className="size-5" />
+                Messaggio diretto
+              </span>
+              <ChevronRightIcon className="size-5" />
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-4 py-3 text-left"
+              onClick={() =>
+                void runInfoAction("Informazioni utente ricevute", handleRequestNodeInfo)
+              }
+            >
+              <span className="flex items-center gap-3">
+                <InfoIcon className="size-5" />
+                Richiedi informazioni utente
+              </span>
+              <ChevronRightIcon className="size-5" />
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-4 py-3 text-left"
+              onClick={() => void runInfoAction("Metadata ricevuti", handleRequestMetadata)}
+            >
+              <span className="flex items-center gap-3">
+                <CpuIcon className="size-5" />
+                Request user metadata
+              </span>
+              <ChevronRightIcon className="size-5" />
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-4 py-3 text-left"
+              onClick={() => void runInfoAction("Posizione disponibile", handleRequestPosition)}
+            >
+              <span className="flex items-center gap-3">
+                <MapPinIcon className="size-5" />
+                Richiedi posizione
+              </span>
+              <ChevronRightIcon className="size-5" />
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-4 py-3 text-left"
+              onClick={() =>
+                void runInfoAction("Metriche ambientali disponibili", handleRequestEnvironment)
+              }
+            >
+              <span className="flex items-center gap-3">
+                <CloudRainIcon className="size-5" />
+                Richiedi metriche ambientali
+              </span>
+              <ChevronRightIcon className="size-5" />
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-4 py-3 text-left"
+              onClick={() => void runInfoAction("Traceroute disponibile", handleRequestTraceroute)}
+            >
+              <span className="flex items-center gap-3">
+                <RouteIcon className="size-5" />
+                Traceroute
+              </span>
+              <ChevronRightIcon className="size-5" />
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-4 py-3 text-left"
+              onClick={() =>
+                void runInfoAction("Neighbor discovery disponibile", handleRequestNeighborInfo)
+              }
+            >
+              <span className="flex items-center gap-3">
+                <UsersIcon className="size-5" />
+                Neighbor Discovery
+              </span>
+              <ChevronRightIcon className="size-5" />
+            </button>
+          </div>
+        </InfoSection>
+
         <InfoSection title="Registri">
           <div className="space-y-1">
             {registryRows.map(({ label, icon: Icon, enabled, onClick }) => (
@@ -2680,6 +3006,11 @@ export function MobileNodeInfoDialog({
         traceroute={selectedTraceLog}
         open={!!selectedTraceLog}
         onOpenChange={() => setSelectedTraceLog(undefined)}
+      />
+      <LocationResponseDialog
+        location={selectedLocation}
+        open={!!selectedLocation}
+        onOpenChange={() => setSelectedLocation(undefined)}
       />
     </div>
   );

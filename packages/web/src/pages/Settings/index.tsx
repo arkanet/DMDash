@@ -445,7 +445,7 @@ const ConfigPage = () => {
 
   return (
     <PageLayout
-      contentClassName="overflow-auto"
+      contentClassName="route-content-mb-10 overflow-auto"
       leftBar={leftSidebar}
       label={activeSection?.label ?? ""}
       actions={actions}

@@ -39,6 +39,11 @@ import {
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
 import {
+  DEMO_DEVICE_ID,
+  simulateDemoNodeInfo,
+  simulateDemoPositionPacket,
+} from "@core/utils/demoNodeSimulator.ts";
+import {
   requestDeviceMetadata,
   requestEnvironmentMetrics,
   requestNeighborInfo,
@@ -219,6 +224,7 @@ export const NodeDetailsDialog = ({
   const [selectedTracerouteDurationMs, setSelectedTracerouteDurationMs] = useState<
     number | undefined
   >();
+  const isDemoSimulation = deviceId === DEMO_DEVICE_ID && !connection;
   const pendingTracerouteNodeRef = useRef<number | undefined>(undefined);
   const pendingTracerouteStartedAtRef = useRef<number | undefined>(undefined);
 
@@ -253,10 +259,16 @@ export const NodeDetailsDialog = ({
       (currentNode.num === hardware.myNodeNum
         ? deviceMetadata.get(0)?.firmwareVersion
         : undefined) ??
-      (currentNode as Protobuf.Mesh.NodeInfo & { metadata?: { firmwareVersion?: string } }).metadata
-        ?.firmwareVersion ??
-      (currentNode as Protobuf.Mesh.NodeInfo & { deviceMetadata?: { firmwareVersion?: string } })
-        .deviceMetadata?.firmwareVersion,
+      (
+        currentNode as Protobuf.Mesh.NodeInfo & {
+          metadata?: { firmwareVersion?: string };
+        }
+      ).metadata?.firmwareVersion ??
+      (
+        currentNode as Protobuf.Mesh.NodeInfo & {
+          deviceMetadata?: { firmwareVersion?: string };
+        }
+      ).deviceMetadata?.firmwareVersion,
   );
   const currentPositionPoint = positionPoint(currentNode?.position);
   const computedShortName = getNodeShortName(currentNode) ?? t("unknown.shortName");
@@ -346,6 +358,19 @@ export const NodeDetailsDialog = ({
         title: t("toast.requestingPosition.title", { ns: "ui" }),
       });
 
+      if (isDemoSimulation) {
+        const location = simulateDemoPositionPacket(deviceId, currentNode.num);
+        if (!location?.data) {
+          throw new Error("Demo position unavailable");
+        }
+
+        toast({
+          title: t("toast.positionRequestSent.title", { ns: "ui" }),
+          description: `${location.data.latitudeI / 1e7}, ${location.data.longitudeI / 1e7}`,
+        });
+        return;
+      }
+
       await connection?.requestPosition(currentNode.num);
 
       toast({
@@ -399,11 +424,12 @@ export const NodeDetailsDialog = ({
   async function handleRequestNeighborFromDialog() {
     try {
       toast({ title: "Neighbor Info" });
-      if (!connection) {
+      if (!connection && !isDemoSimulation) {
         throw new Error("No active connection to device");
       }
 
       if (
+        !isDemoSimulation &&
         typeof connection.requestNeighborInfo !== "function" &&
         typeof connection.sendPacket !== "function" &&
         typeof connection.getMetadata !== "function"
@@ -411,7 +437,7 @@ export const NodeDetailsDialog = ({
         throw new Error("Connection does not support neighbor requests");
       }
 
-      await requestNeighborInfo(connection, currentNode.num);
+      await requestNeighborInfo(connection, currentNode.num, deviceId);
     } catch (error) {
       /*
        Silenced non-blocking neighbor request warning in dialog.
@@ -447,6 +473,19 @@ export const NodeDetailsDialog = ({
     try {
       toast({ title: t("Request Node Info", { ns: "ui" }) });
 
+      if (isDemoSimulation) {
+        const response = simulateDemoNodeInfo(deviceId, currentNode.num);
+        if (!response?.node) {
+          throw new Error("Demo node info unavailable");
+        }
+
+        toast({
+          title: t("Request Node Info ...", { ns: "ui" }),
+          description: response.node.user?.longName ?? response.node.user?.shortName,
+        });
+        return;
+      }
+
       if (connection && typeof connection.sendPacket === "function") {
         await connection.sendPacket(
           new Uint8Array(),
@@ -481,7 +520,22 @@ export const NodeDetailsDialog = ({
 
   async function handleRequestDeviceMetadata() {
     try {
-      toast({ title: t("nodeDetails.metadataRequestSent", "Request metadata sent") });
+      if (isDemoSimulation) {
+        const metadata = simulateDemoNodeInfo(deviceId, currentNode.num)?.metadata;
+        if (!metadata) {
+          throw new Error("Demo metadata unavailable");
+        }
+
+        toast({
+          title: t("nodeDetails.metadataRequestSent", "Request metadata sent"),
+          description: metadata.firmwareVersion,
+        });
+        return;
+      }
+
+      toast({
+        title: t("nodeDetails.metadataRequestSent", "Request metadata sent"),
+      });
       await requestDeviceMetadata(connection, currentNode.num, resolveAdminChannelIndex(channels));
     } catch (error) {
       logger.warn?.("dialog metadata request failed", error);

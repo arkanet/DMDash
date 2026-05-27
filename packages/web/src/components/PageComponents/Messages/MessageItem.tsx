@@ -32,6 +32,11 @@ import type { Message } from "@core/stores/messageStore/types.ts";
 import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
 import { cn } from "@core/utils/cn.ts";
 import {
+  DEMO_DEVICE_ID,
+  simulateDemoNodeInfo,
+  simulateDemoPositionPacket,
+} from "@core/utils/demoNodeSimulator.ts";
+import {
   getDirectMessageNavigationBlockDescription,
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
@@ -181,6 +186,7 @@ export const MessageItem = ({
   const [moreNodeInfoNode, setMoreNodeInfoNode] = useState<number | undefined>();
   const neighborDiscoveryRecordsByNode =
     useDarkMeshStore((s) => s.neighborDiscoveryByDevice?.[device.id]) ?? {};
+  const isDemoSimulation = device.id === DEMO_DEVICE_ID && !device.connection;
 
   // This will suspend if myNode is not available yet
   const myNode = useSuspendingMyNode();
@@ -482,6 +488,14 @@ export const MessageItem = ({
   );
   const requestNodeInfo = useCallback(
     async (targetNodeNum: number) => {
+      if (isDemoSimulation) {
+        const response = simulateDemoNodeInfo(device.id, targetNodeNum);
+        if (!response?.node) {
+          throw new Error("Informazioni nodo non disponibili nella demo");
+        }
+        return response;
+      }
+
       const connection = device.connection;
       if (!connection) {
         throw new Error("Nessuna connessione disponibile");
@@ -501,10 +515,18 @@ export const MessageItem = ({
         throw new Error("Richiesta informazioni non disponibile sulla connessione corrente");
       }
     },
-    [device.connection],
+    [device.connection, device.id, isDemoSimulation],
   );
   const requestDeviceMetadata = useCallback(
     async (targetNodeNum: number) => {
+      if (isDemoSimulation) {
+        const metadata = simulateDemoNodeInfo(device.id, targetNodeNum)?.metadata;
+        if (!metadata) {
+          throw new Error("Metadata non disponibili nella demo");
+        }
+        return metadata;
+      }
+
       const connection = device.connection;
       if (!connection || typeof connection.sendPacket !== "function") {
         throw new Error("Metadata non disponibile sulla connessione corrente");
@@ -527,7 +549,7 @@ export const MessageItem = ({
         true,
       );
     },
-    [device.channels, device.connection],
+    [device.channels, device.connection, device.id, isDemoSimulation],
   );
   const openDirectMessage = useCallback(
     (targetNodeNum: number) => {
@@ -717,6 +739,18 @@ export const MessageItem = ({
                   onClick={() => {
                     setAvatarActionOpen(false);
                     void runNodeAction("Richiesta posizione inviata", () => {
+                      if (isDemoSimulation) {
+                        const location = simulateDemoPositionPacket(device.id, nodeNum);
+                        if (!location?.data) {
+                          throw new Error("Posizione non disponibile nella demo");
+                        }
+                        toast({
+                          title: "Posizione disponibile",
+                          description: `${location.data.latitudeI / 1e7}, ${location.data.longitudeI / 1e7}`,
+                        });
+                        return location;
+                      }
+
                       if (typeof device.connection?.requestPosition !== "function") {
                         throw new Error(
                           "Richiesta posizione non disponibile sulla connessione corrente",
@@ -746,7 +780,7 @@ export const MessageItem = ({
                   onClick={() => {
                     setAvatarActionOpen(false);
                     void runNodeAction("Neighbor discovery avviata", () =>
-                      requestNeighborInfo(device.connection, nodeNum),
+                      requestNeighborInfo(device.connection, nodeNum, device.id),
                     );
                   }}
                 >

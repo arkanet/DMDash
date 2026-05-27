@@ -33,6 +33,7 @@ import {
   getDirectMessageKeyExchangeStatus,
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
+import { DEMO_DEVICE_ID, sendDemoMessage } from "@core/utils/demoNodeSimulator.ts";
 import { cn } from "@core/utils/cn.ts";
 import { randId } from "@core/utils/randId.ts";
 import { Protobuf, Types, Constants } from "@meshtastic/core";
@@ -214,6 +215,7 @@ export const MessagesPage = () => {
   const otherNode = getNode(numericChatId);
   const myNode = getMyNode();
   const myNodeNum = myNode?.num;
+  const isDemoSimulation = deviceId === DEMO_DEVICE_ID && !connection;
 
   const isDirect = chatType === MessageType.Direct;
   const isBroadcast = chatType === MessageType.Broadcast;
@@ -476,6 +478,19 @@ export const MessagesPage = () => {
       let messageId: number | undefined;
 
       try {
+        if (isDemoSimulation) {
+          messageId = await sendDemoMessage({
+            deviceId,
+            chatType,
+            chatId: numericChatId,
+            message,
+            replyId: replyTo?.messageId,
+            compressed: opts?.compress,
+          });
+          setReplyTo(undefined);
+          return;
+        }
+
         if (opts?.compress) {
           try {
             if (typeof window !== "undefined" && window.localStorage) {
@@ -553,8 +568,10 @@ export const MessagesPage = () => {
     [
       chatType,
       connection,
+      deviceId,
       directMessageBlockDescription,
       directMessageHasPublicKey,
+      isDemoSimulation,
       isDirect,
       myNodeNum,
       numericChatId,

@@ -26,6 +26,7 @@ import {
 } from "@components/UI/DropdownMenu.tsx";
 import { Separator } from "@components/UI/Separator.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
+import { isDemoModeEnabled } from "@core/utils/demoMode.ts";
 import { useDeviceStore } from "@core/stores";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -34,17 +35,12 @@ import {
   LinkIcon,
   MoreHorizontal,
   RotateCw,
-  RouterIcon,
   Star,
   StarOff,
   Trash2,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-
-const AddConnectionDialog = lazy(
-  () => import("@app/components/Dialog/AddConnectionDialog/AddConnectionDialog"),
-);
 
 const DARKMESH_RETURN_LINKS = [
   { href: "https://darkmesh.neocities.org/", label: "DarkMesh" },
@@ -57,7 +53,6 @@ const DARKMESH_RETURN_LINKS = [
 export const Connections = () => {
   const {
     connections,
-    addConnectionAndConnect,
     connect,
     disconnect,
     removeConnection,
@@ -67,7 +62,6 @@ export const Connections = () => {
   } = useConnections();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [addOpen, setAddOpen] = useState(false);
   const [pendingNavigationConnectionId, setPendingNavigationConnectionId] = useState<
     Connection["id"] | null
   >(null);
@@ -85,8 +79,12 @@ export const Connections = () => {
 
     return state.getDevice(pendingConnection.meshDeviceId)?.connectionPhase;
   });
-  const isURLHTTPS = useMemo(() => location.protocol === "https:", []);
+  const demoModeEnabled = useMemo(() => isDemoModeEnabled(), []);
   const { t } = useTranslation("connections");
+  const goToDemo = () => navigate({ to: "/map" });
+  const goToDMDash = () => {
+    window.location.assign("https://dmdash.arkantiko.com/");
+  };
 
   // On first mount, sync statuses and refresh
   useEffect(() => {
@@ -157,7 +155,7 @@ export const Connections = () => {
                 />
               </div>
               <div className="flex min-w-0 flex-col items-center gap-3">
-                <h1 className="max-w-full whitespace-normal break-words text-center text-[clamp(1.35rem,7vw,2.85rem)] font-semibold uppercase tracking-[0.16em] text-white">
+                <h1 className="max-w-full whitespace-normal wrap-break-word text-center text-[clamp(1.35rem,7vw,2.85rem)] font-semibold uppercase tracking-[0.16em] text-white">
                   {t("page.title")}
                 </h1>
                 <div className="flex flex-wrap justify-center gap-2">
@@ -172,11 +170,17 @@ export const Connections = () => {
                     </Button>
                   ) : null}
                   <Button
-                    onClick={() => setAddOpen(true)}
+                    onClick={goToDemo}
                     className="gap-2 border border-[#7a2424] bg-[#551717] text-zinc-100 hover:bg-[#6c1d1d]"
                   >
-                    <RouterIcon className="size-5" />
-                    {t("button.addConnection")}
+                    Demo
+                  </Button>
+                  <Button
+                    onClick={goToDMDash}
+                    className="gap-2 border border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
+                  >
+                    DMDash
+                    <ExternalLink className="size-4" />
                   </Button>
                 </div>
               </div>
@@ -204,33 +208,45 @@ export const Connections = () => {
         <Separator className="bg-white/10" />
 
         <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/guide" })}
-            className="inline-flex items-center gap-2 rounded-full border border-[#7a2424] bg-[#551717] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-[#6c1d1d] hover:text-white"
-          >
-            GUIDE
-            <LinkIcon className="size-4" />
-          </button>
+          <div className="flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/guide" })}
+              className="inline-flex items-center gap-2 rounded-full border border-[#7a2424] bg-[#551717] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-[#6c1d1d] hover:text-white"
+            >
+              GUIDE
+              <LinkIcon className="size-4" />
+            </button>
+            {demoModeEnabled ? (
+              <span className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-200">
+                Demo mode enabled
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <p className="w-full text-sm leading-6 text-zinc-300 md:text-base">
           {t("page.description")}
         </p>
-
         {sorted.length === 0 ? (
           <Card className="border-dashed border-white/15 bg-[#141414]/92 text-zinc-100">
             <CardHeader>
               <CardTitle className="text-lg">{t("noConnections.title")} </CardTitle>
             </CardHeader>
             <CardContent className="text-zinc-400">{t("noConnections.description")}</CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-wrap gap-3">
               <Button
-                onClick={() => setAddOpen(true)}
+                onClick={goToDemo}
                 className="gap-2 border border-[#7a2424] bg-[#551717] text-zinc-100 hover:bg-[#6c1d1d]"
               >
-                <RouterIcon className="size-5" />
-                {t("button.addConnection")}
+                Demo
+              </Button>
+              <Button
+                onClick={goToDMDash}
+                className="gap-2 border border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
+              >
+                DMDash
+                <ExternalLink className="size-4" />
               </Button>
             </CardFooter>
           </Card>
@@ -328,35 +344,6 @@ export const Connections = () => {
             ))}
           </div>
         )}
-
-        {addOpen ? (
-          <Suspense fallback={null}>
-            <AddConnectionDialog
-              open={addOpen}
-              onOpenChange={setAddOpen}
-              isHTTPS={isURLHTTPS}
-              onSave={async (partial, btDevice) => {
-                const created = await addConnectionAndConnect(partial, btDevice);
-                setAddOpen(false);
-                if (!created) {
-                  toast({
-                    title: t("toasts.failed"),
-                    description: t("toasts.checkConnection"),
-                  });
-                  return;
-                }
-                setPendingNavigationConnectionId(created.id);
-                toast({
-                  title: t("toasts.added"),
-                  description: t("toasts.savedByName", {
-                    name: created.name,
-                    interpolation: { escapeValue: false },
-                  }),
-                });
-              }}
-            />
-          </Suspense>
-        ) : null}
       </div>
     </div>
   );

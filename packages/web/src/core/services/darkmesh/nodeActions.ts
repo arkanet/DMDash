@@ -1,5 +1,12 @@
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { create, toBinary } from "@bufbuild/protobuf";
+import { useAppStore } from "@core/stores/appStore/index.ts";
+import { useDeviceStore } from "@core/stores/deviceStore/index.ts";
+import {
+  simulateDemoEnvironmentMetrics,
+  simulateDemoNeighborInfo,
+  simulateDemoTraceroute,
+} from "@core/utils/demoNodeSimulator.ts";
 import { Protobuf, Types } from "@meshtastic/core";
 
 /**
@@ -45,6 +52,17 @@ export async function startVisualTraceroute(
   darkMeshState.setSelectedTraceRoute(undefined);
 
   try {
+    if (!connection) {
+      const trace = simulateDemoTraceroute(deviceId, nodeNum);
+      if (!trace) {
+        throw new Error("Traceroute is not available on the current connection");
+      }
+
+      useDeviceStore.getState().getDevice(deviceId)?.addTraceRoute(trace);
+      darkMeshState.setSelectedTraceRoute(trace);
+      return trace.id;
+    }
+
     if (!connection || typeof connection.traceRoute !== "function") {
       throw new Error("Traceroute is not available on the current connection");
     }
@@ -78,7 +96,23 @@ export async function startVisualTraceroute(
   // keep target and requestId set until response or timeout
 }
 
-export async function requestNeighborInfo(connection: ConnectionLike | undefined, nodeNum: number) {
+export async function requestNeighborInfo(
+  connection: ConnectionLike | undefined,
+  nodeNum: number,
+  deviceId?: number,
+) {
+  const resolvedDeviceId = deviceId ?? useAppStore.getState().selectedDeviceId;
+
+  if (!connection && resolvedDeviceId !== undefined) {
+    const neighborInfo = simulateDemoNeighborInfo(resolvedDeviceId, nodeNum);
+    if (!neighborInfo) {
+      throw new Error("Neighbor info request is not available on the current connection");
+    }
+
+    useDeviceStore.getState().getDevice(resolvedDeviceId)?.addNeighborInfo(nodeNum, neighborInfo);
+    return;
+  }
+
   if (!connection) {
     throw new Error("No connection available");
   }
@@ -145,7 +179,17 @@ export async function requestNeighborInfo(connection: ConnectionLike | undefined
 export async function requestEnvironmentMetrics(
   connection: ConnectionLike | undefined,
   nodeNum: number,
+  deviceId?: number,
 ) {
+  const resolvedDeviceId = deviceId ?? useAppStore.getState().selectedDeviceId;
+
+  if (!connection && resolvedDeviceId !== undefined) {
+    const metrics = simulateDemoEnvironmentMetrics(resolvedDeviceId, nodeNum);
+    if (metrics) {
+      return metrics;
+    }
+  }
+
   if (connection && typeof connection.requestEnvironmentTelemetry === "function") {
     await connection.requestEnvironmentTelemetry(nodeNum);
     return;
@@ -175,7 +219,17 @@ export async function requestDeviceMetadata(
   connection: ConnectionLike | undefined,
   nodeNum: number,
   adminChannel?: Types.ChannelNumber,
+  deviceId?: number,
 ) {
+  const resolvedDeviceId = deviceId ?? useAppStore.getState().selectedDeviceId;
+
+  if (!connection && resolvedDeviceId !== undefined) {
+    const metadata = useDeviceStore.getState().getDevice(resolvedDeviceId)?.metadata.get(nodeNum);
+    if (metadata) {
+      return metadata;
+    }
+  }
+
   if (connection && typeof connection.sendPacket === "function") {
     const message = create(Protobuf.Admin.AdminMessageSchema, {
       payloadVariant: {

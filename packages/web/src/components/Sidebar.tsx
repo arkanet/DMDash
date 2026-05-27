@@ -13,6 +13,7 @@ import {
   useSidebar,
 } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
+import { isDemoModeEnabled } from "@core/utils/demoMode.ts";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
   type LucideIcon,
@@ -39,6 +40,7 @@ interface NavLink {
 }
 
 export const Sidebar = ({ children }: SidebarProps) => {
+  const demoModeEnabled = isDemoModeEnabled();
   const { hardware, metadata, unreadCounts, setDialogOpen } = useDevice();
   const { getNode, getNodesLength } = useNodeDB();
   const { setCommandPaletteOpen } = useAppStore();
@@ -108,14 +110,14 @@ export const Sidebar = ({ children }: SidebarProps) => {
     <div
       className={cn(
         "relative border-slate-300 dark:border-slate-700",
-        "transition-all duration-300 ease-in-out flex-shrink-0",
+        "transition-all duration-300 ease-in-out shrink-0",
         "flex flex-col",
         isCollapsed ? "w-24" : "w-52 lg:w-64",
       )}
     >
       <div
         className={cn(
-          "h-14 flex mt-2 gap-2 items-center flex-shrink-0 transition-all duration-300 ease-in-out",
+          "mt-2 flex h-14 shrink-0 items-center gap-2 transition-all duration-300 ease-in-out",
           "border-b-[0.5px] border-slate-300 dark:border-slate-700",
           isCollapsed && "justify-center px-0",
         )}
@@ -124,12 +126,12 @@ export const Sidebar = ({ children }: SidebarProps) => {
           type="button"
           aria-label={collapseButtonLabel}
           onClick={toggleSidebar}
-          className="flex-shrink-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
+          className="shrink-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
         >
           <img
             src="/darkmesh-dashboard-logo.png"
             alt="DarkMesh Dashboard"
-            className="size-10 rounded-xl border border-white/10 bg-black/80 p-1"
+            className="size-10 shrink-0 rounded-xl border border-white/10 bg-black/80 p-1"
           />
         </button>
         <h2
@@ -152,12 +154,12 @@ export const Sidebar = ({ children }: SidebarProps) => {
               label={link.name}
               Icon={link.icon}
               onClick={() => {
-                if (myNode !== undefined) {
+                if (demoModeEnabled || myNode !== undefined) {
                   navigate({ to: `/${link.page}` });
                 }
               }}
               active={link.page === pathname}
-              disabled={myNode === undefined}
+              disabled={!demoModeEnabled && myNode === undefined}
               stickyActiveLight
             />
           );
