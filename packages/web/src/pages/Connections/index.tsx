@@ -87,6 +87,9 @@ export const Connections = () => {
   });
   const isURLHTTPS = useMemo(() => location.protocol === "https:", []);
   const { t } = useTranslation("connections");
+  const goToDemo = () => {
+    window.location.assign("https://dmdemo.arkantiko.com/");
+  };
 
   // On first mount, sync statuses and refresh
   useEffect(() => {
@@ -178,6 +181,13 @@ export const Connections = () => {
                     <RouterIcon className="size-5" />
                     {t("button.addConnection")}
                   </Button>
+                  <Button
+                    onClick={goToDemo}
+                    className="gap-2 border border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
+                  >
+                    Demo
+                    <ExternalLink className="size-4" />
+                  </Button>
                 </div>
               </div>
               <div className="flex justify-center md:justify-end">
@@ -224,13 +234,20 @@ export const Connections = () => {
               <CardTitle className="text-lg">{t("noConnections.title")} </CardTitle>
             </CardHeader>
             <CardContent className="text-zinc-400">{t("noConnections.description")}</CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-wrap gap-3">
               <Button
                 onClick={() => setAddOpen(true)}
                 className="gap-2 border border-[#7a2424] bg-[#551717] text-zinc-100 hover:bg-[#6c1d1d]"
               >
                 <RouterIcon className="size-5" />
                 {t("button.addConnection")}
+              </Button>
+              <Button
+                onClick={goToDemo}
+                className="gap-2 border border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
+              >
+                Demo
+                <ExternalLink className="size-4" />
               </Button>
             </CardFooter>
           </Card>

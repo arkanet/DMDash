@@ -140,7 +140,10 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
     lastAutoReconnectAtRef.current = now;
     setIsAutoReconnecting(true);
 
-    void connect(activeLocalConnection.id, { allowPrompt: false, reconnect: true }).finally(() => {
+    void connect(activeLocalConnection.id, {
+      allowPrompt: false,
+      reconnect: true,
+    }).finally(() => {
       setIsAutoReconnecting(false);
     });
   }, [activeLocalConnection, connect, localConnectionStatus]);
@@ -226,8 +229,13 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
           alt="DarkMesh"
           className="size-12 max-h-12 shrink-0 rounded-xl border border-white/10 bg-black/80 object-contain p-1 shadow-[0_0_18px_rgba(0,0,0,0.18)]"
         />
-        <div className="min-w-0 flex-1 truncate text-[1.9rem] font-semibold italic leading-none">
-          DarkMesh
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span className="truncate text-[1.9rem] font-semibold italic leading-none">
+              DarkMesh
+            </span>
+            <img src="/logo_web.svg" alt="WEB" className="h-6 w-auto shrink-0 object-contain" />
+          </div>
         </div>
         <span
           role="img"

@@ -408,7 +408,7 @@ const DarkMeshDashboardPage = () => {
     <PageLayout
       label="DarkMesh Dashboard"
       leftBar={<Sidebar />}
-      contentClassName="overflow-y-auto"
+      contentClassName="route-content-mb-10 overflow-y-auto"
       headerContent={<GatewayHeader />}
     >
       {/* Top dashboard header removed per design update */}
