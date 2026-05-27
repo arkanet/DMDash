@@ -16,8 +16,10 @@ import {
   isExpectedRebootDisconnectError,
   markExpectedDeviceReconnect,
 } from "@core/utils/rebootReconnect.ts";
+import { makeChannelSchema } from "@app/validation/channel.ts";
 import { Protobuf } from "@meshtastic/core";
 import { fromByteArray, toByteArray } from "base64-js";
+import cryptoRandomString from "crypto-random-string";
 import i18next from "i18next";
 import {
   ArrowLeftIcon,
@@ -38,6 +40,25 @@ interface ConfigProps {
 }
 
 const MAX_CHANNELS = 8;
+const MOBILE_PSK_LENGTH_OPTIONS = [8, 16, 24, 32] as const;
+
+function getMobilePskFontSize(psk: string) {
+  const length = psk.length;
+
+  if (length > 44) {
+    return "0.625rem";
+  }
+
+  if (length > 36) {
+    return "0.6875rem";
+  }
+
+  if (length > 28) {
+    return "0.75rem";
+  }
+
+  return "0.875rem";
+}
 
 function cloneModuleSettings(settings?: Protobuf.Channel.ModuleSettings) {
   return settings ? create(Protobuf.Channel.ModuleSettingsSchema, settings) : undefined;
@@ -231,7 +252,10 @@ export const Channels = ({ onFormInit, standalone = false }: ConfigProps) => {
     }
 
     if (!connection) {
-      toast({ title: "Radio non connessa", description: "Connetti un device prima di salvare." });
+      toast({
+        title: "Radio non connessa",
+        description: "Connetti un device prima di salvare.",
+      });
       return;
     }
 
@@ -274,7 +298,10 @@ export const Channels = ({ onFormInit, standalone = false }: ConfigProps) => {
           case "lora":
           case "bluetooth":
           case "security":
-            removeChange({ type: "config", variant: newConfig.payloadVariant.case });
+            removeChange({
+              type: "config",
+              variant: newConfig.payloadVariant.case,
+            });
             break;
         }
       });
@@ -735,11 +762,49 @@ function MobileChannelEditor({
   onDelete: (channel: Protobuf.Channel.Channel) => void;
 }) {
   const { toast } = useToast();
+  const { t } = useTranslation("channels");
   const [draftSettings, setDraftSettings] = useState(() => cloneChannelSettings(channel.settings));
   const [draftPsk, setDraftPsk] = useState(() =>
     fromByteArray(channel.settings?.psk ?? new Uint8Array(0)),
   );
+  const [pskByteCount, setPskByteCount] = useState(() => channel.settings?.psk.length ?? 16);
   const positionPrecision = draftSettings.moduleSettings?.positionPrecision ?? 10;
+  const draftPskFontSize = getMobilePskFontSize(draftPsk);
+  const draftPskIssue = useMemo(() => {
+    const validation = makeChannelSchema(pskByteCount).safeParse({
+      index: channel.index,
+      role: channel.role,
+      settings: {
+        channelNum: draftSettings.channelNum ?? channel.settings?.channelNum ?? 0,
+        psk: draftPsk,
+        name: draftSettings.name ?? channel.settings?.name ?? "",
+        id: draftSettings.id ?? channel.settings?.id ?? 0,
+        uplinkEnabled: draftSettings.uplinkEnabled ?? false,
+        downlinkEnabled: draftSettings.downlinkEnabled ?? false,
+        moduleSettings: {
+          positionPrecision,
+        },
+      },
+    });
+
+    if (validation.success) {
+      return null;
+    }
+
+    return (
+      validation.error.issues.find(
+        (issue) => issue.path.includes("settings") && issue.path.includes("psk"),
+      ) ?? null
+    );
+  }, [
+    channel.index,
+    channel.role,
+    channel.settings,
+    draftPsk,
+    draftSettings,
+    positionPrecision,
+    pskByteCount,
+  ]);
 
   const updateDraft = (patch: Partial<Protobuf.Channel.ChannelSettings>) => {
     setDraftSettings((current) => {
@@ -747,23 +812,50 @@ function MobileChannelEditor({
     });
   };
 
+  const validateDraftPsk = () => {
+    if (!draftPskIssue) {
+      return true;
+    }
+
+    toast({
+      title: "PSK non valida",
+      description:
+        draftPskIssue.message === "formValidation.pskLength.64_128_192_256bit"
+          ? "La PSK deve rispettare la lunghezza selezionata."
+          : "Inserire una stringa base64 valida con la lunghezza selezionata.",
+    });
+
+    return false;
+  };
+
+  useEffect(() => {
+    setDraftSettings(cloneChannelSettings(channel.settings));
+    setDraftPsk(fromByteArray(channel.settings?.psk ?? new Uint8Array(0)));
+    setPskByteCount(channel.settings?.psk.length ?? 16);
+  }, [channel]);
+
+  const generateMobilePsk = () => {
+    const newPsk = btoa(
+      cryptoRandomString({
+        length: pskByteCount,
+        type: "alphanumeric",
+      }),
+    );
+
+    setDraftPsk(newPsk);
+  };
+
   const saveDraft = () => {
-    let psk = draftSettings.psk;
-    try {
-      psk = toByteArray(draftPsk);
-    } catch {
-      toastInvalidPsk();
+    if (!validateDraftPsk()) {
       return;
     }
+
+    const psk = toByteArray(draftPsk);
     const nextSettings = mergeChannelSettings(draftSettings, {
       psk,
     });
     onUpdate(channel, nextSettings);
     onClose();
-  };
-
-  const toastInvalidPsk = () => {
-    toast({ title: "PSK non valida", description: "Inserire una stringa base64 valida." });
   };
 
   return (
@@ -792,11 +884,40 @@ function MobileChannelEditor({
         </div>
         <div className="space-y-2">
           <Label>PSK</Label>
-          <Input
-            value={draftPsk}
-            onChange={(event) => setDraftPsk(event.target.value)}
-            className="h-12 bg-transparent font-mono text-sm"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              value={draftPsk}
+              onChange={(event) => setDraftPsk(event.target.value)}
+              showCopyButton
+              containerClassName="min-w-0 flex-1"
+              className={
+                draftPskIssue
+                  ? "h-12 min-w-0 bg-transparent font-mono leading-none text-red-500 dark:text-red-400"
+                  : "h-12 min-w-0 bg-transparent font-mono leading-none"
+              }
+              style={{ fontSize: draftPskFontSize }}
+            />
+            <select
+              value={pskByteCount}
+              onChange={(event) => setPskByteCount(Number(event.target.value))}
+              className="h-12 w-19 shrink-0 rounded-md border border-zinc-400 bg-transparent px-2 text-sm dark:border-zinc-600"
+              aria-label={t("psk.label")}
+            >
+              {MOBILE_PSK_LENGTH_OPTIONS.map((length) => (
+                <option key={length} value={length}>
+                  {length}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 shrink-0 border-[#8d0606] px-3 text-[#8d0606]"
+              onClick={generateMobilePsk}
+            >
+              {t("psk.generate")}
+            </Button>
+          </div>
         </div>
         <div className="space-y-2">
           <Label>Precisione posizione</Label>
