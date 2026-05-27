@@ -78,6 +78,7 @@ import { urlOrIpv4Schema } from "@components/Dialog/AddConnectionDialog/validati
 import { hasPos } from "@core/utils/geo.ts";
 import { cn } from "@core/utils/cn.ts";
 import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
+import { isDemoDevice, simulateDemoNodeInfo } from "@core/utils/demoNodeSimulator.ts";
 
 export interface NodeDetailProps {
   node: ProtobufType.Mesh.NodeInfo;
@@ -180,10 +181,16 @@ export const NodeDetail = ({
   const firmwareVersion = formatFirmwareVersion(
     deviceMetadata.get(node.num)?.firmwareVersion ??
       (node.num === hardware.myNodeNum ? deviceMetadata.get(0)?.firmwareVersion : undefined) ??
-      (node as ProtobufType.Mesh.NodeInfo & { metadata?: { firmwareVersion?: string } }).metadata
-        ?.firmwareVersion ??
-      (node as ProtobufType.Mesh.NodeInfo & { deviceMetadata?: { firmwareVersion?: string } })
-        .deviceMetadata?.firmwareVersion,
+      (
+        node as ProtobufType.Mesh.NodeInfo & {
+          metadata?: { firmwareVersion?: string };
+        }
+      ).metadata?.firmwareVersion ??
+      (
+        node as ProtobufType.Mesh.NodeInfo & {
+          deviceMetadata?: { firmwareVersion?: string };
+        }
+      ).deviceMetadata?.firmwareVersion,
   );
   const hardwareDetails = [hardwareType !== t("unset") ? hardwareType : undefined, firmwareVersion]
     .filter(Boolean)
@@ -228,7 +235,9 @@ export const NodeDetail = ({
             onClick={async () => {
               try {
                 toastRef?.dismiss();
-                toast({ title: t("nodeDetail.requestingPublicKey", "Requesting public key...") });
+                toast({
+                  title: t("nodeDetail.requestingPublicKey", "Requesting public key..."),
+                });
 
                 if (!connection) throw new Error("No active connection to device");
 
@@ -250,7 +259,9 @@ export const NodeDetail = ({
                 toast({ title: t("nodeDetail.requestSent", "Request sent") });
               } catch (err) {
                 logger.warn?.("public key request failed", err);
-                toast({ title: t("nodeDetail.requestFailed", "Failed to request public key") });
+                toast({
+                  title: t("nodeDetail.requestFailed", "Failed to request public key"),
+                });
               }
             }}
           >
@@ -290,12 +301,15 @@ export const NodeDetail = ({
     }
 
     try {
-      toast({ title: t("nodeDetail.neighbor.requestSent", "Request Neighbor Info Sent...") });
-      if (!connection) {
+      toast({
+        title: t("nodeDetail.neighbor.requestSent", "Request Neighbor Info Sent..."),
+      });
+      if (!connection && !isDemoDevice(deviceId)) {
         throw new Error("No active connection to device");
       }
 
       if (
+        !isDemoDevice(deviceId) &&
         typeof connection.requestNeighborInfo !== "function" &&
         typeof connection.sendPacket !== "function" &&
         typeof connection.getMetadata !== "function"
@@ -303,7 +317,7 @@ export const NodeDetail = ({
         throw new Error("Connection does not support neighbor requests");
       }
 
-      await requestNeighborInfo(connection, node.num);
+      await requestNeighborInfo(connection, node.num, deviceId);
       setShowEnvironment(false);
       setShowPowerMetrics(false);
       setShowNeighbor(true);
@@ -325,8 +339,10 @@ export const NodeDetail = ({
     }
 
     try {
-      toast({ title: t("nodeDetail.metrics.requestSent", "Request Environmental Info Sent...") });
-      await requestEnvironmentMetrics(connection, node.num);
+      toast({
+        title: t("nodeDetail.metrics.requestSent", "Request Environmental Info Sent..."),
+      });
+      await requestEnvironmentMetrics(connection, node.num, deviceId);
       setShowNeighbor(false);
       setShowPowerMetrics(false);
       setShowEnvironment(true);
@@ -356,11 +372,20 @@ export const NodeDetail = ({
 
   async function handleRequestDeviceMetadata() {
     try {
-      toast({ title: t("nodeDetail.metadata.requestSent", "Request metadata sent") });
-      await requestDeviceMetadata(connection, node.num, resolveAdminChannelIndex(channels));
+      toast({
+        title: t("nodeDetail.metadata.requestSent", "Request metadata sent"),
+      });
+      await requestDeviceMetadata(
+        connection,
+        node.num,
+        resolveAdminChannelIndex(channels),
+        deviceId,
+      );
     } catch (error) {
       logger.warn?.("popup metadata request failed", error);
-      toast({ title: t("nodeDetail.metadata.error", "Failed to request metadata") });
+      toast({
+        title: t("nodeDetail.metadata.error", "Failed to request metadata"),
+      });
     }
   }
 
@@ -625,7 +650,9 @@ export const NodeDetail = ({
                          // console.warn("failed to build shared contact url", _err);
                         */
                         logger.warn?.("failed to build shared contact url", _err);
-                        toast({ title: t("nodeDetail.shareError", "Failed to build share URL") });
+                        toast({
+                          title: t("nodeDetail.shareError", "Failed to build share URL"),
+                        });
                       }
                     }}
                   >
@@ -677,6 +704,20 @@ export const NodeDetail = ({
                       try {
                         toast({ title: t("Request Node Info", { ns: "ui" }) });
 
+                        if (isDemoDevice(deviceId)) {
+                          const response = simulateDemoNodeInfo(deviceId, node.num);
+                          if (!response?.node) {
+                            throw new Error("Demo node info unavailable");
+                          }
+
+                          toast({
+                            title: t("Request Node Info ...", { ns: "ui" }),
+                            description:
+                              response.node.user?.longName ?? response.node.user?.shortName,
+                          });
+                          return;
+                        }
+
                         if (connection && typeof connection.sendPacket === "function") {
                           await connection.sendPacket(
                             new Uint8Array(),
@@ -694,7 +735,9 @@ export const NodeDetail = ({
                           );
                         }
 
-                        toast({ title: t("Request Node Info ...", { ns: "ui" }) });
+                        toast({
+                          title: t("Request Node Info ...", { ns: "ui" }),
+                        });
                       } catch (err) {
                         /*
                          Silenced non-blocking nodeinfo popup request warning.
@@ -767,7 +810,9 @@ export const NodeDetail = ({
                                 title: t("nodeDetail.shareCopied", "Copied URL to clipboard"),
                               });
                             } catch {
-                              toast({ title: t("nodeDetail.shareCopyError", "Failed to copy") });
+                              toast({
+                                title: t("nodeDetail.shareCopyError", "Failed to copy"),
+                              });
                             }
                           }}
                         >
@@ -927,11 +972,15 @@ export const NodeDetail = ({
                     }
 
                     if (!connection) {
-                      toast({ title: t("nodeDetail.gps.noConnection", "No connection") });
+                      toast({
+                        title: t("nodeDetail.gps.noConnection", "No connection"),
+                      });
                       return;
                     }
 
-                    toast({ title: t("nodeDetail.gps.request", "GPS data request") });
+                    toast({
+                      title: t("nodeDetail.gps.request", "GPS data request"),
+                    });
 
                     try {
                       await connection.requestPosition(num);
@@ -989,7 +1038,9 @@ export const NodeDetail = ({
                          // console.warn("failed to open node details panel", err);
                         */
                         logger.warn?.("failed to open node details panel", err);
-                        toast({ title: t("nodeDetail.gps.missing", "GPS data missing") });
+                        toast({
+                          title: t("nodeDetail.gps.missing", "GPS data missing"),
+                        });
                       }
                     }
                   })();
@@ -1058,8 +1109,11 @@ export const NodeDetail = ({
             <NodeSignalChart
               snr={node.snr}
               rssi={
-                (node as unknown as ProtobufType.Mesh.NodeInfo & { rxRssi?: number }).rxRssi ??
-                undefined
+                (
+                  node as unknown as ProtobufType.Mesh.NodeInfo & {
+                    rxRssi?: number;
+                  }
+                ).rxRssi ?? undefined
               }
               noBackground={true}
               invertOrder={true}

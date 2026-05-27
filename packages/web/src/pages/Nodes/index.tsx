@@ -57,7 +57,7 @@ import {
 import { distanceBetweenPositions, hasPos, positionPoint } from "@core/utils/geo.ts";
 import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
 import {
-  DEMO_DEVICE_ID,
+  isDemoDevice,
   simulateDemoEnvironmentMetrics,
   simulateDemoNeighborInfo,
   simulateDemoNodeInfo,
@@ -1039,7 +1039,7 @@ const NodesPage = (): JSX.Element => {
     }
     return s.getDevice(device.id)?.neighborInfo.get(pendingNode);
   });
-  const isDemoSimulation = device.id === DEMO_DEVICE_ID && !connection;
+  const isDemoSimulation = isDemoDevice(device.id);
 
   const openTracerouteDialog = useCallback(
     (traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>) => {
@@ -2448,7 +2448,7 @@ export function MobileNodeInfoDialog({
   const [selectedTraceLog, setSelectedTraceLog] = useState<
     Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> | undefined
   >();
-  const isDemoSimulation = device.id === DEMO_DEVICE_ID && !device.connection;
+  const isDemoSimulation = isDemoDevice(device.id);
   const shortName = getNodeShortName(node) ?? formatNameHex(node.num, node).slice(-4);
   const longName = getNodeLongName(node) ?? formatNameHex(node.num, node);
   const hardwareModel = formatHardwareModel(node.user?.hwModel);

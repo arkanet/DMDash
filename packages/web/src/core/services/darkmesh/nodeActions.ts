@@ -3,8 +3,11 @@ import { create, toBinary } from "@bufbuild/protobuf";
 import { useAppStore } from "@core/stores/appStore/index.ts";
 import { useDeviceStore } from "@core/stores/deviceStore/index.ts";
 import {
+  isDemoDevice,
   simulateDemoEnvironmentMetrics,
   simulateDemoNeighborInfo,
+  simulateDemoNodeInfo,
+  simulateDemoPowerMetrics,
   simulateDemoTraceroute,
 } from "@core/utils/demoNodeSimulator.ts";
 import { Protobuf, Types } from "@meshtastic/core";
@@ -103,7 +106,7 @@ export async function requestNeighborInfo(
 ) {
   const resolvedDeviceId = deviceId ?? useAppStore.getState().selectedDeviceId;
 
-  if (!connection && resolvedDeviceId !== undefined) {
+  if (resolvedDeviceId !== undefined && isDemoDevice(resolvedDeviceId)) {
     const neighborInfo = simulateDemoNeighborInfo(resolvedDeviceId, nodeNum);
     if (!neighborInfo) {
       throw new Error("Neighbor info request is not available on the current connection");
@@ -183,11 +186,18 @@ export async function requestEnvironmentMetrics(
 ) {
   const resolvedDeviceId = deviceId ?? useAppStore.getState().selectedDeviceId;
 
-  if (!connection && resolvedDeviceId !== undefined) {
+  if (resolvedDeviceId !== undefined && isDemoDevice(resolvedDeviceId)) {
     const metrics = simulateDemoEnvironmentMetrics(resolvedDeviceId, nodeNum);
     if (metrics) {
       return metrics;
     }
+
+    const powerMetrics = simulateDemoPowerMetrics(resolvedDeviceId, nodeNum);
+    if (powerMetrics) {
+      return powerMetrics;
+    }
+
+    throw new Error("Environment request is not available on the current connection");
   }
 
   if (connection && typeof connection.requestEnvironmentTelemetry === "function") {
@@ -223,11 +233,13 @@ export async function requestDeviceMetadata(
 ) {
   const resolvedDeviceId = deviceId ?? useAppStore.getState().selectedDeviceId;
 
-  if (!connection && resolvedDeviceId !== undefined) {
-    const metadata = useDeviceStore.getState().getDevice(resolvedDeviceId)?.metadata.get(nodeNum);
+  if (resolvedDeviceId !== undefined && isDemoDevice(resolvedDeviceId)) {
+    const metadata = simulateDemoNodeInfo(resolvedDeviceId, nodeNum)?.metadata;
     if (metadata) {
       return metadata;
     }
+
+    throw new Error("Metadata request is not available on the current connection");
   }
 
   if (connection && typeof connection.sendPacket === "function") {

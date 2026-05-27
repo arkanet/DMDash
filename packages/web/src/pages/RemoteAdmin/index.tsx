@@ -34,6 +34,8 @@ import {
 import { useDevice, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
+import { getDemoRemoteAdminConnection } from "@core/utils/demoRemoteAdmin.ts";
+import { isDemoDevice } from "@core/utils/demoNodeSimulator.ts";
 import { DeviceConfig } from "@pages/Settings/DeviceConfig.tsx";
 import { ModuleConfig } from "@pages/Settings/ModuleConfig.tsx";
 import { Protobuf, Types } from "@meshtastic/core";
@@ -242,6 +244,13 @@ const RemoteAdminPage = () => {
   const navigate = useNavigate();
   const routerState = useRouterState();
   const { t } = useTranslation("config");
+  const remoteConnection = useMemo(
+    () =>
+      isDemoDevice(localDevice.id)
+        ? (getDemoRemoteAdminConnection(localDevice.id) as typeof localDevice.connection)
+        : localDevice.connection,
+    [localDevice],
+  );
 
   const [config, setConfigState] = useState(() => create(Protobuf.LocalOnly.LocalConfigSchema));
   const [moduleConfig, setModuleConfigState] = useState(() =>
@@ -576,7 +585,7 @@ const RemoteAdminPage = () => {
       payloadVariant: Protobuf.Admin.AdminMessage["payloadVariant"],
       options?: { wantResponse?: boolean; includeSessionPasskey?: boolean },
     ) => {
-      if (!localDevice.connection) {
+      if (!remoteConnection) {
         throw new Error("No active device connection");
       }
 
@@ -588,7 +597,7 @@ const RemoteAdminPage = () => {
         payloadVariant,
       });
 
-      return localDevice.connection.sendPacket(
+      return remoteConnection.sendPacket(
         toBinary(Protobuf.Admin.AdminMessageSchema, message),
         Protobuf.Portnums.PortNum.ADMIN_APP,
         nodeNum,
@@ -600,13 +609,16 @@ const RemoteAdminPage = () => {
         undefined,
       );
     },
-    [adminChannel, localDevice.connection, nodeNum],
+    [adminChannel, nodeNum, remoteConnection],
   );
 
   const createRemoteAdminSendFailurePromise = useCallback(
     (
       payloadVariant: Protobuf.Admin.AdminMessage["payloadVariant"],
-      options?: { includeSessionPasskey?: boolean; tolerateAckTimeout?: boolean },
+      options?: {
+        includeSessionPasskey?: boolean;
+        tolerateAckTimeout?: boolean;
+      },
     ) =>
       new Promise<never>((_resolve, reject) => {
         void sendRemoteAdmin(payloadVariant, {
@@ -642,7 +654,7 @@ const RemoteAdminPage = () => {
 
   const requestRemoteTab = useCallback(
     async (tab: RemoteAdminTab, options?: { force?: boolean; awaitResult?: boolean }) => {
-      if (!localDevice.connection) {
+      if (!remoteConnection) {
         return;
       }
 
@@ -710,8 +722,8 @@ const RemoteAdminPage = () => {
     [
       createRemoteAdminSendFailurePromise,
       ensureRemoteSession,
-      localDevice.connection,
       markRemoteTabFailed,
+      remoteConnection,
       setRemoteTabLoaded,
       setRemoteTabLoading,
       startRemoteTabTimeout,
@@ -734,7 +746,7 @@ const RemoteAdminPage = () => {
   );
 
   useEffect(() => {
-    if (!localDevice.connection) {
+    if (!remoteConnection) {
       return;
     }
 
@@ -815,7 +827,7 @@ const RemoteAdminPage = () => {
       }
     };
 
-    localDevice.connection.events.onMeshPacket.subscribe(handleMeshPacket);
+    remoteConnection.events.onMeshPacket.subscribe(handleMeshPacket);
 
     return () => {
       const pendingResolvers = Array.from(pendingAdminResponseResolvers);
@@ -825,17 +837,17 @@ const RemoteAdminPage = () => {
         Array.from(resolvers).forEach((resolve) => resolve()),
       );
       pendingTabResponseResolvers.clear();
-      localDevice.connection?.events.onMeshPacket.unsubscribe(handleMeshPacket);
+      remoteConnection?.events.onMeshPacket.unsubscribe(handleMeshPacket);
     };
   }, [
     addChannel,
-    localDevice.connection,
     markRemoteTabFailed,
     markRemoteTabLoaded,
     maxChannels,
     nodeNum,
     nodeDB,
     createRemoteAdminSendFailurePromise,
+    remoteConnection,
     setConfig,
     setModuleConfig,
     startRemoteTabTimeout,
@@ -1134,7 +1146,7 @@ const RemoteAdminPage = () => {
   const hasPending = hasDrafts || rhfState.isDirty;
   const buttonOpacity = hasPending ? "opacity-100" : "opacity-0";
   const saveDisabled =
-    isSaving || isRefreshing || !localDevice.connection || !rhfState.isValid || !hasPending;
+    isSaving || isRefreshing || !remoteConnection || !rhfState.isValid || !hasPending;
 
   const handleRemoteRefresh = useCallback(async () => {
     if (!activeTab) {
@@ -1242,7 +1254,7 @@ const RemoteAdminPage = () => {
         ...localDevice.hardware,
         myNodeNum: nodeNum,
       }),
-      connection: localDevice.connection,
+      connection: remoteConnection,
       connectionId: localDevice.connectionId,
       setConfig,
       setModuleConfig,
@@ -1283,12 +1295,12 @@ const RemoteAdminPage = () => {
       getChange,
       getEffectiveConfig,
       getEffectiveModuleConfig,
-      localDevice.connection,
       localDevice.connectionId,
       localDevice.hardware,
       moduleConfig,
       nodeNum,
       queueAdminMessage,
+      remoteConnection,
       removeChange,
       setChange,
       setConfig,

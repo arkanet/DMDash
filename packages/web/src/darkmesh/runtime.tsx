@@ -8,10 +8,8 @@ import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { Protobuf, type Types } from "@meshtastic/core";
 import { useEffect } from "react";
-import { forwardHuntPayload } from "./huntApi.ts";
 import { defaultBeaconConfig, defaultHuntConfig, useDarkMeshStore } from "./store.ts";
 import {
-  buildHuntPayload,
   buildDistressMessage,
   computeNextRunAt,
   getHuntBackgroundIntervalMs,
@@ -32,12 +30,7 @@ async function forwardHuntPacket<T>(
   huntConfig: typeof defaultHuntConfig,
   packet: Types.PacketMetadata<T>,
 ) {
-  // Forwarding behavior depends on huntConfig.mode:
-  // - 'local'  => persist to local traceroute store only
-  // - 'remote' => POST to configured endpoint only
-  // - 'both'   => do both (persist locally and POST remote)
-  const mode =
-    (huntConfig && (huntConfig as { mode?: (typeof defaultHuntConfig)["mode"] }).mode) || "local";
+  const mode = "local";
   try {
     // lazy-import traceroute store to avoid circular deps
     const { default: useTracerouteStore } = await import("@core/stores/tracerouteStore");
@@ -52,8 +45,7 @@ async function forwardHuntPacket<T>(
         ) as unknown as Types.PacketMetadata<T>)
       : packet;
 
-    // persist locally when requested
-    if (isTraceroutePacket && (mode === "local" || mode === "both")) {
+    if (isTraceroutePacket && mode === "local") {
       try {
         useTracerouteStore
           .getState()
@@ -65,25 +57,10 @@ async function forwardHuntPacket<T>(
         // update UI state for local persistence
         useDarkMeshStore.getState().setHuntStatus(deviceId, "Stored packet in local hunt DB");
       } catch (e) {
-        // log but continue if remote forwarding is enabled
         console.warn("local traceroute persistence failed", e);
       }
     }
 
-    // perform remote forward when requested
-    if ((mode === "remote" || mode === "both") && huntConfig.endpoint && huntConfig.token) {
-      await forwardHuntPayload(
-        huntConfig.endpoint,
-        huntConfig.token,
-        buildHuntPayload(hunterId, packet),
-      );
-
-      // mark forwarded for telemetry/UI
-      useDarkMeshStore.getState().markHuntForwarded(deviceId);
-      return;
-    }
-
-    // If we get here, either mode was 'local' or remote config missing; treat as success
     return;
   } catch (err) {
     // surface errors to caller
@@ -267,15 +244,8 @@ export function DarkMeshRuntime() {
       const myNode = getMyNode();
       const huntConfig =
         useDarkMeshStore.getState().huntByDevice[selectedDeviceId] ?? defaultHuntConfig;
-      const huntMode =
-        (huntConfig && (huntConfig as { mode?: typeof defaultHuntConfig.mode }).mode) || "local";
-      const needsRemoteConfig = huntMode === "remote" || huntMode === "both";
 
-      if (
-        !myNode?.user?.id ||
-        !huntConfig.enabled ||
-        (needsRemoteConfig && (!huntConfig.endpoint || !huntConfig.token))
-      ) {
+      if (!myNode?.user?.id || !huntConfig.enabled) {
         return;
       }
 
@@ -531,7 +501,11 @@ export function DarkMeshRuntime() {
                 typeof sendTarget.destination === "number" ? sendTarget.destination : undefined;
               notify(
                 "scheduled_send",
-                { scheduleId: schedule.id, scheduleLabel: schedule.label, text: schedule.text },
+                {
+                  scheduleId: schedule.id,
+                  scheduleLabel: schedule.label,
+                  text: schedule.text,
+                },
                 { priority: 2, nodeNum },
               );
             } catch {

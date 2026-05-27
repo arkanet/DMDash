@@ -18,3 +18,7 @@ export function getX25519PrivateKey(): Uint8Array {
 export function getX25519PublicKey(privateKey: Uint8Array): Uint8Array {
   return x25519.getPublicKey(privateKey);
 }
+
+export function getX25519SharedSecret(privateKey: Uint8Array, publicKey: Uint8Array): Uint8Array {
+  return x25519.getSharedSecret(privateKey, publicKey).slice(0, 32);
+}

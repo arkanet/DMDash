@@ -6,7 +6,7 @@ import { Spinner } from "@components/UI/Spinner.tsx";
 import { useAppStore, useDevice, useDeviceStore, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { useConnections } from "@pages/Connections/useConnections.ts";
-import { useLocation, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   CloudIcon,
   CrosshairIcon,
@@ -231,9 +231,12 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 overflow-hidden">
-            <span className="truncate text-[1.9rem] font-semibold italic leading-none">
+            <Link
+              to="/connections"
+              className="truncate text-[1.9rem] font-semibold italic leading-none transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-accent"
+            >
               DarkMesh
-            </span>
+            </Link>
             <img src="/logo_web.svg" alt="WEB" className="h-6 w-auto shrink-0 object-contain" />
           </div>
         </div>

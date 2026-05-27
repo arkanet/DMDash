@@ -483,7 +483,7 @@ function createMetadata(
   });
 }
 
-function isDemoDevice(deviceId: number): boolean {
+export function isDemoDevice(deviceId: number): boolean {
   return deviceId === DEMO_DEVICE_ID;
 }
 
@@ -685,7 +685,11 @@ export function simulateDemoNodeInfo(deviceId: number, nodeNum: number) {
     return undefined;
   }
 
-  ensureDemoNodeSimulatorSeeded(deviceId);
+  const existingDevice = useDeviceStore.getState().getDevice(deviceId);
+  const existingNodeDb = useNodeDBStore.getState().getNodeDB(deviceId);
+  if (!existingDevice || !existingNodeDb) {
+    ensureDemoNodeSimulatorSeeded(deviceId);
+  }
   const node = useNodeDBStore.getState().getNodeDB(deviceId)?.getNode(nodeNum);
   const metadata = useDeviceStore.getState().getDevice(deviceId)?.metadata.get(nodeNum);
   return node ? { node, metadata } : undefined;
@@ -699,7 +703,11 @@ export function simulateDemoPositionPacket(
     return undefined;
   }
 
-  ensureDemoNodeSimulatorSeeded(deviceId);
+  const existingDevice = useDeviceStore.getState().getDevice(deviceId);
+  const existingNodeDb = useNodeDBStore.getState().getNodeDB(deviceId);
+  if (!existingDevice || !existingNodeDb) {
+    ensureDemoNodeSimulatorSeeded(deviceId);
+  }
   const node = useNodeDBStore.getState().getNodeDB(deviceId)?.getNode(nodeNum);
   if (!node?.position) {
     return undefined;
@@ -724,7 +732,11 @@ export function simulateDemoNeighborInfo(
     return undefined;
   }
 
-  ensureDemoNodeSimulatorSeeded(deviceId);
+  const existingDevice = useDeviceStore.getState().getDevice(deviceId);
+  const existingNodeDb = useNodeDBStore.getState().getNodeDB(deviceId);
+  if (!existingDevice || !existingNodeDb) {
+    ensureDemoNodeSimulatorSeeded(deviceId);
+  }
   return useDeviceStore.getState().getDevice(deviceId)?.getNeighborInfo(nodeNum);
 }
 
@@ -736,8 +748,28 @@ export function simulateDemoEnvironmentMetrics(
     return undefined;
   }
 
-  ensureDemoNodeSimulatorSeeded(deviceId);
+  const existingDevice = useDeviceStore.getState().getDevice(deviceId);
+  const existingNodeDb = useNodeDBStore.getState().getNodeDB(deviceId);
+  if (!existingDevice || !existingNodeDb) {
+    ensureDemoNodeSimulatorSeeded(deviceId);
+  }
   return useNodeDBStore.getState().getNodeDB(deviceId)?.getEnvironmentMetrics(nodeNum);
+}
+
+export function simulateDemoPowerMetrics(
+  deviceId: number,
+  nodeNum: number,
+): Protobuf.Telemetry.PowerMetrics | undefined {
+  if (!isDemoDevice(deviceId)) {
+    return undefined;
+  }
+
+  const existingDevice = useDeviceStore.getState().getDevice(deviceId);
+  const existingNodeDb = useNodeDBStore.getState().getNodeDB(deviceId);
+  if (!existingDevice || !existingNodeDb) {
+    ensureDemoNodeSimulatorSeeded(deviceId);
+  }
+  return useNodeDBStore.getState().getNodeDB(deviceId)?.getPowerMetrics(nodeNum);
 }
 
 function getDemoRelayPath(nodeNum: number): number[] {
@@ -783,7 +815,11 @@ export function simulateDemoTraceroute(
     return undefined;
   }
 
-  ensureDemoNodeSimulatorSeeded(deviceId);
+  const existingDevice = useDeviceStore.getState().getDevice(deviceId);
+  const existingNodeDb = useNodeDBStore.getState().getNodeDB(deviceId);
+  if (!existingDevice || !existingNodeDb) {
+    ensureDemoNodeSimulatorSeeded(deviceId);
+  }
   const target = findDemoBlueprint(nodeNum);
   if (!target) {
     return undefined;

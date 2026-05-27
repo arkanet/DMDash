@@ -39,7 +39,7 @@ import {
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
 import {
-  DEMO_DEVICE_ID,
+  isDemoDevice,
   simulateDemoNodeInfo,
   simulateDemoPositionPacket,
 } from "@core/utils/demoNodeSimulator.ts";
@@ -224,7 +224,7 @@ export const NodeDetailsDialog = ({
   const [selectedTracerouteDurationMs, setSelectedTracerouteDurationMs] = useState<
     number | undefined
   >();
-  const isDemoSimulation = deviceId === DEMO_DEVICE_ID && !connection;
+  const isDemoSimulation = isDemoDevice(deviceId);
   const pendingTracerouteNodeRef = useRef<number | undefined>(undefined);
   const pendingTracerouteStartedAtRef = useRef<number | undefined>(undefined);
 
@@ -276,6 +276,13 @@ export const NodeDetailsDialog = ({
   const neighborInfo = getNeighborInfo(currentNode?.num ?? effectiveNodeNum);
   const hasNeighborInfoForRender = Boolean(neighborInfo?.neighbors?.length);
   const hasEnvironmentMetricsForRender = hasEnvironmentMetrics(environmentMetricsForRender);
+
+  function preventDialogActionDismiss(
+    event: React.MouseEvent<HTMLButtonElement> | React.PointerEvent<HTMLButtonElement>,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
 
   function closeTracerouteDialog() {
     setSelectedTraceroute(undefined);
@@ -406,6 +413,8 @@ export const NodeDetailsDialog = ({
       toast({
         title: t("toast.tracerouteSent.title", { ns: "ui" }),
       });
+      setDialogOpen("nodeDetails", false);
+      navigate({ to: "/map" });
     } catch (error) {
       pendingTracerouteNodeRef.current = undefined;
       pendingTracerouteStartedAtRef.current = undefined;
@@ -452,7 +461,7 @@ export const NodeDetailsDialog = ({
   async function handleRequestEnvironmentFromDialog() {
     try {
       toast({ title: "Environmental Info" });
-      await requestEnvironmentMetrics(connection, currentNode.num);
+      await requestEnvironmentMetrics(connection, currentNode.num, deviceId);
     } catch (error) {
       /*
        Silenced non-blocking environment request warning in dialog.
@@ -536,7 +545,12 @@ export const NodeDetailsDialog = ({
       toast({
         title: t("nodeDetails.metadataRequestSent", "Request metadata sent"),
       });
-      await requestDeviceMetadata(connection, currentNode.num, resolveAdminChannelIndex(channels));
+      await requestDeviceMetadata(
+        connection,
+        currentNode.num,
+        resolveAdminChannelIndex(channels),
+        deviceId,
+      );
     } catch (error) {
       logger.warn?.("dialog metadata request failed", error);
       toast({
@@ -745,7 +759,11 @@ export const NodeDetailsDialog = ({
                         size="icon"
                         className={actionButtonClassName}
                         aria-label={t("nodeDetails.visualTraceroute", "Visual Traceroute")}
-                        onClick={handleVisualTraceroute}
+                        onPointerDown={preventDialogActionDismiss}
+                        onClick={(event) => {
+                          preventDialogActionDismiss(event);
+                          void handleVisualTraceroute();
+                        }}
                       >
                         <MapPin />
                       </Button>
@@ -764,7 +782,11 @@ export const NodeDetailsDialog = ({
                         size="icon"
                         className={actionButtonClassName}
                         aria-label={t("nodeDetails.neighborPanel", "Neighbor")}
-                        onClick={handleRequestNeighborFromDialog}
+                        onPointerDown={preventDialogActionDismiss}
+                        onClick={(event) => {
+                          preventDialogActionDismiss(event);
+                          void handleRequestNeighborFromDialog();
+                        }}
                       >
                         <UsersIcon />
                       </Button>
@@ -783,7 +805,11 @@ export const NodeDetailsDialog = ({
                         size="icon"
                         className={actionButtonClassName}
                         aria-label={t("nodeDetails.metricsPanel", "Environment")}
-                        onClick={handleRequestEnvironmentFromDialog}
+                        onPointerDown={preventDialogActionDismiss}
+                        onClick={(event) => {
+                          preventDialogActionDismiss(event);
+                          void handleRequestEnvironmentFromDialog();
+                        }}
                       >
                         <BarChart2 />
                       </Button>

@@ -29,7 +29,6 @@ import {
   type BeaconConfig,
   type HuntConfig,
 } from "./store.ts";
-import { validateHuntEndpoint } from "./huntApi.ts";
 import PowerNotificationPanel from "@components/PageComponents/PowerNotification/PowerNotificationPanel.tsx";
 import NotificationsPanel from "@components/PageComponents/Notifications/NotificationsPanel.tsx";
 import BatteryAlertsPanel from "@components/PageComponents/Notifications/BatteryAlertsPanel.tsx";
@@ -117,6 +116,17 @@ const BACKBONE_ROLES = [
   Protobuf.Config.Config_DeviceConfig_Role.CLIENT_BASE,
 ];
 
+function getLocalOnlyHuntConfig(config: HuntConfig): HuntConfig {
+  if (config.mode === "local") {
+    return config;
+  }
+
+  return {
+    ...config,
+    mode: "local",
+  };
+}
+
 const DarkMeshDashboardPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -131,8 +141,10 @@ const DarkMeshDashboardPage = () => {
   const beaconConfig = useDarkMeshStore(
     (state) => state.beaconsByDevice[deviceId] ?? defaultBeaconConfig,
   );
-  const huntConfig = useDarkMeshStore((state) => state.huntByDevice[deviceId] ?? defaultHuntConfig);
-  const huntDraft = useDarkMeshStore(
+  const rawHuntConfig = useDarkMeshStore(
+    (state) => state.huntByDevice[deviceId] ?? defaultHuntConfig,
+  );
+  const rawHuntDraft = useDarkMeshStore(
     (state) =>
       state.huntDraftByDevice[deviceId] ?? state.huntByDevice[deviceId] ?? defaultHuntConfig,
   );
@@ -143,6 +155,8 @@ const DarkMeshDashboardPage = () => {
   const upsertHuntDraft = useDarkMeshStore((state) => state.upsertHuntDraft);
   const setHuntStatus = useDarkMeshStore((state) => state.setHuntStatus);
   const setHuntError = useDarkMeshStore((state) => state.setHuntError);
+  const huntConfig = getLocalOnlyHuntConfig(rawHuntConfig);
+  const huntDraft = getLocalOnlyHuntConfig(rawHuntDraft);
 
   const myNode = getMyNode();
   const schedules = useMemo(
@@ -198,11 +212,26 @@ const DarkMeshDashboardPage = () => {
     setBeaconDraft(beaconConfig);
   }, [beaconConfig]);
 
+  useEffect(() => {
+    if (rawHuntConfig.mode && rawHuntConfig.mode !== "local") {
+      upsertHuntConfig(deviceId, getLocalOnlyHuntConfig(rawHuntConfig));
+    }
+  }, [deviceId, rawHuntConfig, upsertHuntConfig]);
+
+  useEffect(() => {
+    if (rawHuntDraft.mode && rawHuntDraft.mode !== "local") {
+      upsertHuntDraft(deviceId, getLocalOnlyHuntConfig(rawHuntDraft));
+    }
+  }, [deviceId, rawHuntDraft, upsertHuntDraft]);
+
   const updateHuntDraft = (patch: Partial<HuntConfig>) => {
-    upsertHuntDraft(deviceId, {
-      ...huntDraft,
-      ...patch,
-    });
+    upsertHuntDraft(
+      deviceId,
+      getLocalOnlyHuntConfig({
+        ...huntDraft,
+        ...patch,
+      }),
+    );
   };
 
   const [beaconFilter, setBeaconFilter] = useState("");
@@ -239,38 +268,16 @@ const DarkMeshDashboardPage = () => {
     });
   };
 
-  const handleValidateHunt = async () => {
-    // If mode includes remote, perform health check against configured endpoint; otherwise enable local mode
-    try {
-      if (huntDraft.mode === "remote" || huntDraft.mode === "both") {
-        await validateHuntEndpoint(huntDraft.endpoint, huntDraft.token);
-
-        upsertHuntConfig(deviceId, {
-          ...huntDraft,
-          enabled: true,
-        });
-        updateHuntDraft({ enabled: true });
-        setHuntStatus(deviceId, "Health check passed. Hunt forwarding is active.");
-        toast({ title: "DarkMesh hunting endpoint validated" });
-      } else {
-        // local-only: just enable local forwarding
-        upsertHuntConfig(deviceId, {
-          ...huntDraft,
-          enabled: true,
-        });
-        updateHuntDraft({ enabled: true });
-        setHuntStatus(deviceId, "Local hunt forwarding enabled (packets persisted locally)");
-        toast({ title: "Local hunting enabled" });
-      }
-    } catch (error) {
-      setHuntError(
-        deviceId,
-        error instanceof Error ? error.message : "Unknown hunt validation error",
-      );
-      toast({
-        title: "Unable to validate the DarkMesh hunting endpoint",
-      });
-    }
+  const handleValidateHunt = () => {
+    upsertHuntConfig(deviceId, {
+      ...huntDraft,
+      enabled: true,
+      mode: "local",
+    });
+    updateHuntDraft({ enabled: true, mode: "local" });
+    setHuntError(deviceId, "");
+    setHuntStatus(deviceId, "Local hunt forwarding enabled (packets persisted locally)");
+    toast({ title: "Local hunting enabled" });
   };
 
   const handleDisableHunt = () => {
@@ -679,15 +686,14 @@ const DarkMeshDashboardPage = () => {
               <select
                 className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 value={huntDraft.mode ?? "local"}
-                onChange={(event) =>
-                  updateHuntDraft({
-                    mode: event.target.value as HuntConfig["mode"],
-                  })
-                }
               >
                 <option value="local">Local (persist only)</option>
-                <option value="remote">Remote (forward only)</option>
-                <option value="both">Both (local + remote)</option>
+                <option value="remote" disabled>
+                  Remote (forward only)
+                </option>
+                <option value="both" disabled>
+                  Both (local + remote)
+                </option>
               </select>
             </label>
 

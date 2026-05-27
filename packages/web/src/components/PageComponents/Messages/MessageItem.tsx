@@ -32,7 +32,7 @@ import type { Message } from "@core/stores/messageStore/types.ts";
 import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
 import { cn } from "@core/utils/cn.ts";
 import {
-  DEMO_DEVICE_ID,
+  isDemoDevice,
   simulateDemoNodeInfo,
   simulateDemoPositionPacket,
 } from "@core/utils/demoNodeSimulator.ts";
@@ -186,7 +186,7 @@ export const MessageItem = ({
   const [moreNodeInfoNode, setMoreNodeInfoNode] = useState<number | undefined>();
   const neighborDiscoveryRecordsByNode =
     useDarkMeshStore((s) => s.neighborDiscoveryByDevice?.[device.id]) ?? {};
-  const isDemoSimulation = device.id === DEMO_DEVICE_ID && !device.connection;
+  const isDemoSimulation = isDemoDevice(device.id);
 
   // This will suspend if myNode is not available yet
   const myNode = useSuspendingMyNode();
