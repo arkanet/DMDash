@@ -52,6 +52,7 @@ export const subscribeAll = (
   const updateMessageStateByPacketId = (
     messageId: number,
     resolveState: (message: Message) => MessageState | undefined,
+    routingError?: Protobuf.Mesh.Routing_Error,
   ): boolean => {
     const currentMessageStore =
       useMessageStore.getState().getMessageStore(messageStore.id) ?? messageStore;
@@ -74,6 +75,7 @@ export const subscribeAll = (
         nodeB: Number(bStr),
         messageId,
         newState,
+        routingError,
       });
       return true;
     }
@@ -94,6 +96,7 @@ export const subscribeAll = (
         channelId: Number(channelId),
         messageId,
         newState,
+        routingError,
       });
       return true;
     }
@@ -127,22 +130,27 @@ export const subscribeAll = (
         };
         const requestId =
           typeof maybeRouting.requestId === "number" ? maybeRouting.requestId : undefined;
-        const isAck = routingPacket.data.variant.value === Protobuf.Mesh.Routing_Error.NONE;
+        const routingError = routingPacket.data.variant.value;
+        const isAck = routingError === Protobuf.Mesh.Routing_Error.NONE;
 
         if (typeof requestId === "number" && requestId !== 0) {
-          const updated = updateMessageStateByPacketId(requestId, (message) => {
-            if (!isAck) {
-              return MessageState.Failed;
-            }
+          const updated = updateMessageStateByPacketId(
+            requestId,
+            (message) => {
+              if (!isAck) {
+                return MessageState.Failed;
+              }
 
-            if (message.type === MessageType.Direct) {
-              return routingPacket.from === message.to
-                ? MessageState.Received
-                : MessageState.Delivered;
-            }
+              if (message.type === MessageType.Direct) {
+                return routingPacket.from === message.to
+                  ? MessageState.Received
+                  : MessageState.Delivered;
+              }
 
-            return MessageState.Delivered;
-          });
+              return MessageState.Delivered;
+            },
+            routingError,
+          );
 
           if (updated) {
             return;
@@ -150,7 +158,7 @@ export const subscribeAll = (
         }
 
         if (!isAck) {
-          console.info(`Routing Error: ${routingPacket.data.variant.value}`);
+          console.info(`Routing Error: ${routingError}`);
         }
         break;
       }

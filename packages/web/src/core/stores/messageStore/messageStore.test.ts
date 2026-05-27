@@ -308,6 +308,36 @@ describe("MessageStore persistence & rehydrate", () => {
       expect(message?.state).toBe(MessageState.Ack);
     });
 
+    it("should not downgrade a recipient-confirmed message", () => {
+      const confirmedMessage = {
+        ...directMessageToOther1,
+        messageId: 909,
+        state: MessageState.Received,
+      };
+      state.getMessageStore(123)?.saveMessage(confirmedMessage);
+
+      state.getMessageStore(123)!.setMessageState({
+        type: MessageType.Direct,
+        nodeA: confirmedMessage.from,
+        nodeB: confirmedMessage.to,
+        messageId: confirmedMessage.messageId,
+        newState: MessageState.Failed,
+        routingError: 5,
+      });
+
+      const message = state
+        .getMessageStore(123)!
+        .getMessages({
+          type: MessageType.Direct,
+          nodeA: confirmedMessage.from,
+          nodeB: confirmedMessage.to,
+        })
+        .find((storedMessage) => storedMessage.messageId === confirmedMessage.messageId);
+
+      expect(message?.state).toBe(MessageState.Received);
+      expect(message?.routingError).toBeUndefined();
+    });
+
     it("should update state for another direct message in the same conversation", () => {
       state.getMessageStore(123)!.setMessageState({
         type: MessageType.Direct,

@@ -123,6 +123,29 @@ describe("subscribeAll message status updates", () => {
 
     events.onRoutingPacket.dispatch({
       channel: 0,
+      from: 333,
+      to: myNodeNum,
+      id: 998,
+      requestId: messageId,
+      data: {
+        variant: {
+          case: "errorReason",
+          value: Protobuf.Mesh.Routing_Error.NONE,
+        },
+      },
+      type: "direct",
+      rxTime: new Date("2026-05-12T08:00:00Z"),
+    });
+    expect(
+      currentStore?.getMessages({
+        type: MessageType.Direct,
+        nodeA: myNodeNum,
+        nodeB: targetNodeNum,
+      })[0]?.state,
+    ).toBe(MessageState.Delivered);
+
+    events.onRoutingPacket.dispatch({
+      channel: 0,
       from: targetNodeNum,
       to: myNodeNum,
       id: 999,
@@ -143,6 +166,102 @@ describe("subscribeAll message status updates", () => {
         nodeB: targetNodeNum,
       })[0]?.state,
     ).toBe(MessageState.Received);
+
+    events.onRoutingPacket.dispatch({
+      channel: 0,
+      from: 333,
+      to: myNodeNum,
+      id: 1000,
+      requestId: messageId,
+      data: {
+        variant: {
+          case: "errorReason",
+          value: Protobuf.Mesh.Routing_Error.MAX_RETRANSMIT,
+        },
+      },
+      type: "direct",
+      rxTime: new Date("2026-05-12T08:00:02Z"),
+    });
+    const confirmedMessage = currentStore?.getMessages({
+      type: MessageType.Direct,
+      nodeA: myNodeNum,
+      nodeB: targetNodeNum,
+    })[0];
+    expect(confirmedMessage?.state).toBe(MessageState.Received);
+    expect(confirmedMessage?.routingError).toBe(Protobuf.Mesh.Routing_Error.NONE);
+  });
+
+  it("maps broadcast ACKs to delivered instead of recipient-confirmed", () => {
+    const deviceId = 9004;
+    const myNodeNum = 111;
+    const messageId = 54321;
+    const events = createConnectionEvents();
+    const messageStore = useMessageStore.getState().addMessageStore(deviceId);
+    const device = {
+      id: deviceId,
+      hardware: { myNodeNum },
+      addMetadata: vi.fn(),
+      setStatus: vi.fn(),
+      addWaypoint: vi.fn(),
+      addChannel: vi.fn(),
+      setConfig: vi.fn(),
+      setModuleConfig: vi.fn(),
+      incrementUnread: vi.fn(),
+      addTraceRoute: vi.fn(),
+      setPendingSettingsChanges: vi.fn(),
+      addClientNotification: vi.fn(),
+      setDialogOpen: vi.fn(),
+      addNeighborInfo: vi.fn(),
+      setRefreshKeysNodeNum: vi.fn(),
+    };
+    const nodeDB = {
+      addTelemetry: vi.fn(),
+      updateNodeStatus: vi.fn(),
+      addUser: vi.fn(),
+      addPosition: vi.fn(),
+      addNode: vi.fn(),
+      processPacket: vi.fn(),
+      setNodeError: vi.fn(),
+    };
+
+    subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
+
+    events.onMyNodeInfo.dispatch({ myNodeNum });
+    events.onMessagePacket.dispatch({
+      channel: 0,
+      to: 0xffffffff,
+      from: myNodeNum,
+      id: messageId,
+      data: "hello channel",
+      type: "broadcast",
+      rxTime: new Date("2026-05-12T08:00:00Z"),
+    });
+
+    events.onRoutingPacket.dispatch({
+      channel: 0,
+      from: 222,
+      to: myNodeNum,
+      id: 999,
+      requestId: messageId,
+      data: {
+        variant: {
+          case: "errorReason",
+          value: Protobuf.Mesh.Routing_Error.NONE,
+        },
+      },
+      type: "direct",
+      rxTime: new Date("2026-05-12T08:00:01Z"),
+    });
+
+    const currentStore = useMessageStore.getState().getMessageStore(deviceId);
+    const [message] =
+      currentStore?.getMessages({
+        type: MessageType.Broadcast,
+        channelId: 0,
+      }) ?? [];
+
+    expect(message?.state).toBe(MessageState.Delivered);
+    expect(message?.routingError).toBe(Protobuf.Mesh.Routing_Error.NONE);
   });
 
   it("marks the connection phase disconnected when the device disconnects", () => {

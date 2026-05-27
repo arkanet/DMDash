@@ -40,13 +40,13 @@ import { Protobuf, Types, Utils } from "@meshtastic/core";
 import { useNavigate } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
+  BadgeCheck,
   Cloud,
   CloudCheck,
   CloudOff,
   CloudUpload,
   FolderArchive,
   TriangleAlert,
-  UserCheck,
 } from "lucide-react";
 import { Fragment, type ReactNode, useCallback, useMemo, useState } from "react";
 import SwipeReplyMessage from "./SwipeReplyMessage";
@@ -252,7 +252,7 @@ export const MessageItem = ({
         displayText: t("deliveryStatus.received.displayText", {
           defaultValue: "Acknowledged by recipient",
         }),
-        icon: UserCheck,
+        icon: BadgeCheck,
         ariaLabel: t("deliveryStatus.received.label", {
           defaultValue: "Message received",
         }),
@@ -326,7 +326,17 @@ export const MessageItem = ({
     };
   }, [messageUser, message.from, t, myNodeNum]);
 
-  const messageStatusInfo = getMessageStatusInfo(message.state);
+  const messageStatusInfo = useMemo(() => {
+    const statusInfo = getMessageStatusInfo(message.state);
+    if (message.state !== MessageState.Failed || typeof message.routingError !== "number") {
+      return statusInfo;
+    }
+
+    return {
+      ...statusInfo,
+      displayText: Utils.getRoutingErrorName(message.routingError),
+    };
+  }, [getMessageStatusInfo, message.routingError, message.state]);
   const StatusIconComponent = messageStatusInfo.icon;
   const mentionNodes = new Map<string, Protobuf.Mesh.NodeInfo>();
   for (const node of getNodes(undefined, true)) {
@@ -588,7 +598,7 @@ export const MessageItem = ({
             ),
             message.to,
             message.channel,
-            true,
+            false,
             false,
             false,
             message.messageId,

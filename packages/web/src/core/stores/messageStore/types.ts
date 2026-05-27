@@ -21,6 +21,7 @@ interface MessageBase {
   state: MessageState;
   message: string;
   replyId?: number;
+  routingError?: number;
   hopsAway?: number;
   compressed?: boolean;
   reactions?: MessageReactions;
@@ -43,12 +44,14 @@ type SetMessageStateParams =
       nodeB: NodeNum;
       messageId: MessageId; // ID of the message within that chat
       newState?: MessageState; // Optional new state, defaults to Delivered
+      routingError?: number;
     }
   | {
       type: MessageType.Broadcast;
       channelId: ChannelId;
       messageId: MessageId;
       newState?: MessageState; // Optional new state, defaults to Delivered
+      routingError?: number;
     };
 
 type ClearMessageParams =

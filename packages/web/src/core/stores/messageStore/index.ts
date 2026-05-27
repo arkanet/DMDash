@@ -318,7 +318,18 @@ function messageStoreFactory(
           }
 
           if (targetMessage) {
-            targetMessage.state = params.newState ?? MessageState.Delivered;
+            const newState = params.newState ?? MessageState.Delivered;
+            if (
+              targetMessage.state === MessageState.Received &&
+              newState !== MessageState.Received
+            ) {
+              return;
+            }
+
+            targetMessage.state = newState;
+            if (typeof params.routingError === "number") {
+              targetMessage.routingError = params.routingError;
+            }
           } else {
             console.warn(
               `Message or conversation/channel not found for state update. Params: ${JSON.stringify(

@@ -171,7 +171,7 @@ export class MeshDevice {
       Emitter[Emitter.SendPacket],
       `📤 Sending ${Protobuf.Portnums.PortNum[portNum]} to ${destination}`,
     );
-    const shouldRequestAck = wantAck && destination !== "broadcast";
+    const shouldRequestAck = wantAck;
 
     const meshPacket = create(Protobuf.Mesh.MeshPacketSchema, {
       payloadVariant: {
@@ -248,7 +248,7 @@ export class MeshDevice {
       }
 
       const meshPacket = decoded.payloadVariant.value;
-      return meshPacket.wantAck && meshPacket.to !== Constants.broadcastNum;
+      return meshPacket.wantAck;
     } catch {
       return true;
     }
