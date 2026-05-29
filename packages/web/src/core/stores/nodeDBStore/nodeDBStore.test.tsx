@@ -95,18 +95,35 @@ describe("NodeDB store", () => {
     const { useNodeDBStore } = await freshStore();
     const db = useNodeDBStore.getState().addNodeDB(1);
 
-    db.processPacket({ from: 50, time: 1111, snr: 7 } as any);
+    db.processPacket({ from: 50, time: 1111, snr: 7, hopStart: 3, hopLimit: 3 });
     expect(db.getNode(50)).toBeTruthy();
     expect(db.getNode(50)?.lastHeard).toBe(1111);
     expect(db.getNode(50)?.snr).toBe(7);
+    expect(db.getNode(50)?.hopsAway).toBe(0);
 
-    db.processPacket({ from: 50, time: 2222, snr: 9 } as any);
+    db.processPacket({ from: 50, time: 2222, snr: 9, hopStart: 5, hopLimit: 3 });
     expect(db.getNode(50)?.lastHeard).toBe(2222);
     expect(db.getNode(50)?.snr).toBe(9);
+    expect(db.getNode(50)?.hopsAway).toBe(2);
 
-    db.processPacket({ from: 50, time: 0, snr: 9 } as any);
+    db.processPacket({ from: 50, time: 0, snr: 9 });
     expect(db.getNode(50)?.lastHeard).toBeCloseTo(Date.now() / 1000, -1); // within 1s, note lastHeard is in seconds
     expect(db.getNode(50)?.snr).toBe(9);
+    expect(db.getNode(50)?.hopsAway).toBe(2);
+  });
+
+  it("processPacket marks packet hop metadata with zero hopStart or inverted limits as unknown", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(1);
+
+    db.processPacket({ from: 51, time: 1111, snr: 7, hopStart: 3, hopLimit: 3 });
+    expect(db.getNode(51)?.hopsAway).toBe(0);
+
+    db.processPacket({ from: 51, time: 2222, snr: 8, hopStart: 0, hopLimit: 0 });
+    expect(db.getNode(51)?.hopsAway).toBeUndefined();
+
+    db.processPacket({ from: 51, time: 3333, snr: 9, hopStart: 2, hopLimit: 3 });
+    expect(db.getNode(51)?.hopsAway).toBeUndefined();
   });
 
   it("addUser and addPosition updates existing or creates new nodes", async () => {

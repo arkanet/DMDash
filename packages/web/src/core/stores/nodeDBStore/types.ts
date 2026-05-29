@@ -12,6 +12,8 @@ type ProcessPacketParams = {
   snr: number;
   time: number;
   rxRssi?: number;
+  hopStart?: number;
+  hopLimit?: number;
 };
 
 export type { NodeError, ProcessPacketParams, NodeErrorType };

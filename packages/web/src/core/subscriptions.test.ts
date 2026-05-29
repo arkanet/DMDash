@@ -342,4 +342,55 @@ describe("subscribeAll message status updates", () => {
 
     expect(nodeDB.updateNodeStatus).toHaveBeenCalledWith(123, "In movimento");
   });
+
+  it("passes hop metadata from mesh packets to the node DB", () => {
+    const events = createConnectionEvents();
+    const messageStore = useMessageStore.getState().addMessageStore(9005);
+    const device = {
+      id: 9005,
+      hardware: { myNodeNum: 0 },
+      addMetadata: vi.fn(),
+      setStatus: vi.fn(),
+      addWaypoint: vi.fn(),
+      addChannel: vi.fn(),
+      setConfig: vi.fn(),
+      setModuleConfig: vi.fn(),
+      incrementUnread: vi.fn(),
+      addTraceRoute: vi.fn(),
+      setPendingSettingsChanges: vi.fn(),
+      addClientNotification: vi.fn(),
+      setDialogOpen: vi.fn(),
+      addNeighborInfo: vi.fn(),
+      setRefreshKeysNodeNum: vi.fn(),
+    };
+    const nodeDB = {
+      addTelemetry: vi.fn(),
+      updateNodeStatus: vi.fn(),
+      addUser: vi.fn(),
+      addPosition: vi.fn(),
+      addNode: vi.fn(),
+      processPacket: vi.fn(),
+      setNodeError: vi.fn(),
+    };
+
+    subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
+
+    events.onMeshPacket.dispatch({
+      from: 123,
+      rxSnr: 11.25,
+      rxTime: 1_778_888_111,
+      rxRssi: -98,
+      hopStart: 4,
+      hopLimit: 4,
+    });
+
+    expect(nodeDB.processPacket).toHaveBeenCalledWith({
+      from: 123,
+      snr: 11.25,
+      time: 1_778_888_111,
+      rxRssi: -98,
+      hopStart: 4,
+      hopLimit: 4,
+    });
+  });
 });

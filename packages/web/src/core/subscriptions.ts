@@ -361,6 +361,8 @@ export const subscribeAll = (
       snr: meshPacket.rxSnr,
       time: meshPacket.rxTime,
       rxRssi: meshPacket.rxRssi,
+      hopStart: meshPacket.hopStart,
+      hopLimit: meshPacket.hopLimit,
     });
   });
 

@@ -129,6 +129,25 @@ function notifyNodeDetected(
   });
 }
 
+function derivePacketHopsAway(
+  data: ProcessPacketParams,
+): { hasHopMetadata: false } | { hasHopMetadata: true; hopsAway: number | undefined } {
+  if (typeof data.hopStart !== "number" || typeof data.hopLimit !== "number") {
+    return { hasHopMetadata: false };
+  }
+
+  if (
+    !Number.isFinite(data.hopStart) ||
+    !Number.isFinite(data.hopLimit) ||
+    data.hopStart === 0 ||
+    data.hopLimit > data.hopStart
+  ) {
+    return { hasHopMetadata: true, hopsAway: undefined };
+  }
+
+  return { hasHopMetadata: true, hopsAway: data.hopStart - data.hopLimit };
+}
+
 function nodeDBFactory(
   id: number,
   get: () => PrivateNodeDBState,
@@ -542,6 +561,7 @@ function nodeDBFactory(
           }
           const existingNode = nodeDB.nodeMap.get(data.from);
           const nowSec = Math.floor(Date.now() / 1000); // lastHeard is in seconds(!)
+          const packetHops = derivePacketHopsAway(data);
 
           // Helpers for validation
           const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
@@ -560,6 +580,9 @@ function nodeDBFactory(
               // rxRssi is optional — prefer new value when present
               rxRssi: data.rxRssi != null ? data.rxRssi : (existingNode as NodeInfoWithRx).rxRssi,
             };
+            if (packetHops.hasHopMetadata) {
+              updated.hopsAway = packetHops.hopsAway;
+            }
 
             const next = validateIncomingNode(
               updated as Protobuf.Mesh.NodeInfo,
@@ -595,6 +618,7 @@ function nodeDBFactory(
               num: data.from,
               lastHeard: data.time > 0 ? data.time : nowSec,
               snr: data.snr,
+              hopsAway: packetHops.hasHopMetadata ? packetHops.hopsAway : undefined,
             });
             if (data.rxRssi != null) {
               // narrow to extended type to set rxRssi (no `any` cast)
