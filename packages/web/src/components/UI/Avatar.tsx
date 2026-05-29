@@ -17,8 +17,9 @@ import {
   TooltipTrigger,
 } from "@components/UI/Tooltip.tsx";
 import { cn } from "@core/utils/cn.ts";
+import { getNodeKeyState } from "@core/utils/nodeKeyState.ts";
 import { isNodeStatusUnread, normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
-import { LockKeyholeOpenIcon, StarIcon } from "lucide-react";
+import { KeyRoundIcon, StarIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -45,6 +46,7 @@ export const Avatar = ({
 }: AvatarProps) => {
   const { t } = useTranslation();
   const node = useNodeDB((s) => s.getNode(nodeNum));
+  const nodeError = useNodeDB((s) => s.getNodeError(nodeNum));
   const identiconsEnabled = useAppStore((s) => s.identiconsEnabled);
 
   if (!nodeNum) {
@@ -83,6 +85,7 @@ export const Avatar = ({
     nodeStatus,
     (node as { nodeStatus?: string; lastReadNodeStatus?: string } | undefined)?.lastReadNodeStatus,
   );
+  const keyState = getNodeKeyState(node, nodeError);
 
   useEffect(() => {
     if (!identiconsEnabled) {
@@ -193,11 +196,11 @@ export const Avatar = ({
           </Tooltip>
         </TooltipProvider>
       ) : null}
-      {showError ? (
+      {showError && keyState === "error" ? (
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <LockKeyholeOpenIcon
+              <KeyRoundIcon
                 className="absolute -bottom-0.5 -right-0.5 z-10 size-4 text-red-500 stroke-3"
                 aria-hidden="true"
               />

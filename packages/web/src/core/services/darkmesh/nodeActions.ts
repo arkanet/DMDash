@@ -35,6 +35,37 @@ type ConnectionLike = {
   getMetadata?: (nodeNum: number) => Promise<unknown>;
 };
 
+export function requestNodeInfo(
+  connection: ConnectionLike | undefined,
+  nodeNum: number,
+  onRequestError?: (error: unknown) => void,
+) {
+  if (!connection) {
+    throw new Error("No connection available");
+  }
+
+  let request: Promise<unknown>;
+
+  if (typeof connection.sendPacket === "function") {
+    request = connection.sendPacket(
+      new Uint8Array(),
+      Protobuf.Portnums.PortNum.NODEINFO_APP,
+      nodeNum,
+      undefined,
+      false,
+      true,
+    );
+  } else if (typeof connection.getMetadata === "function") {
+    request = connection.getMetadata(nodeNum);
+  } else {
+    throw new Error("NodeInfo request is not available on the current connection");
+  }
+
+  void request.catch((error) => {
+    onRequestError?.(error);
+  });
+}
+
 export async function startVisualTraceroute(
   deviceId: number,
   connection: ConnectionLike | undefined,

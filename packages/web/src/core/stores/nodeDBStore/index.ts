@@ -95,6 +95,33 @@ function recordNodeError(nodeDB: NodeDBData, nodeNum: number, error: NodeErrorTy
   });
 }
 
+function clearRecoverableNodeError(nodeDB: NodeDBData, nodeNum: number) {
+  const currentError = nodeDB.nodeErrors.get(nodeNum);
+  if (!currentError) {
+    return;
+  }
+
+  if (currentError.error === Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY) {
+    const updated = new Map(nodeDB.nodeErrors);
+    updated.delete(nodeNum);
+    nodeDB.nodeErrors = updated;
+  }
+}
+
+function applyValidationResult(
+  nodeDB: NodeDB,
+  nodeNum: number,
+  result: ReturnType<typeof validateIncomingNode>,
+) {
+  if (result.error) {
+    recordNodeError(nodeDB, nodeNum, result.error);
+  } else if (result.clearExistingError) {
+    clearRecoverableNodeError(nodeDB, nodeNum);
+  }
+
+  return result.node;
+}
+
 function getNodeNotificationName(node: Protobuf.Mesh.NodeInfo): string {
   return (
     node.user?.longName?.trim() ||
@@ -199,12 +226,12 @@ function nodeDBFactory(
           const isNew = !existing;
 
           // Use validation to check the new node before adding
-          const next = validateIncomingNode(
-            node,
-            (nodeNum: number, err: NodeErrorType) => {
-              recordNodeError(nodeDB, nodeNum, err);
-            },
-            (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => nodeDB.getNodes(filter, true),
+          const next = applyValidationResult(
+            nodeDB,
+            node.num,
+            validateIncomingNode(node, (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) =>
+              nodeDB.getNodes(filter, true),
+            ),
           );
 
           if (!next) {
@@ -564,9 +591,6 @@ function nodeDBFactory(
           const packetHops = derivePacketHopsAway(data);
 
           // Helpers for validation
-          const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
-            recordNodeError(nodeDB, nodeNum, err);
-          };
           const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
             const arr = Array.from(nodeDB.nodeMap.values());
             return filter ? arr.filter(filter) : arr;
@@ -584,10 +608,10 @@ function nodeDBFactory(
               updated.hopsAway = packetHops.hopsAway;
             }
 
-            const next = validateIncomingNode(
-              updated as Protobuf.Mesh.NodeInfo,
-              setNodeErrorProxy,
-              getNodesProxy,
+            const next = applyValidationResult(
+              nodeDB,
+              data.from,
+              validateIncomingNode(updated as Protobuf.Mesh.NodeInfo, getNodesProxy),
             );
             if (!next) {
               // validation rejected the update; don't modify store
@@ -625,10 +649,10 @@ function nodeDBFactory(
               (createdMsg as unknown as NodeInfoWithRx).rxRssi = data.rxRssi;
             }
 
-            const next = validateIncomingNode(
-              createdMsg as Protobuf.Mesh.NodeInfo,
-              setNodeErrorProxy,
-              getNodesProxy,
+            const next = applyValidationResult(
+              nodeDB,
+              data.from,
+              validateIncomingNode(createdMsg as Protobuf.Mesh.NodeInfo, getNodesProxy),
             );
             if (!next) {
               return;
@@ -708,19 +732,15 @@ function nodeDBFactory(
                 : baseNode.deviceMetrics,
           };
 
-          // validation helpers
-          const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
-            recordNodeError(nodeDB, nodeNum, err);
-          };
           const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
             const arr = Array.from(nodeDB.nodeMap.values());
             return filter ? arr.filter(filter) : arr;
           };
 
-          const next = validateIncomingNode(
-            updatedNode as Protobuf.Mesh.NodeInfo,
-            setNodeErrorProxy,
-            getNodesProxy,
+          const next = applyValidationResult(
+            nodeDB,
+            telemetry.from,
+            validateIncomingNode(updatedNode as Protobuf.Mesh.NodeInfo, getNodesProxy),
           );
           if (!next) {
             return;
@@ -800,18 +820,15 @@ function nodeDBFactory(
             num: user.from,
           };
 
-          const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
-            recordNodeError(nodeDB, nodeNum, err);
-          };
           const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
             const arr = Array.from(nodeDB.nodeMap.values());
             return filter ? arr.filter(filter) : arr;
           };
 
-          const next = validateIncomingNode(
-            updated as Protobuf.Mesh.NodeInfo,
-            setNodeErrorProxy,
-            getNodesProxy,
+          const next = applyValidationResult(
+            nodeDB,
+            user.from,
+            validateIncomingNode(updated as Protobuf.Mesh.NodeInfo, getNodesProxy),
           );
           if (!next) return;
 
@@ -880,18 +897,15 @@ function nodeDBFactory(
             num: position.from,
           };
 
-          const setNodeErrorProxy = (nodeNum: number, err: NodeErrorType) => {
-            recordNodeError(nodeDB, nodeNum, err);
-          };
           const getNodesProxy = (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => {
             const arr = Array.from(nodeDB.nodeMap.values());
             return filter ? arr.filter(filter) : arr;
           };
 
-          const next = validateIncomingNode(
-            updated as Protobuf.Mesh.NodeInfo,
-            setNodeErrorProxy,
-            getNodesProxy,
+          const next = applyValidationResult(
+            nodeDB,
+            position.from,
+            validateIncomingNode(updated as Protobuf.Mesh.NodeInfo, getNodesProxy),
           );
           if (!next) return;
 
@@ -1077,15 +1091,21 @@ function nodeDBFactory(
                 return filter ? arr.filter(filter) : arr;
               };
 
-              const setErrorProxy = (nodeNum: number, err: NodeErrorType) => {
-                mergedErrors.set(nodeNum, {
-                  node: nodeNum,
-                  error: err,
-                });
-              };
-
               for (const [num, newNode] of newDB.nodeMap) {
-                const next = validateIncomingNode(newNode, setErrorProxy, getNodesProxy);
+                const validation = validateIncomingNode(newNode, getNodesProxy);
+                if (validation.error) {
+                  mergedErrors.set(num, {
+                    node: num,
+                    error: validation.error,
+                  });
+                } else if (validation.clearExistingError) {
+                  const currentError = mergedErrors.get(num);
+                  if (currentError?.error === Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY) {
+                    mergedErrors.delete(num);
+                  }
+                }
+
+                const next = validation.node;
                 if (next) {
                   // compute distance if possible using mergedNodes (best-effort)
                   const computedNext = next as NodeInfoWithExtras;

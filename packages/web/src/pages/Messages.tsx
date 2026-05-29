@@ -33,6 +33,7 @@ import {
   getDirectMessageKeyExchangeStatus,
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
+import { requestNodeInfo } from "@core/services/darkmesh/nodeActions.ts";
 import { cn } from "@core/utils/cn.ts";
 import { randId } from "@core/utils/randId.ts";
 import { Protobuf, Types, Constants } from "@meshtastic/core";
@@ -438,22 +439,10 @@ export const MessagesPage = () => {
                   toastRef?.dismiss();
                   toast({ title: "Requesting public key..." });
 
-                  if (!connection) throw new Error("No active connection to device");
-
-                  if (typeof connection.sendPacket === "function") {
-                    await connection.sendPacket(
-                      new Uint8Array(),
-                      Protobuf.Portnums.PortNum.NODEINFO_APP,
-                      numericChatId,
-                      undefined,
-                      false,
-                      true,
-                    );
-                  } else if (typeof connection.getMetadata === "function") {
-                    await connection.getMetadata(numericChatId);
-                  } else {
-                    throw new Error("NodeInfo request not available on this connection");
-                  }
+                  requestNodeInfo(connection, numericChatId, (err) => {
+                    console.warn("public key request failed", err);
+                    toast({ title: "Failed to request public key" });
+                  });
 
                   toast({ title: "Request sent" });
                 } catch (err) {
@@ -844,22 +833,10 @@ export const MessagesPage = () => {
               toastRef?.dismiss();
               toast({ title: "Requesting public key..." });
 
-              if (!connection) throw new Error("No active connection to device");
-
-              if (typeof connection.sendPacket === "function") {
-                await connection.sendPacket(
-                  new Uint8Array(),
-                  Protobuf.Portnums.PortNum.NODEINFO_APP,
-                  otherNode.num,
-                  undefined,
-                  false,
-                  true,
-                );
-              } else if (typeof connection.getMetadata === "function") {
-                await connection.getMetadata(otherNode.num);
-              } else {
-                throw new Error("NodeInfo request not available on this connection");
-              }
+              requestNodeInfo(connection, otherNode.num, (err) => {
+                console.warn("public key request failed", err);
+                toast({ title: "Failed to request public key" });
+              });
 
               toast({ title: "Request sent" });
             } catch (err) {

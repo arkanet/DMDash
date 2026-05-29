@@ -3,6 +3,7 @@ import { Protobuf } from "@meshtastic/core";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { toByteArray } from "base64-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NodeDB } from "./index.ts";
 
 const idbMem = new Map<string, any>();
 vi.mock("idb-keyval", () => ({
@@ -405,7 +406,7 @@ describe("NodeDB – merge semantics, PKI checks & extras", () => {
     expect(n200.position?.altitude).toBe(120); // replace existing
   });
 
-  it("key conflict: keep old node, flag error", async () => {
+  it("key conflict: keep trusted key, accept latest metadata, flag error", async () => {
     const { useNodeDBStore } = await freshStore();
     const st = useNodeDBStore.getState();
 
@@ -428,11 +429,11 @@ describe("NodeDB – merge semantics, PKI checks & extras", () => {
 
     const n7 = newDB.getNode(7)!;
 
-    // node from old
-    expect(n7.user?.longName).toBe("old-7");
+    // metadata from latest broadcast, key from previously trusted node
+    expect(n7.user?.longName).toBe("new-7");
     expect(n7.user?.publicKey).toEqual(keyOld);
-    expect(n7.position?.latitudeI).toBe(11);
-    expect(n7.position?.longitudeI).toBe(22);
+    expect(n7.position?.latitudeI).toBe(33);
+    expect(n7.position?.longitudeI).toBeUndefined();
 
     // error flagged
     const err = newDB.getNodeError(7);
@@ -551,7 +552,7 @@ describe("NodeDB – merge semantics, PKI checks & extras", () => {
     expect(db.getNodeError(6)?.error).toBe("DUPLICATE_PKI");
   });
 
-  it("keeps the trusted node when a user packet presents a different public key", async () => {
+  it("keeps the trusted user packet public key and flags the change", async () => {
     const { useNodeDBStore } = await freshStore();
     const db = useNodeDBStore.getState().addNodeDB(44);
 
@@ -565,9 +566,61 @@ describe("NodeDB – merge semantics, PKI checks & extras", () => {
     } as any);
 
     const node = db.getNode(5)!;
-    expect(node.user?.longName).toBe("old-5");
+    expect(node.user?.longName).toBe("new-5");
     expect(node.user?.publicKey).toEqual(keyOld);
     expect(db.getNodeError(5)?.error).toBe("MISMATCH_PKI");
+  });
+
+  it("keeps mismatch PKI sticky across later broadcasts with the conflicting key", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(45);
+
+    db.addNode(makeNode(5, { user: makeUser({ publicKey: keyOld, longName: "old-5" }) }));
+    db.addUser({
+      from: 5,
+      to: 0,
+      id: 124,
+      rxTime: new Date(),
+      data: makeUser({ publicKey: keyNew, longName: "new-5" }),
+    } as any);
+
+    expect(db.getNodeError(5)?.error).toBe("MISMATCH_PKI");
+
+    db.addUser({
+      from: 5,
+      to: 0,
+      id: 125,
+      rxTime: new Date(),
+      data: makeUser({ publicKey: keyNew, longName: "newer-5" }),
+    } as any);
+
+    expect(db.getNode(5)?.user?.longName).toBe("newer-5");
+    expect(db.getNode(5)?.user?.publicKey).toEqual(keyOld);
+    expect(db.getNodeError(5)?.error).toBe("MISMATCH_PKI");
+  });
+
+  it("accepts a changed user.id on the same node number like Android does", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(46);
+
+    db.addNode(
+      makeNode(9, {
+        user: makeUser({ id: "!oldnode", publicKey: keyOld, longName: "old-9" }),
+      }),
+    );
+    db.addUser({
+      from: 9,
+      to: 0,
+      id: 126,
+      rxTime: new Date(),
+      data: makeUser({ id: "!newnode", publicKey: keyOld, longName: "new-9" }),
+    } as any);
+
+    const node = db.getNode(9)!;
+    expect(node.user?.id).toBe("!newnode");
+    expect(node.user?.longName).toBe("new-9");
+    expect(node.user?.publicKey).toEqual(keyOld);
+    expect(db.getNodeError(9)).toBeUndefined();
   });
 
   it("unions nodeErrors: preserves old and new, respects existing-on-conflict", async () => {
@@ -646,9 +699,9 @@ describe("NodeDB deviceContext & debounce", () => {
     db1.addNode({ num: 10 } as any);
 
     function Comp() {
-      const len = useNodeDB((db) => db.getNodesLength(), {
+      const len = useNodeDB((db: NodeDB) => db.getNodesLength(), {
         debounce: 0,
-        equality: (a, b) => a === b,
+        equality: (a: number, b: number) => a === b,
       });
       return <div data-testid="len">{len}</div>;
     }
@@ -680,9 +733,9 @@ describe("NodeDB deviceContext & debounce", () => {
 
     let renders = 0;
     function Comp() {
-      const len = useNodeDB((d) => d.getNodesLength(), {
+      const len = useNodeDB((d: NodeDB) => d.getNodesLength(), {
         debounce: 0,
-        equality: (a, b) => a === b,
+        equality: (a: number, b: number) => a === b,
       });
       renders++;
       return <div data-testid="len">{len}</div>;
@@ -717,9 +770,9 @@ describe("NodeDB deviceContext & debounce", () => {
 
     let renders = 0;
     function Comp() {
-      const len = useNodeDB((d) => d.getNodesLength(), {
+      const len = useNodeDB((d: NodeDB) => d.getNodesLength(), {
         debounce: 50,
-        equality: (a, b) => a === b,
+        equality: (a: number, b: number) => a === b,
       });
       renders++;
       return <div data-testid="len">{len}</div>;

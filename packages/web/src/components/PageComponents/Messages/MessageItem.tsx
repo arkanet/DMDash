@@ -12,7 +12,11 @@ import { create, toBinary } from "@bufbuild/protobuf";
 import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useIgnoreNode } from "@core/hooks/useIgnoreNode.ts";
 import { useToast } from "@core/hooks/useToast.ts";
-import { requestNeighborInfo, startVisualTraceroute } from "@core/services/darkmesh/nodeActions.ts";
+import {
+  requestNeighborInfo,
+  requestNodeInfo as requestMeshNodeInfo,
+  startVisualTraceroute,
+} from "@core/services/darkmesh/nodeActions.ts";
 import {
   Tooltip,
   TooltipArrow,
@@ -492,24 +496,7 @@ export const MessageItem = ({
   );
   const requestNodeInfo = useCallback(
     async (targetNodeNum: number) => {
-      const connection = device.connection;
-      if (!connection) {
-        throw new Error("Nessuna connessione disponibile");
-      }
-      if (typeof connection.sendPacket === "function") {
-        await connection.sendPacket(
-          new Uint8Array(),
-          Protobuf.Portnums.PortNum.NODEINFO_APP,
-          targetNodeNum,
-          undefined,
-          false,
-          true,
-        );
-      } else if (typeof connection.getMetadata === "function") {
-        await connection.getMetadata(targetNodeNum);
-      } else {
-        throw new Error("Richiesta informazioni non disponibile sulla connessione corrente");
-      }
+      requestMeshNodeInfo(device.connection, targetNodeNum);
     },
     [device.connection],
   );

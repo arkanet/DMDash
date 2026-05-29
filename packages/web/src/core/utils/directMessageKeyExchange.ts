@@ -1,6 +1,11 @@
 import type { NodeError } from "@core/stores/nodeDBStore/types.ts";
+import { getNodeKeyState } from "@core/utils/nodeKeyState.ts";
 
-export type DirectMessageKeyExchangeStatus = "ready" | "missing-node" | "missing-public-key";
+export type DirectMessageKeyExchangeStatus =
+  | "ready"
+  | "missing-node"
+  | "missing-public-key"
+  | "key-error";
 
 type DirectMessageNode = {
   user?: {
@@ -11,23 +16,28 @@ type DirectMessageNode = {
 
 export function getDirectMessageKeyExchangeStatus(
   node?: DirectMessageNode,
-  _nodeError?: NodeError,
+  nodeError?: NodeError,
 ): DirectMessageKeyExchangeStatus {
   if (!node) {
     return "missing-node";
   }
 
-  if (!node.user?.publicKey || node.user.publicKey.length === 0) {
-    return "missing-public-key";
+  switch (getNodeKeyState(node, nodeError)) {
+    case "error":
+      return "key-error";
+    case "missing-public-key":
+      return "missing-public-key";
+    case "pkc":
+      return "ready";
   }
-
-  return "ready";
 }
 
 export function getDirectMessageKeyExchangeDescription(
   status: Exclude<DirectMessageKeyExchangeStatus, "ready">,
 ): string {
   switch (status) {
+    case "key-error":
+      return "Direct messages are blocked until the node public key is refreshed.";
     case "missing-public-key":
       return "Direct messages require this node's public key.";
     case "missing-node":

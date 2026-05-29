@@ -342,21 +342,19 @@ export const NodeDetailsDialog = ({
     setIsRequestingPosition(true);
 
     try {
-      toast({
-        title: t("toast.requestingPosition.title", { ns: "ui" }),
-      });
-
-      await connection?.requestPosition(currentNode.num);
+      if (!connection || typeof connection.requestPosition !== "function") {
+        throw new Error("Position request is not available on the current connection");
+      }
 
       toast({
-        title: t("toast.positionRequestSent.title", { ns: "ui" }),
+        title: t("toast.requestingPosition.title", {
+          ns: "ui",
+          defaultValue: "Requesting GPS data...",
+        }),
       });
+
+      await connection.requestPosition(currentNode.num);
     } catch (error) {
-      /*
-       Silenced non-blocking position request warning in dialog.
-       Original line (commented):
-       // console.warn("dialog position request failed", error);
-      */
       logger.warn?.("dialog position request failed", error);
       toast({
         title: t("toast.positionRequestError", {

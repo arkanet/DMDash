@@ -2,6 +2,12 @@ import type { NodeErrorType } from "@core/stores";
 import type { Protobuf } from "@meshtastic/core";
 import { fromByteArray } from "base64-js";
 
+export type IncomingNodeValidationResult = {
+  node?: Protobuf.Mesh.NodeInfo;
+  error?: NodeErrorType;
+  clearExistingError?: boolean;
+};
+
 export function equalKey(a?: Uint8Array | null, b?: Uint8Array | null): boolean {
   if (!a || !b) {
     return false;
@@ -21,7 +27,7 @@ export function equalKey(a?: Uint8Array | null, b?: Uint8Array | null): boolean 
   return true;
 }
 
-function hasPublicKey(key?: Uint8Array | null): key is Uint8Array {
+export function hasPublicKey(key?: Uint8Array | null): key is Uint8Array {
   return Boolean(key && key.length > 0);
 }
 
@@ -29,7 +35,7 @@ function preserveExistingPublicKey(
   oldNode: Protobuf.Mesh.NodeInfo,
   newNode: Protobuf.Mesh.NodeInfo,
 ): Protobuf.Mesh.NodeInfo {
-  if (!hasPublicKey(oldNode.user?.publicKey) || hasPublicKey(newNode.user?.publicKey)) {
+  if (!hasPublicKey(oldNode.user?.publicKey)) {
     return newNode;
   }
 
@@ -48,12 +54,12 @@ function preserveExistingPublicKey(
 }
 
 // Validates a new incoming node against existing nodes.
-// If valid, returns a node to store, else returns undefined.
+// Mirrors Android trust semantics: node number is the anchor, metadata can update,
+// and a conflicting public key is surfaced without trusting the new key.
 export function validateIncomingNode(
   newNode: Protobuf.Mesh.NodeInfo,
-  setNodeError: (nodeNum: number, error: NodeErrorType) => void,
   getNodes: (filter?: (node: Protobuf.Mesh.NodeInfo) => boolean) => Protobuf.Mesh.NodeInfo[],
-): Protobuf.Mesh.NodeInfo | undefined {
+): IncomingNodeValidationResult {
   const num = newNode.num;
   const existingNodes = getNodes((node) => node.num === num);
 
@@ -73,16 +79,15 @@ export function validateIncomingNode(
           fromByteArray(newNode.user?.publicKey ?? new Uint8Array()),
         );
 
-        setNodeError(num, "DUPLICATE_PKI");
-        return undefined; // drop newNode entirely
+        return { error: "DUPLICATE_PKI" };
       }
     }
-    return newNode; // No conflicts, accept newNode
+    return { node: newNode, clearExistingError: true };
   } else if (existingNodes.length === 1) {
     // One existing node with this node number.
     const oldNode = existingNodes[0];
     if (!oldNode) {
-      return undefined;
+      return {};
     }
 
     const oldKey = oldNode.user?.publicKey;
@@ -91,28 +96,32 @@ export function validateIncomingNode(
     if (!hasPublicKey(oldKey) || equalKey(oldKey, newKey)) {
       // Keys match or existing key was empty: trust the incoming node data completely.
       // This allows for legitimate updates to user info and other fields.
-      return newNode;
+      return { node: newNode, clearExistingError: true };
     } else if (hasPublicKey(newKey)) {
       console.warn(
-        `Node ${num} rejected: existing key does not match incoming key. Old key:`,
+        `Node ${num} received a different public key. Old key:`,
         fromByteArray(oldKey ?? new Uint8Array()),
         "New key:",
         fromByteArray(newKey ?? new Uint8Array()),
       );
 
-      // Keys do not match and existing key was not empty: potential impersonation attempt.
-      setNodeError(num, "MISMATCH_PKI");
-      return oldNode; // drop newNode fields and return old
+      // Accept the latest node metadata, but keep the previously trusted public key.
+      return {
+        node: preserveExistingPublicKey(oldNode, newNode),
+        error: "MISMATCH_PKI",
+      };
     } else {
       // Incoming node has no public key: keep the trusted key, but accept non-key updates.
-      return preserveExistingPublicKey(oldNode, newNode);
+      return {
+        node: preserveExistingPublicKey(oldNode, newNode),
+        clearExistingError: true,
+      };
     }
   } else {
     // Multiple existing nodes with the same node number
     // This should never happen, but if it does, we drop the new node entirely.
     console.warn(`Node ${num} rejected: Multiple existing nodes with this node number.`);
 
-    setNodeError(num, "DUPLICATE_PKI");
-    return undefined; // drop newNode entirely
+    return { error: "DUPLICATE_PKI" };
   }
 }

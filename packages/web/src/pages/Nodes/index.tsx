@@ -34,7 +34,11 @@ import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useIgnoreNode } from "@core/hooks/useIgnoreNode.ts";
 import { useToast } from "@core/hooks/useToast.ts";
 import { create, toBinary } from "@bufbuild/protobuf";
-import { requestNeighborInfo, startVisualTraceroute } from "@core/services/darkmesh/nodeActions.ts";
+import {
+  requestNeighborInfo,
+  requestNodeInfo as requestMeshNodeInfo,
+  startVisualTraceroute,
+} from "@core/services/darkmesh/nodeActions.ts";
 import { useAppStore, useDevice, useDeviceStore, useNodeDB } from "@core/stores";
 import { Protobuf, Types, Utils } from "@meshtastic/core";
 import {
@@ -49,6 +53,8 @@ import {
   getDirectMessageNavigationBlockDescription,
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
+import { getNodeKeyState } from "@core/utils/nodeKeyState.ts";
+import type { NodeError } from "@core/stores/nodeDBStore/types.ts";
 import { distanceBetweenPositions, hasPos, positionPoint } from "@core/utils/geo.ts";
 import { resolveAdminChannelIndex } from "@core/utils/adminChannel.ts";
 import { isNodeStatusUnread, normalizeNodeStatus } from "@core/utils/nodeStatus.ts";
@@ -72,6 +78,7 @@ import {
   HashIcon,
   LightbulbIcon,
   InfoIcon,
+  KeyRoundIcon,
   ListFilterIcon,
   LockIcon,
   LockOpenIcon,
@@ -525,17 +532,19 @@ function ValidatedLinkText({ text }: { text: string }) {
 
 function EncryptionIcon({
   node,
-  hasError,
+  nodeError,
   onCopyPublicKey,
 }: {
   node: Protobuf.Mesh.NodeInfo;
-  hasError: boolean;
+  nodeError?: NodeError;
   onCopyPublicKey?: (publicKey: Uint8Array) => void;
 }) {
-  if (hasError) {
-    return <LockOpenIcon className="size-6 text-red-500" aria-label="Encryption error" />;
+  const keyState = getNodeKeyState(node, nodeError);
+
+  if (keyState === "error") {
+    return <KeyRoundIcon className="size-6 text-red-500" aria-label="Encryption error" />;
   }
-  if (node.user?.publicKey && node.user.publicKey.length > 0) {
+  if (keyState === "pkc") {
     return (
       <button
         type="button"
@@ -1562,23 +1571,7 @@ const NodesPage = (): JSX.Element => {
   });
 
   const requestNodeInfo = async (nodeNum: number) => {
-    if (!connection) {
-      throw new Error("Nessuna connessione disponibile");
-    }
-    if (typeof connection.sendPacket === "function") {
-      await connection.sendPacket(
-        new Uint8Array(),
-        Protobuf.Portnums.PortNum.NODEINFO_APP,
-        nodeNum,
-        undefined,
-        false,
-        true,
-      );
-    } else if (typeof connection.getMetadata === "function") {
-      await connection.getMetadata(nodeNum);
-    } else {
-      throw new Error("Richiesta informazioni non disponibile sulla connessione corrente");
-    }
+    requestMeshNodeInfo(connection, nodeNum);
   };
 
   const requestDeviceMetadata = async (nodeNum: number) => {
@@ -1903,7 +1896,7 @@ const NodesPage = (): JSX.Element => {
 
           <EncryptionIcon
             node={node}
-            hasError={hasNodeError(node.num)}
+            nodeError={hasNodeError(node.num) ? nodeDB.getNodeError(node.num) : undefined}
             onCopyPublicKey={copyMobileNodePublicKey}
           />
 

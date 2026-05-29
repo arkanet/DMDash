@@ -32,7 +32,9 @@ import {
   getDirectMessageNavigationBlockDescription,
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
+import { getNodeKeyState } from "@core/utils/nodeKeyState.ts";
 import {
+  requestNodeInfo,
   requestDeviceMetadata,
   requestEnvironmentMetrics,
   requestNeighborInfo,
@@ -59,6 +61,7 @@ import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import {
   BarChart2,
   FileTextIcon,
+  KeyRoundIcon,
   LockIcon,
   LockOpenIcon,
   MapIcon,
@@ -201,6 +204,8 @@ export const NodeDetail = ({
   const formatEnumLabel = (label: string) => label.replace(/_/g, " ");
   const roleLabel = roleLabelRaw ? formatEnumLabel(roleLabelRaw) : undefined;
   const nodeStatus = (node as ProtobufType.Mesh.NodeInfo & { nodeStatus?: string }).nodeStatus;
+  const nodeError = nodeDB.getNodeError(node.num);
+  const keyState = getNodeKeyState(node, nodeError);
   const hasNodeStatus = Boolean(normalizeNodeStatus(nodeStatus));
 
   useEffect(() => {
@@ -212,7 +217,6 @@ export const NodeDetail = ({
   }, [hasNodeStatus, node.num, nodeDB, nodeStatus]);
 
   function handleDirectMessage() {
-    const nodeError = nodeDB.getNodeError(node.num);
     const navigationBlockDescription = getDirectMessageNavigationBlockDescription(node, nodeError);
 
     if (shouldBlockDirectMessageNavigation(node, nodeError) && navigationBlockDescription) {
@@ -230,22 +234,10 @@ export const NodeDetail = ({
                 toastRef?.dismiss();
                 toast({ title: t("nodeDetail.requestingPublicKey", "Requesting public key...") });
 
-                if (!connection) throw new Error("No active connection to device");
-
-                if (typeof connection.sendPacket === "function") {
-                  await connection.sendPacket(
-                    new Uint8Array(),
-                    Protobuf.Portnums.PortNum.NODEINFO_APP,
-                    node.num,
-                    undefined,
-                    false,
-                    true,
-                  );
-                } else if (typeof connection.getMetadata === "function") {
-                  await connection.getMetadata(node.num);
-                } else {
-                  throw new Error("NodeInfo request is not available on the current connection");
-                }
+                requestNodeInfo(connection, node.num, (err) => {
+                  logger.warn?.("public key request failed", err);
+                  toast({ title: t("nodeDetail.requestFailed", "Failed to request public key") });
+                });
 
                 toast({ title: t("nodeDetail.requestSent", "Request sent") });
               } catch (err) {
@@ -387,7 +379,13 @@ export const NodeDetail = ({
                     aria-label={t("nodeDetail.publicKeyButton", "Show public key")}
                     onClick={handlePublicKeyClick}
                   >
-                    {node.user?.publicKey && node.user.publicKey.length > 0 ? (
+                    {keyState === "error" ? (
+                      <KeyRoundIcon
+                        className="cursor-pointer text-red-500"
+                        size={12}
+                        strokeWidth={3}
+                      />
+                    ) : keyState === "pkc" ? (
                       <LockIcon
                         className="cursor-pointer text-green-600"
                         size={12}
@@ -677,22 +675,10 @@ export const NodeDetail = ({
                       try {
                         toast({ title: t("Request Node Info", { ns: "ui" }) });
 
-                        if (connection && typeof connection.sendPacket === "function") {
-                          await connection.sendPacket(
-                            new Uint8Array(),
-                            Protobuf.Portnums.PortNum.NODEINFO_APP,
-                            node.num,
-                            undefined,
-                            false,
-                            true,
-                          );
-                        } else if (connection && typeof connection.getMetadata === "function") {
-                          await connection.getMetadata(node.num);
-                        } else {
-                          throw new Error(
-                            "NodeInfo request is not available on the current connection",
-                          );
-                        }
+                        requestNodeInfo(connection, node.num, (err) => {
+                          logger.warn?.("node info request failed", err);
+                          toast({ title: t("Request Node Info Error", { ns: "ui" }) });
+                        });
 
                         toast({ title: t("Request Node Info ...", { ns: "ui" }) });
                       } catch (err) {

@@ -20,16 +20,7 @@ describe("getDirectMessageKeyExchangeStatus", () => {
     ).toBe("missing-public-key");
   });
 
-  it("returns ready when the node key exists even if it is not manually verified", () => {
-    expect(
-      getDirectMessageKeyExchangeStatus({
-        user: { publicKey: new Uint8Array([1, 2, 3]) },
-        isKeyManuallyVerified: false,
-      }),
-    ).toBe("ready");
-  });
-
-  it("returns ready when the node has a public key even if a routing error exists", () => {
+  it("returns key-error when the target node has a PKI error", () => {
     expect(
       getDirectMessageKeyExchangeStatus(
         {
@@ -38,6 +29,15 @@ describe("getDirectMessageKeyExchangeStatus", () => {
         },
         { node: 42, error: "MISMATCH_PKI" },
       ),
+    ).toBe("key-error");
+  });
+
+  it("returns ready when the node key exists even if it is not manually verified", () => {
+    expect(
+      getDirectMessageKeyExchangeStatus({
+        user: { publicKey: new Uint8Array([1, 2, 3]) },
+        isKeyManuallyVerified: false,
+      }),
     ).toBe("ready");
   });
 
@@ -53,9 +53,10 @@ describe("getDirectMessageKeyExchangeStatus", () => {
   it("provides a user-facing explanation for blocked direct messages", () => {
     expect(getDirectMessageKeyExchangeDescription("missing-public-key")).toContain("public key");
     expect(getDirectMessageKeyExchangeDescription("missing-node")).toContain("sync");
+    expect(getDirectMessageKeyExchangeDescription("key-error")).toContain("refreshed");
   });
 
-  it("blocks opening a DM only when the node or its public key are missing", () => {
+  it("blocks opening a DM when the node, its public key, or its PKI state are not ready", () => {
     expect(shouldBlockDirectMessageNavigation()).toBe(true);
 
     expect(
@@ -80,7 +81,7 @@ describe("getDirectMessageKeyExchangeStatus", () => {
         },
         { node: 7, error: "MISMATCH_PKI" },
       ),
-    ).toBe(false);
+    ).toBe(true);
 
     expect(
       shouldBlockDirectMessageNavigation({
@@ -97,6 +98,16 @@ describe("getDirectMessageKeyExchangeStatus", () => {
         isKeyManuallyVerified: true,
       }),
     ).toBe(getDirectMessageKeyExchangeDescription("missing-public-key"));
+
+    expect(
+      getDirectMessageNavigationBlockDescription(
+        {
+          user: { publicKey: new Uint8Array([1, 2, 3]) },
+          isKeyManuallyVerified: true,
+        },
+        { node: 7, error: "MISMATCH_PKI" },
+      ),
+    ).toBe(getDirectMessageKeyExchangeDescription("key-error"));
 
     expect(
       getDirectMessageNavigationBlockDescription({
