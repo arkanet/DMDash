@@ -17,6 +17,10 @@ function formatError(e: unknown): string {
   }
 }
 
+function createNeighborInfoRequestPayload() {
+  return toBinary(Protobuf.Mesh.NeighborInfoSchema, create(Protobuf.Mesh.NeighborInfoSchema));
+}
+
 type ConnectionLike = {
   traceRoute?: (nodeNum: number, priority?: Protobuf.Mesh.MeshPacket_Priority) => Promise<unknown>;
   requestEnvironmentTelemetry?: (nodeNum: number) => Promise<unknown>;
@@ -125,16 +129,11 @@ export async function requestNeighborInfo(connection: ConnectionLike | undefined
       const originalError: unknown = err;
       try {
         if (typeof connection.sendPacket === "function") {
-          const req = create(Protobuf.Mesh.NeighborInfoRequestSchema, {
-            requesterNodeId: 0,
-            requestId: Math.floor(Math.random() * 0xffffffff),
-            timestamp: Math.trunc(Date.now() / 1000),
-            maxNeighbors: 0,
-          });
-
-          const payload = toBinary(Protobuf.Mesh.NeighborInfoRequestSchema, req);
-
-          await connection.sendPacket(payload, Protobuf.Portnums.PortNum.NEIGHBORINFO_APP, nodeNum);
+          await connection.sendPacket(
+            createNeighborInfoRequestPayload(),
+            Protobuf.Portnums.PortNum.NEIGHBORINFO_APP,
+            nodeNum,
+          );
           return;
         }
       } catch (fallbackErr) {
@@ -154,16 +153,11 @@ export async function requestNeighborInfo(connection: ConnectionLike | undefined
   // If no helper present, try raw sendPacket directly
   if (typeof connection.sendPacket === "function") {
     try {
-      const req = create(Protobuf.Mesh.NeighborInfoRequestSchema, {
-        requesterNodeId: 0,
-        requestId: Math.floor(Math.random() * 0xffffffff),
-        timestamp: Math.trunc(Date.now() / 1000),
-        maxNeighbors: 0,
-      });
-
-      const payload = toBinary(Protobuf.Mesh.NeighborInfoRequestSchema, req);
-
-      await connection.sendPacket(payload, Protobuf.Portnums.PortNum.NEIGHBORINFO_APP, nodeNum);
+      await connection.sendPacket(
+        createNeighborInfoRequestPayload(),
+        Protobuf.Portnums.PortNum.NEIGHBORINFO_APP,
+        nodeNum,
+      );
       return;
     } catch (err) {
       throw new Error(formatError(err));

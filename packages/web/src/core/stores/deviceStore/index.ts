@@ -749,19 +749,14 @@ function deviceFactory(
       );
     },
 
-    sendNeighborInfoRequest: (targetNodeNum: number, maxNeighbors?: number) => {
+    sendNeighborInfoRequest: (targetNodeNum: number, _maxNeighbors?: number) => {
       const device = get().devices.get(id);
       if (!device) return;
 
-      const req = create(Protobuf.Mesh.NeighborInfoRequestSchema, {
-        requesterNodeId: device.myNodeNum ?? 0,
-        requestId: Math.floor(Math.random() * 0xffffffff),
-        timestamp: Math.trunc(Date.now() / 1000),
-        maxNeighbors: maxNeighbors ?? 0,
-      });
+      const req = create(Protobuf.Mesh.NeighborInfoSchema);
 
       device.connection?.sendPacket(
-        toBinary(Protobuf.Mesh.NeighborInfoRequestSchema, req),
+        toBinary(Protobuf.Mesh.NeighborInfoSchema, req),
         Protobuf.Portnums.PortNum.NEIGHBORINFO_APP,
         targetNodeNum,
       );

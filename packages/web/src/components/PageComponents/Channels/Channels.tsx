@@ -68,6 +68,16 @@ function mergeChannelSettings(
   settings?: Protobuf.Channel.ChannelSettings,
   patch: Partial<Protobuf.Channel.ChannelSettings> = {},
 ) {
+  const legacyPatchMute = (patch as { mute?: boolean }).mute;
+  const legacySettingsMute = (settings as { mute?: boolean } | undefined)?.mute;
+  const legacyMute = legacyPatchMute ?? legacySettingsMute;
+  let moduleSettings = cloneModuleSettings(patch.moduleSettings ?? settings?.moduleSettings);
+
+  if (legacyMute !== undefined) {
+    moduleSettings ??= create(Protobuf.Channel.ModuleSettingsSchema);
+    moduleSettings.isMuted = legacyMute;
+  }
+
   return create(Protobuf.Channel.ChannelSettingsSchema, {
     channelNum: patch.channelNum ?? settings?.channelNum ?? 0,
     psk: new Uint8Array(patch.psk ?? settings?.psk ?? new Uint8Array(0)),
@@ -75,8 +85,7 @@ function mergeChannelSettings(
     id: patch.id ?? settings?.id ?? 0,
     uplinkEnabled: patch.uplinkEnabled ?? settings?.uplinkEnabled ?? false,
     downlinkEnabled: patch.downlinkEnabled ?? settings?.downlinkEnabled ?? false,
-    moduleSettings: cloneModuleSettings(patch.moduleSettings ?? settings?.moduleSettings),
-    mute: patch.mute ?? settings?.mute ?? false,
+    moduleSettings,
   });
 }
 
@@ -927,7 +936,7 @@ function MobileChannelEditor({
               updateDraft({
                 moduleSettings: create(Protobuf.Channel.ModuleSettingsSchema, {
                   positionPrecision: Number(event.target.value),
-                  isClientMuted: draftSettings.moduleSettings?.isClientMuted,
+                  isMuted: draftSettings.moduleSettings?.isMuted,
                 }),
               })
             }

@@ -39,6 +39,14 @@ function cloneModuleSettings(settings?: Protobuf.Channel.ModuleSettings) {
 }
 
 function mergeChannelSettings(settings?: Protobuf.Channel.ChannelSettings) {
+  const legacyMute = (settings as { mute?: boolean } | undefined)?.mute;
+  let moduleSettings = cloneModuleSettings(settings?.moduleSettings);
+
+  if (legacyMute !== undefined) {
+    moduleSettings ??= create(Protobuf.Channel.ModuleSettingsSchema);
+    moduleSettings.isMuted = legacyMute;
+  }
+
   return create(Protobuf.Channel.ChannelSettingsSchema, {
     channelNum: settings?.channelNum ?? 0,
     psk: new Uint8Array(settings?.psk ?? new Uint8Array(0)),
@@ -46,8 +54,7 @@ function mergeChannelSettings(settings?: Protobuf.Channel.ChannelSettings) {
     id: settings?.id ?? 0,
     uplinkEnabled: settings?.uplinkEnabled ?? false,
     downlinkEnabled: settings?.downlinkEnabled ?? false,
-    moduleSettings: cloneModuleSettings(settings?.moduleSettings),
-    mute: settings?.mute ?? false,
+    moduleSettings,
   });
 }
 
