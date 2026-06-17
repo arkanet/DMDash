@@ -28,6 +28,8 @@
     "check:fix": "pnpm lint:fix && pnpm format:fix",
     "sync:upstreams": "bash ./scripts/sync-upstreams.sh",
     "sync:upstreams:update": "bash ./scripts/sync-upstreams.sh --update-working-trees",
+    "check:device-images": "node ./scripts/check-device-images.mjs --strict",
+    "report:device-images": "node ./scripts/check-device-images.mjs --write",
     "report:compatibility": "bash ./scripts/report-compatibility.sh --write",
     "build:all": "pnpm run --filter '*' build",
     "clean:all": "pnpm run --filter '*' clean",

@@ -11,7 +11,7 @@ The goal of `DMDash` is to provide a web-first DarkMesh dashboard that:
 - preserves Meshtastic protocol compatibility
 - reuses the Meshtastic web runtime, transports, and data model
 - ports DarkMesh-specific user flows from the Android app into the browser
-- stays aligned with the DarkMesh firmware branch `2.7.15-ghost`
+- stays aligned with DarkMesh firmware branches `2.7.15-ghost` and `2.7.21-ghost`, while comparing against Meshtastic firmware hardware declarations
 
 ## What You Can Do Today
 
@@ -32,17 +32,20 @@ Feature availability still depends on browser capabilities, transport type, node
 
 ## User Documentation
 
-Non-technical, task-oriented documentation is now served directly by the web app build:
+Non-technical, task-oriented documentation is served directly by the web app build. The guide landing page also acts as the lightweight demo entry point for the current UI/workflow coverage:
 
-- landing page: [packages/web/public/guide/index.html](packages/web/public/guide/index.html)
+- in-app demo / guide route: `/guide`
+- static landing page: [packages/web/public/guide/index.html](packages/web/public/guide/index.html)
 - English guide: [packages/web/public/guide/en/index.html](packages/web/public/guide/en/index.html)
 - Italian guide: [packages/web/public/guide/it/index.html](packages/web/public/guide/it/index.html)
 
-When the web app is running locally, open `/guide/index.html` on the same host, for example:
+When the web app is running locally, open `/guide` on the same host:
 
 ```text
-http://localhost:3000/guide/index.html
+http://localhost:3000/guide
 ```
+
+The static-compatible paths `/guide/index.html`, `/guide/en/index.html`, and `/guide/it/index.html` are also routed by the app, so the demo can be linked from a deployed homepage without special server rules.
 
 ### Feature previews
 
@@ -65,7 +68,8 @@ Below are quick previews of selected DarkMesh dashboard features; click a thumbn
 
 The compatibility model is:
 
-- `DarkMesh-Firmware` branch `2.7.15-ghost` is used as the firmware reference
+- `DarkMesh-Firmware` branches `2.7.15-ghost` and `2.7.21-ghost` are used as DarkMesh firmware references
+- `meshtastic/firmware` `master` is used as the Meshtastic firmware hardware reference
 - `DarkMesh-Firmware` currently points its `protobufs/` submodule to the official Meshtastic protobuf repository
 - `DMDash` therefore keeps the official Meshtastic protobuf schema as the source of truth
 
@@ -74,6 +78,7 @@ For the analysis and current baseline, see:
 - [docs/darkmesh-analysis.md](docs/darkmesh-analysis.md)
 - [docs/compatibility-matrix.md](docs/compatibility-matrix.md)
 - [docs/compatibility-report.md](docs/compatibility-report.md)
+- [docs/device-image-coverage.md](docs/device-image-coverage.md)
 
 ## Upstream Strategy
 
@@ -84,6 +89,8 @@ This project tracks multiple upstream repositories, but they do not all have the
   - the only upstream that is intended to be merged into the dashboard code tree
 - `upstream-protobufs`
   - protocol compatibility reference
+- `upstream-firmware`
+  - Meshtastic firmware hardware declaration reference
 - `upstream-darkmesh-android`
   - DarkMesh feature and UX reference
 - `upstream-darkmesh-firmware`
@@ -157,6 +164,8 @@ The repository exposes several helpful workspace scripts through the top-level `
 - **Sync upstream mirrors**: `pnpm sync:upstreams`
 - **Update upstream mirrors (fast-forward when clean)**: `pnpm sync:upstreams:update`
 - **Regenerate compatibility report**: `pnpm report:compatibility`
+- **Regenerate device image coverage report**: `pnpm report:device-images`
+- **Enforce device image coverage guardrail**: `pnpm check:device-images`
 - **Lint**: `pnpm run lint` and `pnpm run lint:fix`
 - **Format**: `pnpm run format` and `pnpm run format:fix`
 - **Check (lint + format)**: `pnpm run check` and `pnpm run check:fix`
@@ -182,6 +191,18 @@ Regenerate the compatibility snapshot:
 
 ```bash
 pnpm report:compatibility
+```
+
+Regenerate the device image coverage report:
+
+```bash
+pnpm report:device-images
+```
+
+Run the blocking guardrail for DeviceImage coverage:
+
+```bash
+pnpm check:device-images
 ```
 
 ## Browser Runtime Notes
@@ -210,6 +231,7 @@ At the current repository state:
 
 - DarkMesh Android: `https://github.com/emp3r0r7/DarkMesh.git`
 - DarkMesh Firmware: `https://github.com/emp3r0r7/DarkMesh-Firmware.git`
+- Meshtastic Firmware: `https://github.com/meshtastic/firmware.git`
 - Meshtastic Protobufs: `https://github.com/meshtastic/protobufs.git`
 - Meshtastic Web: `https://github.com/meshtastic/web.git`
 
@@ -244,3 +266,12 @@ Recent work added or stabilized the following areas:
 - unread/read status message badge behavior for avatars
 - module coverage for `Status Message`, `Traffic Management`, and `Remote Hardware`
 - battery and power notification workflows from the DarkMesh dashboard
+
+## Documentation Changelog
+
+Recent README-visible changes:
+
+- documented the in-app demo/guide route at `/guide`, with static-compatible `/guide/index.html` paths
+- added the DeviceImage hardware coverage report and guardrail commands
+- expanded upstream tracking to include Meshtastic firmware hardware declarations
+- updated compatibility wording to cover DarkMesh `2.7.15-ghost`, DarkMesh `2.7.21-ghost`, and Meshtastic firmware

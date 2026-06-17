@@ -117,6 +117,8 @@ EOF
 - Workflow:
   - Run `pnpm sync:upstreams` to refresh remotes and local mirrors.
   - Run `pnpm report:compatibility` to regenerate this report after upstream changes.
+  - Run `pnpm report:device-images` to compare DeviceImage coverage against DarkMesh and Meshtastic firmware hardware declarations.
+  - Run `pnpm check:device-images` when image coverage should be enforced as a blocking guardrail.
   - Review `docs/compatibility-matrix.md` before porting new DarkMesh features.
 EOF
 }

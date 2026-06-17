@@ -11,7 +11,7 @@ L'obiettivo di `DMDash` è fornire una dashboard web-first DarkMesh che:
 - preservi la compatibilità con il protocollo Meshtastic
 - riutilizzi il runtime web, i trasporti e il modello dati di Meshtastic
 - porti i flussi utente specifici DarkMesh dall'app Android al browser
-- rimanga allineata al branch firmware DarkMesh `2.7.15-ghost`
+- rimanga allineata ai branch firmware DarkMesh `2.7.15-ghost` e `2.7.21-ghost`, confrontandosi anche con le dichiarazioni hardware del firmware Meshtastic
 
 ## Cosa puoi fare oggi
 
@@ -32,17 +32,20 @@ La disponibilita effettiva di alcune funzioni dipende comunque da browser, trasp
 
 ## Documentazione utente
 
-La guida per utenti meno tecnici e ora servita direttamente dal build web:
+La guida per utenti meno tecnici è servita direttamente dal build web. La landing della guida funziona anche come demo leggera delle aree e dei workflow attualmente coperti:
 
-- pagina iniziale guida: [packages/web/public/guide/index.html](packages/web/public/guide/index.html)
+- route demo / guida nell'app: `/guide`
+- landing statica: [packages/web/public/guide/index.html](packages/web/public/guide/index.html)
 - guida in inglese: [packages/web/public/guide/en/index.html](packages/web/public/guide/en/index.html)
 - guida in italiano: [packages/web/public/guide/it/index.html](packages/web/public/guide/it/index.html)
 
-Quando l'app web gira in locale, basta aprire `/guide/index.html` sullo stesso host, ad esempio:
+Quando l'app web gira in locale, basta aprire `/guide` sullo stesso host:
 
 ```text
-http://localhost:3000/guide/index.html
+http://localhost:3000/guide
 ```
+
+Anche i percorsi compatibili con asset statici `/guide/index.html`, `/guide/en/index.html` e `/guide/it/index.html` sono gestiti dalla route React, quindi la demo può essere linkata da una homepage deployata senza regole server speciali.
 
 ### Anteprime delle funzionalità
 
@@ -65,7 +68,8 @@ Di seguito alcune anteprime rapide delle feature principali della dashboard Dark
 
 Il modello di compatibilità è:
 
-- il branch firmware `2.7.15-ghost` di `DarkMesh-Firmware` è il riferimento firmware
+- i branch firmware `2.7.15-ghost` e `2.7.21-ghost` di `DarkMesh-Firmware` sono i riferimenti firmware DarkMesh
+- `meshtastic/firmware` `master` è il riferimento Meshtastic per le dichiarazioni hardware
 - `DarkMesh-Firmware` punta il suo `protobufs/` al repository protobuf ufficiale di Meshtastic
 - quindi `DMDash` mantiene lo schema protobuf ufficiale di Meshtastic come fonte di verità
 
@@ -74,6 +78,7 @@ Per l'analisi e lo stato corrente, vedi:
 - [docs/darkmesh-analysis.md](docs/darkmesh-analysis.md)
 - [docs/compatibility-matrix.md](docs/compatibility-matrix.md)
 - [docs/compatibility-report.md](docs/compatibility-report.md)
+- [docs/device-image-coverage.md](docs/device-image-coverage.md)
 
 ## Strategia upstream
 
@@ -84,6 +89,8 @@ Questo progetto traccia più repository upstream, con ruoli differenti:
   - unico upstream pensato per essere fuso nella tree della dashboard
 - `upstream-protobufs`
   - riferimento per la compatibilità del protocollo
+- `upstream-firmware`
+  - riferimento firmware Meshtastic per le dichiarazioni hardware
 - `upstream-darkmesh-android`
   - riferimento funzionalità/UX DarkMesh
 - `upstream-darkmesh-firmware`
@@ -157,10 +164,44 @@ Il repository espone diversi script di utilità nel `package.json` di root. Alcu
 - **Sincronizzare upstream**: `pnpm sync:upstreams`
 - **Aggiornare upstream (fast-forward se pulito)**: `pnpm sync:upstreams:update`
 - **Rigenerare report di compatibilità**: `pnpm report:compatibility`
+- **Rigenerare report copertura DeviceImage**: `pnpm report:device-images`
+- **Applicare il guardrail DeviceImage**: `pnpm check:device-images`
 - **Lint**: `pnpm run lint` e `pnpm run lint:fix`
 - **Format**: `pnpm run format` e `pnpm run format:fix`
 - **Check (lint + format)**: `pnpm run check` e `pnpm run check:fix`
 - **Eseguire test**: `pnpm run test`
+
+## Workflow sync upstream
+
+Aggiornare remote e mirror locali:
+
+```bash
+pnpm sync:upstreams
+```
+
+Aggiornare remote e fare fast-forward dei mirror locali quando sono puliti:
+
+```bash
+pnpm sync:upstreams:update
+```
+
+Rigenerare lo snapshot di compatibilità:
+
+```bash
+pnpm report:compatibility
+```
+
+Rigenerare il report di copertura DeviceImage:
+
+```bash
+pnpm report:device-images
+```
+
+Eseguire il guardrail bloccante per la copertura DeviceImage:
+
+```bash
+pnpm check:device-images
+```
 
 ## Note runtime del browser
 
@@ -188,6 +229,7 @@ Allo stato attuale del repository:
 
 - DarkMesh Android: `https://github.com/emp3r0r7/DarkMesh.git`
 - DarkMesh Firmware: `https://github.com/emp3r0r7/DarkMesh-Firmware.git`
+- Meshtastic Firmware: `https://github.com/meshtastic/firmware.git`
 - Meshtastic Protobufs: `https://github.com/meshtastic/protobufs.git`
 - Meshtastic Web: `https://github.com/meshtastic/web.git`
 
@@ -200,16 +242,6 @@ Trattalo come:
 - un'esperienza web DarkMesh
 - una dashboard compatibile Meshtastic
 - un repository che segue upstream in modo intenzionale invece di mescolare tutte le storie dei commit
-
-## Screenshots
-
-Le immagini usate in questo README sono presenti in `assets/screenshots/`:
-
-- `assets/screenshots/Chat.png` — anteprima messaggi/chat
-- `assets/screenshots/EnvironmentalMetrics.png` — popup nodo / metriche
-- `assets/screenshots/Filters.png` — UI filtri mappa
-- `assets/screenshots/NeighborNodes.png` — lista neighbor nel popup nodo
-- `assets/screenshots/VisualTraceroute.png` — overlay traceroute sulla mappa
 
 ## Screenshot disponibili
 
@@ -232,3 +264,12 @@ Gli ultimi aggiornamenti hanno aggiunto o stabilizzato queste aree:
 - badge avatar per status message non letto / letto
 - copertura moduli per `Status Message`, `Traffic Management` e `Remote Hardware`
 - workflow notifiche batteria e power dal dashboard DarkMesh
+
+## Changelog documentazione
+
+Aggiornamenti recenti visibili nei README:
+
+- documentata la route demo/guida nell'app su `/guide`, con percorsi static-compatible `/guide/index.html`
+- aggiunto il report di copertura DeviceImage e i comandi guardrail
+- esteso il tracking upstream includendo le dichiarazioni hardware del firmware Meshtastic
+- aggiornata la compatibilità per DarkMesh `2.7.15-ghost`, DarkMesh `2.7.21-ghost` e firmware Meshtastic
