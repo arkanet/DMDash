@@ -9,8 +9,10 @@ list_upstreams() {
   cat <<'EOF'
 meshtastic-web|upstream-web|https://github.com/meshtastic/web.git|main|external-sources/meshtastic-web|6535c96e|Base web client
 meshtastic-protobufs|upstream-protobufs|https://github.com/meshtastic/protobufs.git|master|external-sources/meshtastic-protobufs|cb1f893|Official protocol contract
+meshtastic-firmware|upstream-firmware|https://github.com/meshtastic/firmware.git|master|external-sources/meshtastic-firmware|40adf3a|Official firmware hardware declarations
 darkmesh-android|upstream-darkmesh-android|https://github.com/emp3r0r7/DarkMesh.git|main|external-sources/darkmesh-android|346eedd7|DarkMesh feature reference
 darkmesh-firmware|upstream-darkmesh-firmware|https://github.com/emp3r0r7/DarkMesh-Firmware.git|2.7.15-ghost|external-sources/darkmesh-firmware|49af1adf|Firmware behavior reference
+darkmesh-firmware-2.7.21|upstream-darkmesh-firmware|https://github.com/emp3r0r7/DarkMesh-Firmware.git|2.7.21-ghost|external-sources/darkmesh-firmware|6e4cf387|Firmware behavior reference
 EOF
 }
 
@@ -52,6 +54,7 @@ clone_or_fetch_external_repo() {
   if [ -d "${repo_dir}/.git" ]; then
     log_upstream "Fetching external source ${repo_dir}"
     git -C "${repo_dir}" remote set-url origin "${remote_url}"
+    git -C "${repo_dir}" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
     git -C "${repo_dir}" fetch origin --prune --tags
 
     if [ "${update_working_tree}" = "1" ]; then
@@ -73,7 +76,9 @@ clone_or_fetch_external_repo() {
   fi
 
   log_upstream "Cloning ${remote_url} into ${repo_dir}"
-  git clone --branch "${branch_name}" --single-branch "${remote_url}" "${repo_dir}"
+  git clone --branch "${branch_name}" "${remote_url}" "${repo_dir}"
+  git -C "${repo_dir}" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+  git -C "${repo_dir}" fetch origin --prune --tags
 }
 
 short_head_or_missing() {

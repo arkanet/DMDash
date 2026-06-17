@@ -27,6 +27,8 @@
 - `upstream-protobufs` is not merged directly into the dashboard UI layer; it is used to detect protocol drift.
 - `upstream-darkmesh-android` and `upstream-darkmesh-firmware` are reference upstreams, not direct merge sources.
 - `external-sources/` stays outside git tracking for `DMDash` and is only used for inspection, comparison, and local syncing.
+- System Sync does not acquire or convert hardware pictures.
+- Pictures Sync owns hardware image discovery, coverage reporting, producer research, conversion, and `DeviceImage` updates.
 
 ## Local Commands
 
@@ -34,6 +36,18 @@
 
 ```bash
 pnpm sync:upstreams
+```
+
+- Run System Sync:
+
+```bash
+pnpm sync:system
+```
+
+- Run Pictures Sync:
+
+```bash
+pnpm sync:pictures
 ```
 
 - Refresh upstream remotes and fast-forward the local mirrors when they are clean:
@@ -58,6 +72,7 @@ pnpm report:compatibility
 
 1. Run `pnpm sync:upstreams`.
 2. Regenerate `docs/compatibility-report.md`.
-3. If `upstream-web` changed, review the delta first because it is the codebase base.
-4. If DarkMesh Android or firmware changed, port only the intended behavior into the DarkMesh layer.
-5. If protobuf compatibility changes, block feature merges until `docs/compatibility-matrix.md` has been updated.
+3. Run `pnpm sync:pictures` when hardware image coverage is part of the review.
+4. If `upstream-web` changed, review the delta first because it is the codebase base.
+5. If DarkMesh Android or firmware changed, port only the intended behavior into the DarkMesh layer.
+6. If protobuf compatibility changes, block feature merges until `docs/compatibility-matrix.md` has been updated.
