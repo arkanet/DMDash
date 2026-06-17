@@ -503,21 +503,16 @@ export class MeshDevice {
    * with its `NeighborInfo` message. This request intentionally does not use
    * any session_passkey so it can be used by any node.
    */
-  public async requestNeighborInfo(targetNodeNum: number, maxNeighbors = 0): Promise<number> {
+  public async requestNeighborInfo(targetNodeNum: number, _maxNeighbors = 0): Promise<number> {
     this.log.debug(
       Emitter[Emitter.GetMetadata],
       `🔎 Requesting NeighborInfo from ${targetNodeNum}`,
     );
 
-    const reqMessage = create(Protobuf.Mesh.NeighborInfoRequestSchema, {
-      requesterNodeId: this.myNodeInfo.myNodeNum,
-      requestId: this.generateRandId(),
-      timestamp: Math.trunc(Date.now() / 1000),
-      maxNeighbors: maxNeighbors,
-    });
+    const reqMessage = create(Protobuf.Mesh.NeighborInfoSchema);
 
     return await this.sendPacket(
-      toBinary(Protobuf.Mesh.NeighborInfoRequestSchema, reqMessage),
+      toBinary(Protobuf.Mesh.NeighborInfoSchema, reqMessage),
       Protobuf.Portnums.PortNum.NEIGHBORINFO_APP,
       targetNodeNum,
       undefined,
@@ -637,7 +632,7 @@ export class MeshDevice {
     const resetNodes = create(Protobuf.Admin.AdminMessageSchema, {
       payloadVariant: {
         case: "nodedbReset",
-        value: 1,
+        value: true,
       },
     });
 
