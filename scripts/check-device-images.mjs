@@ -101,7 +101,7 @@ function parseArgs(argv) {
 function usage() {
   return `Usage: node scripts/check-device-images.mjs [--strict] [--write] [--markdown|--json]
 
-Compares the DeviceImage hardwareModel map against firmware HW_VENDOR declarations
+Compares the DeviceImage hardwareModel map against firmware hardware declarations
 from DarkMesh 2.7.15-ghost, DarkMesh 2.7.21-ghost, and Meshtastic firmware.
 
 Options:
@@ -332,6 +332,99 @@ function mergeModelMetadata(target, source) {
   }
 }
 
+function addFirmwareModel(models, model, reference) {
+  const existing = models.get(model) ?? {
+    model,
+    references: [],
+  };
+  existing.references.push(reference);
+  models.set(model, existing);
+}
+
+function modelByNumber(enumModels) {
+  const byNumber = new Map();
+
+  for (const [model, metadata] of enumModels) {
+    if (metadata.number === undefined || byNumber.has(metadata.number)) {
+      continue;
+    }
+
+    byNumber.set(metadata.number, model);
+  }
+
+  return byNumber;
+}
+
+function addPlatformioHardwareModels(
+  models,
+  imageDeclarations,
+  text,
+  file,
+  enumModels,
+  enumModelByNumber,
+) {
+  const lines = text.split(/\r?\n/);
+  let section = {};
+
+  function flushSection() {
+    const model = enumModels.has(section.slug)
+      ? section.slug
+      : enumModelByNumber.get(section.number);
+
+    if (model) {
+      addFirmwareModel(models, model, {
+        path: file,
+        line: section.slugLine ?? section.numberLine,
+      });
+    }
+
+    if (model && section.images?.length) {
+      imageDeclarations.push({
+        model,
+        images: section.images,
+        path: file,
+        line: section.imagesLine,
+      });
+    }
+
+    section = {};
+  }
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+
+    if (/^\s*\[[^\]]+\]\s*$/.test(line)) {
+      flushSection();
+      continue;
+    }
+
+    const numberMatch = line.match(/^\s*custom_meshtastic_hw_model\s*=\s*(\d+)/);
+    if (numberMatch) {
+      section.number = Number(numberMatch[1]);
+      section.numberLine = index + 1;
+      continue;
+    }
+
+    const slugMatch = line.match(/^\s*custom_meshtastic_hw_model_slug\s*=\s*([A-Z0-9_]+)/);
+    if (slugMatch) {
+      section.slug = slugMatch[1];
+      section.slugLine = index + 1;
+      continue;
+    }
+
+    const imagesMatch = line.match(/^\s*custom_meshtastic_images\s*=\s*(.+)$/);
+    if (imagesMatch) {
+      section.images = imagesMatch[1]
+        .split(",")
+        .map((image) => image.trim())
+        .filter(Boolean);
+      section.imagesLine = index + 1;
+    }
+  }
+
+  flushSection();
+}
+
 function collectFirmwareSource(source) {
   const repoPath = join(ROOT_DIR, source.repoDir);
 
@@ -342,6 +435,7 @@ function collectFirmwareSource(source) {
       repoPath,
       models: new Map(),
       enumModels: new Map(),
+      imageDeclarations: [],
       warnings: [`Missing repo: ${source.repoDir}. Run pnpm sync:upstreams.`],
     };
   }
@@ -354,6 +448,7 @@ function collectFirmwareSource(source) {
       repoPath,
       models: new Map(),
       enumModels: new Map(),
+      imageDeclarations: [],
       warnings: [
         `Missing ref for ${source.id}: ${source.refCandidates.join(", ")}. Run pnpm sync:upstreams.`,
       ],
@@ -364,7 +459,9 @@ function collectFirmwareSource(source) {
   const sourceFiles = files.filter(
     (path) => /^(src\/platform|variants)\//.test(path) && /\.(c|cc|cpp|h|hpp)$/.test(path),
   );
+  const platformioFiles = files.filter((path) => /^variants\/.+\/platformio\.ini$/.test(path));
   const models = new Map();
+  const imageDeclarations = [];
 
   for (const file of sourceFiles) {
     const text = showFileAtRef(repoPath, resolved.ref, file);
@@ -382,15 +479,10 @@ function collectFirmwareSource(source) {
       }
 
       const model = match[1];
-      const existing = models.get(model) ?? {
-        model,
-        references: [],
-      };
-      existing.references.push({
+      addFirmwareModel(models, model, {
         path: file,
         line: index + 1,
       });
-      models.set(model, existing);
     }
   }
 
@@ -409,6 +501,24 @@ function collectFirmwareSource(source) {
     mergeModelMetadata(enumModels, parseProtoHardwareModels(firmwareProto));
   }
 
+  const enumModelByNumber = modelByNumber(enumModels);
+
+  for (const file of platformioFiles) {
+    const text = showFileAtRef(repoPath, resolved.ref, file);
+    if (!text) {
+      continue;
+    }
+
+    addPlatformioHardwareModels(
+      models,
+      imageDeclarations,
+      text,
+      file,
+      enumModels,
+      enumModelByNumber,
+    );
+  }
+
   return {
     ...source,
     status: "ok",
@@ -418,6 +528,7 @@ function collectFirmwareSource(source) {
     shortCommit: resolved.shortCommit,
     models,
     enumModels,
+    imageDeclarations,
     warnings: [],
   };
 }
@@ -533,6 +644,26 @@ function buildReport() {
     }
   }
 
+  const firmwareImageDeclarations = new Map();
+  for (const source of firmwareSources) {
+    for (const declaration of source.imageDeclarations) {
+      const existing = firmwareImageDeclarations.get(declaration.model) ?? {
+        model: declaration.model,
+        images: new Set(),
+        sources: new Set(),
+        references: [],
+      };
+
+      for (const image of declaration.images) {
+        existing.images.add(image);
+      }
+
+      existing.sources.add(source.id);
+      existing.references.push(`${source.id}:${declaration.path}:${declaration.line}`);
+      firmwareImageDeclarations.set(declaration.model, existing);
+    }
+  }
+
   const localProtoModelsByNumber = new Map();
   for (const [model, metadata] of localProtoModels) {
     if (metadata.number === undefined) {
@@ -641,6 +772,35 @@ function buildReport() {
 
   const mappedAssetFiles = new Set([...deviceMap.values()].map((entry) => entry.filename));
   const unusedAssetFiles = [...assetFiles].filter((file) => !mappedAssetFiles.has(file)).sort();
+  const firmwareImageMetadataGaps = [...firmwareImageDeclarations.values()]
+    .map((entry) => {
+      const images = [...entry.images].sort();
+      const deviceImage = deviceMap.get(entry.model)?.filename;
+      const missingLocalImages = images.filter((image) => !assetFiles.has(image));
+
+      return {
+        model: entry.model,
+        number: metadataByModel.get(entry.model)?.number,
+        images,
+        deviceImage,
+        missingLocalImages,
+        mappedToDeclaredImage: deviceImage ? images.includes(deviceImage) : false,
+        sources: [...entry.sources].sort(),
+        references: entry.references.slice(0, 3),
+      };
+    })
+    .filter(
+      (entry) =>
+        entry.missingLocalImages.length > 0 || !entry.deviceImage || !entry.mappedToDeclaredImage,
+    )
+    .sort((a, b) => {
+      const aNum = a.number ?? Number.MAX_SAFE_INTEGER;
+      const bNum = b.number ?? Number.MAX_SAFE_INTEGER;
+      return aNum - bNum || a.model.localeCompare(b.model);
+    });
+  const firmwareDeclaredImageFilesMissingLocally = [
+    ...new Set(firmwareImageMetadataGaps.flatMap((entry) => entry.missingLocalImages)),
+  ].sort();
 
   const sourceWarnings = firmwareSources.flatMap((source) => source.warnings);
   const failures = [
@@ -648,10 +808,10 @@ function buildReport() {
     ...missingMappings.map((entry) => `Missing DeviceImage mapping: ${entry.model}`),
     ...missingAssets.map((entry) => `Missing device asset: ${entry.filename}`),
     ...firmwareModelsMissingFromSourceEnum.map(
-      (entry) => `Firmware HW_VENDOR missing from firmware enum: ${entry.model}`,
+      (entry) => `Firmware hardware declaration missing from firmware enum: ${entry.model}`,
     ),
     ...firmwareNumberConflicts.map(
-      (entry) => `Firmware HW_VENDOR has conflicting enum numbers: ${entry.model}`,
+      (entry) => `Firmware hardware declaration has conflicting enum numbers: ${entry.model}`,
     ),
     ...localProtoNumberMismatches.map(
       (entry) => `Firmware/local protobuf HardwareModel mismatch: ${entry.model}=${entry.number}`,
@@ -678,6 +838,9 @@ function buildReport() {
       localProtoNumberMismatches: localProtoNumberMismatches.length,
       localProtoMissingMappings: localProtoMissingMappings.length,
       mappedModelsNotDeclaredByFirmware: mappedModelsNotDeclaredByFirmware.length,
+      firmwareImageMetadataModels: firmwareImageDeclarations.size,
+      firmwareImageMetadataGaps: firmwareImageMetadataGaps.length,
+      firmwareDeclaredImageFilesMissingLocally: firmwareDeclaredImageFilesMissingLocally.length,
       unusedAssetFiles: unusedAssetFiles.length,
     },
     sources: firmwareSources.map((source) => ({
@@ -698,6 +861,8 @@ function buildReport() {
     localProtoNumberMismatches,
     localProtoMissingMappings,
     mappedModelsNotDeclaredByFirmware,
+    firmwareImageMetadataGaps,
+    firmwareDeclaredImageFilesMissingLocally,
     unusedAssetFiles,
     failures,
   };
@@ -735,7 +900,7 @@ function renderMarkdown(report) {
   lines.push("");
   lines.push(
     table(
-      ["Source", "Firmware", "Status", "Ref", "Commit", "Declared HW_VENDOR", "Enum values"],
+      ["Source", "Firmware", "Status", "Ref", "Commit", "Declared hardware", "Enum values"],
       report.sources.map((source) => [
         source.id,
         source.firmware,
@@ -761,7 +926,7 @@ function renderMarkdown(report) {
         ["Missing DeviceImage mappings", report.summary.missingMappings],
         ["Mappings pointing to missing files", report.summary.missingAssets],
         [
-          "Firmware HW_VENDOR missing from firmware enum",
+          "Firmware hardware declaration missing from firmware enum",
           report.summary.firmwareModelsMissingFromSourceEnum,
         ],
         ["Firmware enum number conflicts", report.summary.firmwareNumberConflicts],
@@ -776,6 +941,12 @@ function renderMarkdown(report) {
         [
           "Mapped models not declared by inspected firmware",
           report.summary.mappedModelsNotDeclaredByFirmware,
+        ],
+        ["Firmware image metadata models", report.summary.firmwareImageMetadataModels],
+        ["Firmware image metadata gaps", report.summary.firmwareImageMetadataGaps],
+        [
+          "Firmware-declared image files missing locally",
+          report.summary.firmwareDeclaredImageFilesMissingLocally,
         ],
         ["Unused asset files", report.summary.unusedAssetFiles],
       ],
@@ -828,7 +999,9 @@ function renderMarkdown(report) {
   }
 
   if (report.firmwareModelsMissingFromSourceEnum.length > 0) {
-    lines.push("Firmware HW_VENDOR names missing from that source's generated HardwareModel enum:");
+    lines.push(
+      "Firmware hardware declarations missing from that source's generated HardwareModel enum:",
+    );
     lines.push("");
     lines.push(
       table(
@@ -875,6 +1048,36 @@ function renderMarkdown(report) {
     );
     lines.push("");
   }
+
+  lines.push("## Firmware Image Metadata Gaps");
+  lines.push("");
+  if (report.firmwareImageMetadataGaps.length === 0) {
+    lines.push("Every firmware-declared image filename is available and aligned with DeviceImage.");
+  } else {
+    lines.push(
+      table(
+        [
+          "HardwareModel",
+          "Number",
+          "Firmware image files",
+          "DeviceImage file",
+          "Missing local image files",
+          "Firmware sources",
+          "Source reference",
+        ],
+        report.firmwareImageMetadataGaps.map((entry) => [
+          entry.model,
+          entry.number,
+          entry.images.join(", "),
+          entry.deviceImage,
+          entry.missingLocalImages.join(", "),
+          entry.sources.join(", "),
+          entry.references.join(", "),
+        ]),
+      ),
+    );
+  }
+  lines.push("");
 
   lines.push("## Mappings With Missing Asset Files");
   lines.push("");
@@ -969,7 +1172,7 @@ function renderMarkdown(report) {
   }
   lines.push("");
 
-  return `${lines.join("\n")}\n`;
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 const args = parseArgs(process.argv.slice(2));

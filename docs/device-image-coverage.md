@@ -1,6 +1,6 @@
 # Device Image Coverage Report
 
-Generated at 2026-06-17T09:54:40.181Z from the local DMDash workspace.
+Generated at 2026-06-17T14:30:47.846Z from the local DMDash workspace.
 
 ## Inputs
 
@@ -11,27 +11,30 @@ Generated at 2026-06-17T09:54:40.181Z from the local DMDash workspace.
 
 ## Source Snapshot
 
-| Source | Firmware | Status | Ref | Commit | Declared HW_VENDOR | Enum values |
+| Source | Firmware | Status | Ref | Commit | Declared hardware | Enum values |
 | --- | --- | --- | --- | --- | --- | --- |
 | darkmesh-firmware-2.7.15-ghost | DarkMesh | ok | origin/2.7.15-ghost | fd3755f7 | 107 | 119 |
-| darkmesh-firmware-2.7.21-ghost | DarkMesh | ok | origin/2.7.21-ghost | 6e4cf387 | 113 | 129 |
-| meshtastic-firmware-master | Meshtastic | ok | origin/master | 40adf3a0d | 118 | 140 |
+| darkmesh-firmware-2.7.21-ghost | DarkMesh | ok | origin/2.7.21-ghost | 6e4cf387 | 115 | 129 |
+| meshtastic-firmware-master | Meshtastic | ok | origin/master | ca1304e6d | 121 | 140 |
 
 ## Summary
 
 | Metric | Count |
 | --- | --- |
-| DeviceImage mappings | 57 |
-| Device asset files | 40 |
-| Firmware-declared hardware models | 119 |
-| Required firmware models | 116 |
-| Missing DeviceImage mappings | 71 |
+| DeviceImage mappings | 61 |
+| Device asset files | 42 |
+| Firmware-declared hardware models | 122 |
+| Required firmware models | 119 |
+| Missing DeviceImage mappings | 70 |
 | Mappings pointing to missing files | 0 |
-| Firmware HW_VENDOR missing from firmware enum | 2 |
+| Firmware hardware declaration missing from firmware enum | 2 |
 | Firmware enum number conflicts | 0 |
 | Firmware/local protobuf number-name mismatches | 1 |
-| Local protobuf models without DeviceImage mapping | 88 |
+| Local protobuf models without DeviceImage mapping | 84 |
 | Mapped models not declared by inspected firmware | 11 |
+| Firmware image metadata models | 65 |
+| Firmware image metadata gaps | 35 |
+| Firmware-declared image files missing locally | 39 |
 | Unused asset files | 0 |
 
 ## Missing Firmware DeviceImage Mappings
@@ -51,14 +54,12 @@ Generated at 2026-06-17T09:54:40.181Z from the local DMDash workspace.
 | GENIEBLOCKS | 35 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:103, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:100 | - |
 | HELTEC_CAPSULE_SENSOR_V3 | 65 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:173, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:168 | heltec.org |
 | HELTEC_HRU_3601 | 23 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:117, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:112 | https://heltec.org/project/hru-3601/ |
-| HELTEC_MESH_NODE_T1 | 133 | meshtastic-firmware-master | meshtastic-firmware-master:src/platform/nrf52/architecture.h:125 | heltec.org |
+| HELTEC_MESH_NODE_T096 | 127 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/heltec_mesh_node_t096/platformio.ini:4, meshtastic-firmware-master:variants/nrf52840/heltec_mesh_node_t096/platformio.ini:4 | heltec.org |
+| HELTEC_MESH_NODE_T1 | 133 | meshtastic-firmware-master | meshtastic-firmware-master:src/platform/nrf52/architecture.h:125, meshtastic-firmware-master:variants/nrf52840/heltec_mesh_node_t1/platformio.ini:4 | heltec.org |
 | HELTEC_MESH_POCKET | 94 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/nrf52/architecture.h:100, darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:127 | heltec.org |
 | HELTEC_MESH_SOLAR | 108 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/nrf52/architecture.h:106, darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:133 | https://heltec.org/project/meshsolar/ |
 | HELTEC_SENSOR_HUB | 92 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:189, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:184 | heltec.org |
 | HELTEC_V1 | 11 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:85, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:82 | heltec.org |
-| HELTEC_V2_0 | 5 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:77, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:74 | heltec.org |
-| HELTEC_V2_1 | 10 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:80, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:77 | heltec.org |
-| HELTEC_V4 | 110 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:203, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:200 | heltec.org |
 | HELTEC_WIRELESS_BRIDGE | 24 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:83, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:80 | heltec.org |
 | LINK_32 | 98 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:197, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:192 | - |
 | M5STACK | 42 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:109, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:104 | https://m5stack.com/ |
@@ -68,8 +69,9 @@ Generated at 2026-06-17T09:54:40.181Z from the local DMDash workspace.
 | ME25LS01_4Y10TD | 75 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/nrf52/architecture.h:86, darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:113 | minewsemi.com |
 | MESHLINK | 87 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/nrf52/architecture.h:94, darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:121 | https://www.loraitalia.it |
 | MESH_TAB | 86 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:185, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:180 | https://github.com/valzzu/Mesh-Tab |
+| MINI_EPAPER_S3 | 125 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/mini-epaper-s3/platformio.ini:3, meshtastic-firmware-master:variants/esp32s3/mini-epaper-s3/platformio.ini:3 | - |
 | MS24SF1 | 82 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/nrf52/architecture.h:88, darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:115 | minewsemi.com |
-| MUZI_BASE | 93 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:135, meshtastic-firmware-master:src/platform/nrf52/architecture.h:141 | - |
+| MUZI_BASE | 93 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:135, darkmesh-firmware-2.7.21-ghost:variants/nrf52840/muzi_base/platformio.ini:3 | - |
 | MUZI_R1_NEO | 101 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/nrf52/architecture.h:59, darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:78 | - |
 | NANO_G1 | 14 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:107, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:102 | https://uniteng.com/wiki/doku.php?id=meshtastic:nano |
 | NANO_G1_EXPLORER | 17 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:141, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:136 | https://wiki.uniteng.com/en/meshtastic/nano-g1-explorer |
@@ -90,19 +92,19 @@ Generated at 2026-06-17T09:54:40.181Z from the local DMDash workspace.
 | SENSELORA_RP2040 | 27 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/rp2xx0/architecture.h:31, darkmesh-firmware-2.7.21-ghost:src/platform/rp2xx0/architecture.h:31 | makerfabs.com |
 | SENSELORA_S3 | 28 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:157, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:152 | makerfabs.com |
 | STATION_G1 | 25 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:113, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:108 | https://uniteng.com/wiki/doku.php?id=meshtastic:station |
-| STATION_G3 | 134 | meshtastic-firmware-master | meshtastic-firmware-master:src/platform/esp32/architecture.h:162 | uniteng.com |
+| STATION_G3 | 134 | meshtastic-firmware-master | meshtastic-firmware-master:src/platform/esp32/architecture.h:162, meshtastic-firmware-master:variants/esp32s3/station-g3/platformio.ini:3 | uniteng.com |
 | THINKNODE_M1 | 89 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/nrf52/architecture.h:70, darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:91 | https://www.elecrow.com/wiki/ThinkNode-M1_Transceiver_Device(Meshtastic, https://www.elecrow.com/wiki/ThinkNode-M2_Transceiver_Device(Meshtastic |
 | THINKNODE_M2 | 90 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:151, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:146 | elecrow.com |
-| THINKNODE_M3 | 115 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:93, meshtastic-firmware-master:src/platform/nrf52/architecture.h:97 | elecrow.com |
+| THINKNODE_M3 | 115 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:93, darkmesh-firmware-2.7.21-ghost:variants/nrf52840/ELECROW-ThinkNode-M3/platformio.ini:11 | elecrow.com |
 | THINKNODE_M4 | 119 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:97, meshtastic-firmware-master:src/platform/nrf52/architecture.h:101 | elecrow.com |
 | THINKNODE_M5 | 107 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:153, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:148 | https://www.elecrow.com/wiki/ThinkNode_M5_Meshtastic_LoRa_Signal_Transceiver_ESP32-S3.html |
-| THINKNODE_M6 | 120 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:95, meshtastic-firmware-master:src/platform/nrf52/architecture.h:99 | elecrow.com |
+| THINKNODE_M6 | 120 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:95, darkmesh-firmware-2.7.21-ghost:variants/nrf52840/ELECROW-ThinkNode-M6/platformio.ini:4 | elecrow.com |
 | THINKNODE_M7 | 129 | meshtastic-firmware-master | meshtastic-firmware-master:src/platform/esp32/architecture.h:150 | elecrow.com |
 | TLORA_V1 | 2 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:87, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:84 | lilygo.cc |
 | TLORA_V1_1P3 | 8 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:91, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:88 | lilygo.cc |
 | TWC_MESH_V4 | 62 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/nrf52/architecture.h:78, darkmesh-firmware-2.7.21-ghost:src/platform/nrf52/architecture.h:105 | - |
 | T_ETH_ELITE | 91 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:187, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:182 | - |
-| T_IMPULSE_PLUS | 135 | meshtastic-firmware-master | meshtastic-firmware-master:src/platform/nrf52/architecture.h:93 | - |
+| T_IMPULSE_PLUS | 135 | meshtastic-firmware-master | meshtastic-firmware-master:src/platform/nrf52/architecture.h:93, meshtastic-firmware-master:variants/nrf52840/t-impulse-plus/platformio.ini:3 | - |
 | T_LORA_PAGER | 103 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:201, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:198 | lilygo.cc |
 | UNPHONE | 59 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/esp32/architecture.h:165, darkmesh-firmware-2.7.21-ghost:src/platform/esp32/architecture.h:160 | unphone.net |
 | WIO_E5 | 73 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.15-ghost:src/platform/stm32wl/architecture.h:23, darkmesh-firmware-2.7.21-ghost:src/platform/stm32wl/architecture.h:23 | seeedstudio.com |
@@ -112,7 +114,7 @@ Generated at 2026-06-17T09:54:40.181Z from the local DMDash workspace.
 
 ## Firmware/Local Protobuf Wire Compatibility
 
-Firmware HW_VENDOR names missing from that source's generated HardwareModel enum:
+Firmware hardware declarations missing from that source's generated HardwareModel enum:
 
 | HardwareModel | Missing in source enum | Declared by sources |
 | --- | --- | --- |
@@ -124,6 +126,46 @@ Firmware wire numbers resolve to different names in the local protobuf enum:
 | Firmware HardwareModel | Number | Local protobuf name | Firmware sources |
 | --- | --- | --- | --- |
 | NRF52840DK | 33 | T_ECHO_PLUS | darkmesh-firmware-2.7.15-ghost |
+
+## Firmware Image Metadata Gaps
+
+| HardwareModel | Number | Firmware image files | DeviceImage file | Missing local image files | Firmware sources | Source reference |
+| --- | --- | --- | --- | --- | --- | --- |
+| RAK11200 | 13 | rak11200.svg | - | rak11200.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32/rak11200/platformio.ini:8, meshtastic-firmware-master:variants/esp32/rak11200/platformio.ini:8 |
+| T_ECHO_PLUS | 33 | t-echo_plus.svg | t-echo.svg | t-echo_plus.svg | meshtastic-firmware-master | meshtastic-firmware-master:variants/nrf52840/t-echo-plus/platformio.ini:8 |
+| HELTEC_WIRELESS_PAPER_V1_0 | 57 | heltec-wireless-paper-v1_0.svg | heltec-wireless-paper-V1_0.svg | heltec-wireless-paper-v1_0.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/heltec_wireless_paper_v1/platformio.ini:8, meshtastic-firmware-master:variants/esp32s3/heltec_wireless_paper_v1/platformio.ini:8 |
+| HELTEC_WIRELESS_TRACKER_V1_0 | 58 | heltec-wireless-tracker.svg | heltec-wireless-tracker-V1-0.svg | - | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/heltec_wireless_tracker_V1_0/platformio.ini:8, meshtastic-firmware-master:variants/esp32s3/heltec_wireless_tracker_V1_0/platformio.ini:8 |
+| XIAO_NRF52_KIT | 88 | seeed_xiao_nrf52_kit.svg | - | seeed_xiao_nrf52_kit.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/seeed_xiao_nrf52840_kit/platformio.ini:9, meshtastic-firmware-master:variants/nrf52840/seeed_xiao_nrf52840_kit/platformio.ini:9 |
+| THINKNODE_M1 | 89 | thinknode_m1.svg | - | thinknode_m1.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/ELECROW-ThinkNode-M1/platformio.ini:9, meshtastic-firmware-master:variants/nrf52840/ELECROW-ThinkNode-M1/platformio.ini:9 |
+| THINKNODE_M2 | 90 | thinknode_m2.svg | - | thinknode_m2.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/ELECROW-ThinkNode-M2/platformio.ini:8, meshtastic-firmware-master:variants/esp32s3/ELECROW-ThinkNode-M2/platformio.ini:8 |
+| MUZI_BASE | 93 | muzi_base.svg | - | muzi_base.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/muzi_base/platformio.ini:8, meshtastic-firmware-master:variants/nrf52840/muzi_base/platformio.ini:8 |
+| HELTEC_MESH_POCKET | 94 | heltec_mesh_pocket.svg | - | heltec_mesh_pocket.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/heltec_mesh_pocket/platformio.ini:4, darkmesh-firmware-2.7.21-ghost:variants/nrf52840/heltec_mesh_pocket/platformio.ini:68, meshtastic-firmware-master:variants/nrf52840/heltec_mesh_pocket/platformio.ini:4 |
+| SEEED_SOLAR_NODE | 95 | seeed_solar.svg | - | seeed_solar.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/seeed_solar_node/platformio.ini:8, meshtastic-firmware-master:variants/nrf52840/seeed_solar_node/platformio.ini:8 |
+| NOMADSTAR_METEOR_PRO | 96 | meteor_pro.svg | - | meteor_pro.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/rak4631_nomadstar_meteor_pro/platformio.ini:9, meshtastic-firmware-master:variants/nrf52840/rak4631_nomadstar_meteor_pro/platformio.ini:9 |
+| CROWPANEL | 97 | crowpanel_2_4.svg, crowpanel_2_8.svg, crowpanel_3_5.svg, crowpanel_5_0.svg, crowpanel_7_0.svg | - | crowpanel_2_4.svg, crowpanel_2_8.svg, crowpanel_3_5.svg, crowpanel_5_0.svg, crowpanel_7_0.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/elecrow_panel/platformio.ini:83, darkmesh-firmware-2.7.21-ghost:variants/esp32s3/elecrow_panel/platformio.ini:118, darkmesh-firmware-2.7.21-ghost:variants/esp32s3/elecrow_panel/platformio.ini:157 |
+| SEEED_WIO_TRACKER_L1 | 99 | wio_tracker_l1_case.svg | wio-tracker-wm1110.svg | wio_tracker_l1_case.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/seeed_wio_tracker_L1/platformio.ini:8, meshtastic-firmware-master:variants/nrf52840/seeed_wio_tracker_L1/platformio.ini:8 |
+| SEEED_WIO_TRACKER_L1_EINK | 100 | wio_tracker_l1_eink.svg | wio-tracker-wm1110.svg | wio_tracker_l1_eink.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/seeed_wio_tracker_L1_eink/platformio.ini:8, meshtastic-firmware-master:variants/nrf52840/seeed_wio_tracker_L1_eink/platformio.ini:8 |
+| MUZI_R1_NEO | 101 | muzi_r1_neo.svg | - | muzi_r1_neo.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/r1-neo/platformio.ini:9, meshtastic-firmware-master:variants/nrf52840/r1-neo/platformio.ini:9 |
+| T_DECK_PRO | 102 | tdeck_pro.svg | t-deck.svg | tdeck_pro.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/t-deck-pro/platformio.ini:8, meshtastic-firmware-master:variants/esp32s3/t-deck-pro-v1_1/platformio.ini:8, meshtastic-firmware-master:variants/esp32s3/t-deck-pro/platformio.ini:8 |
+| T_LORA_PAGER | 103 | lilygo-tlora-pager.svg | - | lilygo-tlora-pager.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/tlora-pager/platformio.ini:9, meshtastic-firmware-master:variants/esp32s3/tlora-pager/platformio.ini:9 |
+| WISMESH_TAG | 105 | rak_wismesh_tag.svg | - | rak_wismesh_tag.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/rak_wismeshtag/platformio.ini:4, meshtastic-firmware-master:variants/nrf52840/rak_wismeshtag/platformio.ini:4 |
+| RAK3312 | 106 | rak_3312.svg | - | rak_3312.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/rak3312/platformio.ini:8, meshtastic-firmware-master:variants/esp32s3/rak3312/platformio.ini:8 |
+| THINKNODE_M5 | 107 | thinknode_m1.svg | - | thinknode_m1.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/ELECROW-ThinkNode-M5/platformio.ini:8, meshtastic-firmware-master:variants/esp32s3/ELECROW-ThinkNode-M5/platformio.ini:8 |
+| HELTEC_MESH_SOLAR | 108 | heltec-mesh-solar.svg | - | heltec-mesh-solar.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/heltec_mesh_solar/platformio.ini:28, meshtastic-firmware-master:variants/nrf52840/heltec_mesh_solar/platformio.ini:28 |
+| T_ECHO_LITE | 109 | techo_lite.svg | t-echo.svg | techo_lite.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/t-echo-lite/platformio.ini:9, meshtastic-firmware-master:variants/nrf52840/t-echo-lite/platformio.ini:9 |
+| HELTEC_V4 | 110 | heltec_v4.svg | heltec-v4.svg | heltec_v4.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/heltec_v4/platformio.ini:21, darkmesh-firmware-2.7.21-ghost:variants/esp32s3/heltec_v4/platformio.ini:45, meshtastic-firmware-master:variants/esp32s3/heltec_v4/platformio.ini:20 |
+| M5STACK_C6L | 111 | m5_c6l.svg | - | m5_c6l.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32c6/m5stack_unitc6l/platformio.ini:8, meshtastic-firmware-master:variants/esp32c6/m5stack_unitc6l/platformio.ini:8 |
+| HELTEC_WIRELESS_TRACKER_V2 | 113 | heltec_wireless_tracker_v2.svg | heltec-wireless-tracker.svg | heltec_wireless_tracker_v2.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/heltec_wireless_tracker_v2/platformio.ini:3, meshtastic-firmware-master:variants/esp32s3/heltec_wireless_tracker_v2/platformio.ini:3 |
+| THINKNODE_M3 | 115 | thinknode_m3.svg | - | thinknode_m3.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/ELECROW-ThinkNode-M3/platformio.ini:3, meshtastic-firmware-master:variants/nrf52840/ELECROW-ThinkNode-M3/platformio.ini:3 |
+| WISMESH_TAP_V2 | 116 | rak-wismesh-tap-v2.svg | rak-wismeshtap.svg | rak-wismesh-tap-v2.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/rak_wismesh_tap_v2/platformio.ini:20, meshtastic-firmware-master:variants/esp32s3/rak_wismesh_tap_v2/platformio.ini:20 |
+| RAK3401 | 117 | rak3401.svg | - | rak3401.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/rak3401_1watt/platformio.ini:9, meshtastic-firmware-master:variants/nrf52840/rak3401_1watt/platformio.ini:9 |
+| THINKNODE_M6 | 120 | thinknode_m6.svg | - | thinknode_m6.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/ELECROW-ThinkNode-M6/platformio.ini:9, meshtastic-firmware-master:variants/nrf52840/ELECROW-ThinkNode-M6/platformio.ini:9 |
+| TBEAM_1_WATT | 122 | tbeam-1w.svg | tbeam.svg | tbeam-1w.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/t-beam-1w/platformio.ini:9, meshtastic-firmware-master:variants/esp32s3/t-beam-1w/platformio.ini:9 |
+| MINI_EPAPER_S3 | 125 | mini-epaper-s3.svg | - | mini-epaper-s3.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/esp32s3/mini-epaper-s3/platformio.ini:8, meshtastic-firmware-master:variants/esp32s3/mini-epaper-s3/platformio.ini:8 |
+| HELTEC_MESH_NODE_T096 | 127 | heltec-mesh-node-t096-case.svg, heltec-mesh-node-t096.svg | - | heltec-mesh-node-t096-case.svg, heltec-mesh-node-t096.svg | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | darkmesh-firmware-2.7.21-ghost:variants/nrf52840/heltec_mesh_node_t096/platformio.ini:9, meshtastic-firmware-master:variants/nrf52840/heltec_mesh_node_t096/platformio.ini:9 |
+| HELTEC_V4_R8 | 132 | heltec_v4_r8.svg, heltec_v4_r8_tft.svg | heltec-v4.svg | heltec_v4_r8.svg, heltec_v4_r8_tft.svg | meshtastic-firmware-master | meshtastic-firmware-master:variants/esp32s3/heltec_v4_r8/platformio.ini:21, meshtastic-firmware-master:variants/esp32s3/heltec_v4_r8/platformio.ini:43 |
+| HELTEC_MESH_NODE_T1 | 133 | heltec-mesh-node-t1.svg | - | heltec-mesh-node-t1.svg | meshtastic-firmware-master | meshtastic-firmware-master:variants/nrf52840/heltec_mesh_node_t1/platformio.ini:9 |
+| STATION_G3 | 134 | station-g3.svg | - | station-g3.svg | meshtastic-firmware-master | meshtastic-firmware-master:variants/esp32s3/station-g3/platformio.ini:8 |
 
 ## Mappings With Missing Asset Files
 
@@ -148,14 +190,12 @@ For each missing model, prefer an official producer image with a front/top board
 | GENIEBLOCKS | - | genieblocks.svg candidate |
 | HELTEC_CAPSULE_SENSOR_V3 | heltec.org | heltec-capsule-sensor-v3.svg candidate |
 | HELTEC_HRU_3601 | https://heltec.org/project/hru-3601/ | heltec-hru-3601.svg candidate |
+| HELTEC_MESH_NODE_T096 | heltec.org | heltec-mesh-node-t096.svg candidate |
 | HELTEC_MESH_NODE_T1 | heltec.org | heltec-mesh-node-t1.svg candidate |
 | HELTEC_MESH_POCKET | heltec.org | heltec-mesh-pocket.svg candidate |
 | HELTEC_MESH_SOLAR | https://heltec.org/project/meshsolar/ | heltec-mesh-solar.svg candidate |
 | HELTEC_SENSOR_HUB | heltec.org | heltec-sensor-hub.svg candidate |
 | HELTEC_V1 | heltec.org | heltec-v1.svg candidate |
-| HELTEC_V2_0 | heltec.org | heltec-v2-0.svg candidate |
-| HELTEC_V2_1 | heltec.org | heltec-v2-1.svg candidate |
-| HELTEC_V4 | heltec.org | heltec-v4.svg candidate |
 | HELTEC_WIRELESS_BRIDGE | heltec.org | heltec-wireless-bridge.svg candidate |
 | LINK_32 | - | link-32.svg candidate |
 | M5STACK | https://m5stack.com/ | m5stack.svg candidate |
@@ -165,6 +205,7 @@ For each missing model, prefer an official producer image with a front/top board
 | ME25LS01_4Y10TD | minewsemi.com | me25ls01-4y10td.svg candidate |
 | MESHLINK | https://www.loraitalia.it | meshlink.svg candidate |
 | MESH_TAB | https://github.com/valzzu/Mesh-Tab | mesh-tab.svg candidate |
+| MINI_EPAPER_S3 | - | mini-epaper-s3.svg candidate |
 | MS24SF1 | minewsemi.com | ms24sf1.svg candidate |
 | MUZI_BASE | - | muzi-base.svg candidate |
 | MUZI_R1_NEO | - | muzi-r1-neo.svg candidate |
@@ -212,9 +253,7 @@ For each missing model, prefer an official producer image with a front/top board
 | HardwareModel | Number | Firmware sources | Producer/source hint |
 | --- | --- | --- | --- |
 | TLORA_V1 | 2 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | lilygo.cc |
-| HELTEC_V2_0 | 5 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | heltec.org |
 | TLORA_V1_1P3 | 8 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | lilygo.cc |
-| HELTEC_V2_1 | 10 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | heltec.org |
 | HELTEC_V1 | 11 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | heltec.org |
 | RAK11200 | 13 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | https://docs.rakwireless.com/Product-Categories/WisBlock/RAK11200/Overview/ |
 | NANO_G1 | 14 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | https://uniteng.com/wiki/doku.php?id=meshtastic:nano |
@@ -276,7 +315,6 @@ For each missing model, prefer an official producer image with a front/top board
 | RAK3312 | 106 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | https://docs.rakwireless.com/product-categories/wisduo/rak3112-module/overview/ |
 | THINKNODE_M5 | 107 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | https://www.elecrow.com/wiki/ThinkNode_M5_Meshtastic_LoRa_Signal_Transceiver_ESP32-S3.html |
 | HELTEC_MESH_SOLAR | 108 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | https://heltec.org/project/meshsolar/ |
-| HELTEC_V4 | 110 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | heltec.org |
 | M5STACK_C6L | 111 | darkmesh-firmware-2.7.15-ghost, darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | m5stack.com |
 | M5STACK_CARDPUTER_ADV | 112 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | m5stack.com |
 | THINKNODE_M3 | 115 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | elecrow.com |
@@ -286,13 +324,12 @@ For each missing model, prefer an official producer image with a front/top board
 | THINKNODE_M6 | 120 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | elecrow.com |
 | MESHSTICK_1262 | 121 | - | - |
 | T5_S3_EPAPER_PRO | 123 | - | - |
-| MINI_EPAPER_S3 | 125 | - | - |
+| MINI_EPAPER_S3 | 125 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | - |
 | TDISPLAY_S3_PRO | 126 | - | - |
-| HELTEC_MESH_NODE_T096 | 127 | - | heltec.org |
+| HELTEC_MESH_NODE_T096 | 127 | darkmesh-firmware-2.7.21-ghost, meshtastic-firmware-master | heltec.org |
 | THINKNODE_M7 | 129 | meshtastic-firmware-master | elecrow.com |
 | THINKNODE_M8 | 130 | - | elecrow.com |
 | THINKNODE_M9 | 131 | - | elecrow.com |
-| HELTEC_V4_R8 | 132 | - | heltec.org |
 | HELTEC_MESH_NODE_T1 | 133 | meshtastic-firmware-master | heltec.org |
 | STATION_G3 | 134 | meshtastic-firmware-master | uniteng.com |
 | T_IMPULSE_PLUS | 135 | meshtastic-firmware-master | - |
@@ -311,16 +348,16 @@ For each missing model, prefer an official producer image with a front/top board
 | HardwareModel | Filename | DeviceImage line |
 | --- | --- | --- |
 | HELTEC_MESH_NODE_T114_CASE | heltec-mesh-node-t114-case.svg | 19 |
-| HELTEC_V3_CASE | heltec-v3-case.svg | 21 |
-| PROMICRO | promicro.svg | 60 |
-| RAK4631_CASE | rak4631_case.svg | 40 |
-| RPIPICOW | rpipicow.svg | 62 |
-| SEEED_WIO_TRACKER_L2 | wio-tracker-wm1110.svg | 45 |
-| TBEAM_BPF | tbeam.svg | 52 |
-| TLORA_T3_S3_EPAPER | tlora-t3s3-epaper.svg | 33 |
-| TRACKER_T1000_E_PRO | tracker-t1000-e.svg | 55 |
-| T_WATCH_ULTRA | t-watch-s3.svg | 57 |
-| WM1110_DEV_KIT | wm1110_dev_kit.svg | 47 |
+| HELTEC_V3_CASE | heltec-v3-case.svg | 23 |
+| PROMICRO | promicro.svg | 64 |
+| RAK4631_CASE | rak4631_case.svg | 44 |
+| RPIPICOW | rpipicow.svg | 66 |
+| SEEED_WIO_TRACKER_L2 | wio-tracker-wm1110.svg | 49 |
+| TBEAM_BPF | tbeam.svg | 56 |
+| TLORA_T3_S3_EPAPER | tlora-t3s3-epaper.svg | 37 |
+| TRACKER_T1000_E_PRO | tracker-t1000-e.svg | 59 |
+| T_WATCH_ULTRA | t-watch-s3.svg | 61 |
+| WM1110_DEV_KIT | wm1110_dev_kit.svg | 51 |
 
 ## Unused Device Asset Files
 

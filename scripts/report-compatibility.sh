@@ -27,8 +27,8 @@ Generated at ${generated_at} from the local DMDash workspace.
 
 ## Upstream Snapshot
 
-| Source | Remote | Target branch | Baseline import | External clone HEAD | Status | Notes |
-| --- | --- | --- | --- | --- | --- | --- |
+| Source | Remote | Target branch | Baseline import | Fetched target ref | External clone HEAD | Status | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
 EOF
 
   while IFS='|' read -r source_id remote_name remote_url branch_name repo_dir baseline_commit role; do
@@ -36,7 +36,9 @@ EOF
     local repo_path
     local current_branch
     local current_short
-    local current_full
+    local target_ref
+    local target_short
+    local target_full
     local status
     local notes
 
@@ -49,10 +51,15 @@ EOF
     if [ -d "${repo_path}/.git" ]; then
       current_branch="$(branch_or_missing "${repo_path}")"
       current_short="$(short_head_or_missing "${repo_path}")"
-      current_full="$(git -C "${repo_path}" rev-parse HEAD)"
+      target_ref="origin/${branch_name}"
+      target_full="$(git -C "${repo_path}" rev-parse --verify "${target_ref}^{commit}" 2>/dev/null || true)"
+      target_short='missing'
+      if [ -n "${target_full}" ]; then
+        target_short="$(git -C "${repo_path}" rev-parse --short "${target_ref}")"
+      fi
       notes="${role}; remote ${remote_status}"
 
-      if baseline_matches "${current_full}" "${baseline_commit}"; then
+      if [ -n "${target_full}" ] && baseline_matches "${target_full}" "${baseline_commit}"; then
         status='aligned'
       else
         status='drifted'
@@ -62,17 +69,18 @@ EOF
         notes="${notes}; branch ${current_branch}"
       fi
 
-      printf '| %s | `%s` | `%s` | `%s` | `%s (%s)` | %s | %s |\n' \
+      printf '| %s | `%s` | `%s` | `%s` | `%s` | `%s (%s)` | %s | %s |\n' \
         "${source_id}" \
         "${remote_name}" \
         "${branch_name}" \
         "${baseline_commit}" \
+        "${target_short}" \
         "${current_short}" \
         "${current_branch}" \
         "${status}" \
         "${notes}"
     else
-      printf '| %s | `%s` | `%s` | `%s` | missing | missing clone | %s; remote %s |\n' \
+      printf '| %s | `%s` | `%s` | `%s` | missing | missing | missing clone | %s; remote %s |\n' \
         "${source_id}" \
         "${remote_name}" \
         "${branch_name}" \
@@ -116,6 +124,8 @@ EOF
 - Reference policy: `upstream-protobufs`, `upstream-darkmesh-android`, and `upstream-darkmesh-firmware` are tracked for compatibility analysis and feature porting, not for direct merges into the dashboard code tree.
 - Workflow:
   - Run `pnpm sync:upstreams` to refresh remotes and local mirrors.
+  - Run `pnpm sync:system` to refresh upstreams and regenerate this compatibility report.
+  - Run `pnpm sync:pictures` to refresh hardware image coverage from firmware declarations and image metadata.
   - Run `pnpm report:compatibility` to regenerate this report after upstream changes.
   - Run `pnpm report:device-images` to compare DeviceImage coverage against DarkMesh and Meshtastic firmware hardware declarations.
   - Run `pnpm check:device-images` when image coverage should be enforced as a blocking guardrail.

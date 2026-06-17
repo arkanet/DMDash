@@ -12,6 +12,7 @@ meshtastic-protobufs|upstream-protobufs|https://github.com/meshtastic/protobufs.
 meshtastic-firmware|upstream-firmware|https://github.com/meshtastic/firmware.git|master|external-sources/meshtastic-firmware|40adf3a|Official firmware hardware declarations
 darkmesh-android|upstream-darkmesh-android|https://github.com/emp3r0r7/DarkMesh.git|main|external-sources/darkmesh-android|346eedd7|DarkMesh feature reference
 darkmesh-firmware|upstream-darkmesh-firmware|https://github.com/emp3r0r7/DarkMesh-Firmware.git|2.7.15-ghost|external-sources/darkmesh-firmware|49af1adf|Firmware behavior reference
+darkmesh-firmware-2.7.21|upstream-darkmesh-firmware|https://github.com/emp3r0r7/DarkMesh-Firmware.git|2.7.21-ghost|external-sources/darkmesh-firmware|6e4cf387|Firmware behavior reference
 EOF
 }
 

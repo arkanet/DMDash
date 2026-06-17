@@ -79,6 +79,7 @@ For the analysis and current baseline, see:
 - [docs/compatibility-matrix.md](docs/compatibility-matrix.md)
 - [docs/compatibility-report.md](docs/compatibility-report.md)
 - [docs/device-image-coverage.md](docs/device-image-coverage.md)
+- [docs/pictures-sync.md](docs/pictures-sync.md)
 
 ## Upstream Strategy
 
@@ -107,7 +108,7 @@ Policy details are documented in [docs/upstream-policy.md](docs/upstream-policy.
 - `docs`
   - DarkMesh analysis, compatibility, and upstream policy
 - `scripts`
-  - upstream sync and compatibility reporting helpers
+  - system sync, pictures sync, and compatibility reporting helpers
 - `external-sources`
   - local clones of upstream repositories used for analysis and sync
   - intentionally excluded from git tracking in this repository
@@ -161,6 +162,10 @@ The repository exposes several helpful workspace scripts through the top-level `
 - **Full package TypeScript check**: `pnpm exec tsc --noEmit -p packages/web/tsconfig.json`
 - **Build all packages**: `pnpm run build:all` (runs `build` for all workspace packages)
 - **Clean all packages**: `pnpm run clean:all`
+- **System Sync (upstreams + compatibility report)**: `pnpm sync:system`
+- **System Sync with external mirror fast-forward**: `pnpm sync:system:update`
+- **Pictures Sync (hardware image coverage report)**: `pnpm sync:pictures`
+- **Pictures Sync strict guardrail**: `pnpm sync:pictures:strict`
 - **Sync upstream mirrors**: `pnpm sync:upstreams`
 - **Update upstream mirrors (fast-forward when clean)**: `pnpm sync:upstreams:update`
 - **Regenerate compatibility report**: `pnpm report:compatibility`
@@ -173,7 +178,35 @@ The repository exposes several helpful workspace scripts through the top-level `
 
 These map to the scripts defined in the repository root `package.json` and are useful during development and CI.
 
-## Upstream Sync Workflow
+## Sync Workflows
+
+System Sync keeps DMDash/DarkMesh behavior primary while checking Meshtastic compatibility. It refreshes upstream references and regenerates the compatibility report:
+
+```bash
+pnpm sync:system
+```
+
+Fast-forward external mirror working trees when they are clean:
+
+```bash
+pnpm sync:system:update
+```
+
+Pictures Sync is separate and owns hardware image coverage from firmware declarations, including `platformio.ini` metadata such as `custom_meshtastic_images`:
+
+```bash
+pnpm sync:pictures
+```
+
+Run the blocking Pictures Sync guardrail:
+
+```bash
+pnpm sync:pictures:strict
+```
+
+See [docs/pictures-sync.md](docs/pictures-sync.md) for the acquisition/conversion policy.
+
+### Low-level upstream commands
 
 Refresh remotes and local mirrors:
 
@@ -272,6 +305,7 @@ Recent work added or stabilized the following areas:
 Recent README-visible changes:
 
 - documented the in-app demo/guide route at `/guide`, with static-compatible `/guide/index.html` paths
+- split `System Sync` and `Pictures Sync` responsibilities
 - added the DeviceImage hardware coverage report and guardrail commands
 - expanded upstream tracking to include Meshtastic firmware hardware declarations
 - updated compatibility wording to cover DarkMesh `2.7.15-ghost`, DarkMesh `2.7.21-ghost`, and Meshtastic firmware
