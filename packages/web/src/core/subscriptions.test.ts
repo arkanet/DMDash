@@ -47,6 +47,46 @@ function createConnectionEvents() {
   };
 }
 
+function createSubscriptionDevice(deviceId: number, myNodeNum = 0) {
+  const device = {
+    id: deviceId,
+    hardware: { myNodeNum },
+    refreshKeysNodeNum: undefined as number | undefined,
+    addMetadata: vi.fn(),
+    setStatus: vi.fn(),
+    addWaypoint: vi.fn(),
+    addChannel: vi.fn(),
+    setConfig: vi.fn(),
+    setModuleConfig: vi.fn(),
+    incrementUnread: vi.fn(),
+    addTraceRoute: vi.fn(),
+    setPendingSettingsChanges: vi.fn(),
+    addClientNotification: vi.fn(),
+    setDialogOpen: vi.fn(),
+    addNeighborInfo: vi.fn(),
+    setRefreshKeysNodeNum: vi.fn((nodeNum: number | undefined) => {
+      device.refreshKeysNodeNum = nodeNum;
+    }),
+    channels: new Map(),
+  };
+
+  return device;
+}
+
+function createSubscriptionNodeDB() {
+  return {
+    addTelemetry: vi.fn(),
+    updateNodeStatus: vi.fn(),
+    addUser: vi.fn(),
+    addPosition: vi.fn(),
+    addNode: vi.fn(),
+    processPacket: vi.fn(),
+    setNodeError: vi.fn(),
+    clearRecoverableNodeError: vi.fn().mockReturnValue(false),
+    getNode: vi.fn().mockReturnValue(undefined),
+  };
+}
+
 describe("subscribeAll message status updates", () => {
   beforeEach(() => {
     useMessageStore.setState({ messageStores: new Map() });
@@ -84,6 +124,7 @@ describe("subscribeAll message status updates", () => {
       addNode: vi.fn(),
       processPacket: vi.fn(),
       setNodeError: vi.fn(),
+      clearRecoverableNodeError: vi.fn().mockReturnValue(false),
     };
 
     subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
@@ -222,6 +263,7 @@ describe("subscribeAll message status updates", () => {
       addNode: vi.fn(),
       processPacket: vi.fn(),
       setNodeError: vi.fn(),
+      clearRecoverableNodeError: vi.fn().mockReturnValue(false),
     };
 
     subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
@@ -293,6 +335,7 @@ describe("subscribeAll message status updates", () => {
       addNode: vi.fn(),
       processPacket: vi.fn(),
       setNodeError: vi.fn(),
+      clearRecoverableNodeError: vi.fn().mockReturnValue(false),
     };
 
     subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
@@ -331,6 +374,7 @@ describe("subscribeAll message status updates", () => {
       addNode: vi.fn(),
       processPacket: vi.fn(),
       setNodeError: vi.fn(),
+      clearRecoverableNodeError: vi.fn().mockReturnValue(false),
     };
 
     subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
@@ -371,6 +415,7 @@ describe("subscribeAll message status updates", () => {
       addNode: vi.fn(),
       processPacket: vi.fn(),
       setNodeError: vi.fn(),
+      clearRecoverableNodeError: vi.fn().mockReturnValue(false),
     };
 
     subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
@@ -392,5 +437,205 @@ describe("subscribeAll message status updates", () => {
       hopStart: 4,
       hopLimit: 4,
     });
+  });
+
+  it.each([
+    {
+      name: "metadata",
+      dispatch: (events: ReturnType<typeof createConnectionEvents>) =>
+        events.onDeviceMetadataPacket.dispatch({
+          from: 123,
+          type: "direct",
+          data: { firmwareVersion: "2.7.21" },
+        }),
+    },
+    {
+      name: "telemetry",
+      dispatch: (events: ReturnType<typeof createConnectionEvents>) =>
+        events.onTelemetryPacket.dispatch({
+          from: 123,
+          type: "direct",
+          rxTime: new Date("2026-05-12T08:00:00Z"),
+          data: { variant: { case: "environmentMetrics", value: {} } },
+        }),
+    },
+    {
+      name: "user node info",
+      dispatch: (events: ReturnType<typeof createConnectionEvents>) =>
+        events.onUserPacket.dispatch({
+          from: 123,
+          type: "direct",
+          data: { longName: "node-123" },
+        }),
+    },
+    {
+      name: "node info",
+      dispatch: (events: ReturnType<typeof createConnectionEvents>) =>
+        events.onNodeInfoPacket.dispatch({ num: 123 }),
+    },
+    {
+      name: "position",
+      dispatch: (events: ReturnType<typeof createConnectionEvents>) =>
+        events.onPositionPacket.dispatch({
+          from: 123,
+          type: "direct",
+          data: { latitudeI: 1, longitudeI: 2 },
+        }),
+    },
+    {
+      name: "node status",
+      dispatch: (events: ReturnType<typeof createConnectionEvents>) =>
+        events.onNodeStatusPacket.dispatch({
+          from: 123,
+          type: "direct",
+          data: { status: "online" },
+        }),
+    },
+    {
+      name: "traceroute",
+      dispatch: (events: ReturnType<typeof createConnectionEvents>) =>
+        events.onTraceRoutePacket.dispatch({
+          from: 123,
+          type: "direct",
+          data: {},
+        }),
+    },
+    {
+      name: "neighbor info",
+      dispatch: (events: ReturnType<typeof createConnectionEvents>) =>
+        events.onNeighborInfoPacket.dispatch({
+          from: 123,
+          type: "direct",
+          data: { neighbors: [] },
+        }),
+    },
+    {
+      name: "direct message",
+      dispatch: (events: ReturnType<typeof createConnectionEvents>) =>
+        events.onMessagePacket.dispatch({
+          channel: 0,
+          from: 123,
+          to: 0,
+          id: 444,
+          data: "hello",
+          type: "direct",
+          rxTime: new Date("2026-05-12T08:00:00Z"),
+        }),
+    },
+  ])("does not open refresh keys for PKI_UNKNOWN after a recent $name response", ({ dispatch }) => {
+    const events = createConnectionEvents();
+    const messageStore = useMessageStore.getState().addMessageStore(9006);
+    const device = createSubscriptionDevice(9006);
+    const nodeDB = createSubscriptionNodeDB();
+
+    subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
+
+    dispatch(events);
+    events.onRoutingPacket.dispatch({
+      channel: 0,
+      from: 123,
+      to: 0,
+      id: 999,
+      data: {
+        variant: {
+          case: "errorReason",
+          value: Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY,
+        },
+      },
+      type: "direct",
+      rxTime: new Date("2026-05-12T08:00:01Z"),
+    });
+
+    expect(nodeDB.clearRecoverableNodeError).toHaveBeenCalledWith(123);
+    expect(nodeDB.setNodeError).not.toHaveBeenCalled();
+    expect(device.setRefreshKeysNodeNum).not.toHaveBeenCalled();
+    expect(device.setDialogOpen).not.toHaveBeenCalledWith("refreshKeys", true);
+  });
+
+  it("closes refresh keys when a later metadata response clears PKI_UNKNOWN", () => {
+    const events = createConnectionEvents();
+    const messageStore = useMessageStore.getState().addMessageStore(9007);
+    const device = createSubscriptionDevice(9007);
+    const nodeDB = createSubscriptionNodeDB();
+    device.refreshKeysNodeNum = 123;
+    nodeDB.clearRecoverableNodeError.mockReturnValueOnce(true);
+
+    subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
+
+    events.onDeviceMetadataPacket.dispatch({
+      from: 123,
+      type: "direct",
+      data: { firmwareVersion: "2.7.21" },
+    });
+
+    expect(nodeDB.clearRecoverableNodeError).toHaveBeenCalledWith(123);
+    expect(device.setDialogOpen).toHaveBeenCalledWith("refreshKeys", false);
+    expect(device.setRefreshKeysNodeNum).toHaveBeenCalledWith(undefined);
+    expect(device.addMetadata).toHaveBeenCalledWith(123, { firmwareVersion: "2.7.21" });
+  });
+
+  it("does not suppress PKI_UNKNOWN after a broadcast telemetry packet", () => {
+    const events = createConnectionEvents();
+    const messageStore = useMessageStore.getState().addMessageStore(9009);
+    const device = createSubscriptionDevice(9009);
+    const nodeDB = createSubscriptionNodeDB();
+
+    subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
+
+    events.onTelemetryPacket.dispatch({
+      from: 123,
+      type: "broadcast",
+      rxTime: new Date("2026-05-12T08:00:00Z"),
+      data: { variant: { case: "environmentMetrics", value: {} } },
+    });
+    events.onRoutingPacket.dispatch({
+      channel: 0,
+      from: 123,
+      to: 0,
+      id: 999,
+      data: {
+        variant: {
+          case: "errorReason",
+          value: Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY,
+        },
+      },
+      type: "direct",
+      rxTime: new Date("2026-05-12T08:00:01Z"),
+    });
+
+    expect(nodeDB.setNodeError).toHaveBeenCalledWith(
+      123,
+      Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY,
+    );
+    expect(device.setRefreshKeysNodeNum).toHaveBeenCalledWith(123);
+    expect(device.setDialogOpen).toHaveBeenCalledWith("refreshKeys", true);
+  });
+
+  it("does not open refresh keys for NO_CHANNEL routing errors", () => {
+    const events = createConnectionEvents();
+    const messageStore = useMessageStore.getState().addMessageStore(9008);
+    const device = createSubscriptionDevice(9008);
+    const nodeDB = createSubscriptionNodeDB();
+
+    subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
+
+    events.onRoutingPacket.dispatch({
+      channel: 0,
+      from: 123,
+      to: 0,
+      id: 999,
+      data: {
+        variant: {
+          case: "errorReason",
+          value: Protobuf.Mesh.Routing_Error.NO_CHANNEL,
+        },
+      },
+      type: "direct",
+      rxTime: new Date("2026-05-12T08:00:01Z"),
+    });
+
+    expect(nodeDB.setNodeError).toHaveBeenCalledWith(123, Protobuf.Mesh.Routing_Error.NO_CHANNEL);
+    expect(device.setRefreshKeysNodeNum).not.toHaveBeenCalled();
+    expect(device.setDialogOpen).not.toHaveBeenCalledWith("refreshKeys", true);
   });
 });

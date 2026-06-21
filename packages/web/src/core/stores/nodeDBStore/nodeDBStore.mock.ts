@@ -20,6 +20,7 @@ export const mockNodeDBStore: NodeDB = {
   processPacket: vi.fn(),
   setNodeError: vi.fn(),
   clearNodeError: vi.fn(),
+  clearRecoverableNodeError: vi.fn().mockReturnValue(false),
   removeAllNodeErrors: vi.fn(),
   getNodeError: vi.fn().mockReturnValue(undefined),
   hasNodeError: vi.fn().mockReturnValue(false),

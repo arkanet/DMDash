@@ -14,6 +14,8 @@ import type { Message } from "@core/stores/messageStore/types.ts";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { type MeshDevice, Protobuf, type Types, Types as CoreTypes } from "@meshtastic/core";
 
+const RECENT_NODE_RESPONSE_PKI_SUPPRESSION_MS = 10_000;
+
 function getNodeDisplayName(nodeDB: NodeDB, nodeNum: number): string {
   const node = nodeDB.getNode(nodeNum);
 
@@ -43,6 +45,33 @@ export const subscribeAll = (
   nodeDB: NodeDB,
 ) => {
   let myNodeNum = 0;
+  const recentNodeResponseAt = new Map<number, number>();
+
+  const dismissRecoveredPkiDialog = (nodeNum: number) => {
+    const cleared = nodeDB.clearRecoverableNodeError(nodeNum);
+    if (cleared && device.refreshKeysNodeNum === nodeNum) {
+      device.setDialogOpen("refreshKeys", false);
+      device.setRefreshKeysNodeNum(undefined);
+    }
+  };
+
+  const recordNodeResponse = (nodeNum: number) => {
+    recentNodeResponseAt.set(nodeNum, Date.now());
+    dismissRecoveredPkiDialog(nodeNum);
+  };
+
+  const recordDirectNodeResponse = ({ from, type }: { from: number; type?: string }) => {
+    if (type === "direct") {
+      recordNodeResponse(from);
+    }
+  };
+
+  const hasRecentNodeResponse = (nodeNum: number) => {
+    const lastSeenAt = recentNodeResponseAt.get(nodeNum);
+    return (
+      lastSeenAt !== undefined && Date.now() - lastSeenAt <= RECENT_NODE_RESPONSE_PKI_SUPPRESSION_MS
+    );
+  };
 
   const isQueuePendingState = (state: MessageState) =>
     state === MessageState.Waiting ||
@@ -105,6 +134,7 @@ export const subscribeAll = (
   };
 
   connection.events.onDeviceMetadataPacket.subscribe((metadataPacket) => {
+    recordDirectNodeResponse(metadataPacket);
     device.addMetadata(metadataPacket.from, metadataPacket.data);
   });
 
@@ -190,6 +220,7 @@ export const subscribeAll = (
 
   connection.events.onTelemetryPacket.subscribe((telemetryPacket) => {
     nodeDB.addTelemetry(telemetryPacket);
+    recordDirectNodeResponse(telemetryPacket);
   });
 
   connection.events.onDeviceStatus.subscribe((status) => {
@@ -201,6 +232,7 @@ export const subscribeAll = (
 
   connection.events.onWaypointPacket.subscribe((waypoint) => {
     const { data, channel, from, rxTime } = waypoint;
+    recordDirectNodeResponse(waypoint);
     device.addWaypoint(data, channel, from, rxTime);
   });
 
@@ -211,14 +243,17 @@ export const subscribeAll = (
 
   connection.events.onUserPacket.subscribe((user) => {
     nodeDB.addUser(user);
+    recordDirectNodeResponse(user);
   });
 
   connection.events.onPositionPacket.subscribe((position) => {
     nodeDB.addPosition(position);
+    recordDirectNodeResponse(position);
   });
 
   connection.events.onNodeStatusPacket.subscribe((statusPacket) => {
     nodeDB.updateNodeStatus(statusPacket.from, statusPacket.data.status);
+    recordDirectNodeResponse(statusPacket);
   });
 
   // NOTE: Node handling is managed by the nodeDB
@@ -226,6 +261,7 @@ export const subscribeAll = (
   // Configuration is handled directly by meshDevice.configure() in useConnections
   connection.events.onNodeInfoPacket.subscribe((nodeInfo) => {
     nodeDB.addNode(nodeInfo);
+    recordNodeResponse(nodeInfo.num);
   });
 
   connection.events.onChannelPacket.subscribe((channel) => {
@@ -254,6 +290,7 @@ export const subscribeAll = (
       messagePacket.data.trim().length > 0
     ) {
       if (messagePacket.type === "direct") {
+        recordNodeResponse(messagePacket.from);
         messageStore.addReaction({
           type: MessageType.Direct,
           nodeA: messagePacket.from,
@@ -279,6 +316,7 @@ export const subscribeAll = (
     messageStore.saveMessage(message);
 
     if (message.type === MessageType.Direct) {
+      recordNodeResponse(message.from);
       if (message.to === myNodeNum) {
         device.incrementUnread(messagePacket.from);
         const senderName = getNodeDisplayName(nodeDB, message.from);
@@ -325,6 +363,7 @@ export const subscribeAll = (
   });
 
   connection.events.onTraceRoutePacket.subscribe((traceRoutePacket) => {
+    recordDirectNodeResponse(traceRoutePacket);
     device.addTraceRoute({ ...traceRoutePacket });
     const darkMeshState = useDarkMeshStore.getState();
     const pendingRequestId = darkMeshState.pendingTraceRouteRequestByDevice[device.id];
@@ -372,6 +411,7 @@ export const subscribeAll = (
   });
 
   connection.events.onNeighborInfoPacket.subscribe((neighborInfo) => {
+    recordDirectNodeResponse(neighborInfo);
     device.addNeighborInfo(neighborInfo.from, neighborInfo.data);
   });
 
@@ -384,11 +424,13 @@ export const subscribeAll = (
         case Protobuf.Mesh.Routing_Error.NO_CHANNEL:
           console.error(`Routing Error: ${routingPacket.data.variant.value}`);
           nodeDB.setNodeError(routingPacket.from, routingPacket?.data?.variant?.value);
-          device.setRefreshKeysNodeNum(routingPacket.from);
-          device.setDialogOpen("refreshKeys", true);
           break;
         case Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY:
           console.error(`Routing Error: ${routingPacket.data.variant.value}`);
+          if (hasRecentNodeResponse(routingPacket.from)) {
+            dismissRecoveredPkiDialog(routingPacket.from);
+            break;
+          }
           nodeDB.setNodeError(routingPacket.from, routingPacket?.data?.variant?.value);
           device.setRefreshKeysNodeNum(routingPacket.from);
           device.setDialogOpen("refreshKeys", true);

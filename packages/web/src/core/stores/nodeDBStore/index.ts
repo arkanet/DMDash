@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { featureFlags } from "@core/services/featureFlags";
-import { validateIncomingNode } from "@core/stores/nodeDBStore/nodeValidation";
+import { hasPublicKey, validateIncomingNode } from "@core/stores/nodeDBStore/nodeValidation";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { createStorage } from "@core/stores/utils/indexDB.ts";
 import * as nodeinfoPersistence from "@core/stores/nodeinfoPersistence";
@@ -57,6 +57,7 @@ export interface NodeDB extends NodeDBData {
   setNodeNum: (nodeNum: number) => void;
   setNodeError: (nodeNum: number, error: NodeErrorType) => void;
   clearNodeError: (nodeNum: number) => void;
+  clearRecoverableNodeError: (nodeNum: number) => boolean;
   removeAllNodeErrors: () => void;
 
   getNodesLength: () => number;
@@ -95,17 +96,46 @@ function recordNodeError(nodeDB: NodeDBData, nodeNum: number, error: NodeErrorTy
   });
 }
 
-function clearRecoverableNodeError(nodeDB: NodeDBData, nodeNum: number) {
+function clearRecoverableNodeError(
+  nodeDB: NodeDBData,
+  nodeNum: number,
+  options: { includeMismatchPki?: boolean } = { includeMismatchPki: true },
+): boolean {
   const currentError = nodeDB.nodeErrors.get(nodeNum);
   if (!currentError) {
-    return;
+    return false;
   }
 
-  if (currentError.error === Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY) {
-    const updated = new Map(nodeDB.nodeErrors);
-    updated.delete(nodeNum);
-    nodeDB.nodeErrors = updated;
+  if (
+    !shouldClearRecoverableNodeError(
+      currentError.error,
+      nodeDB.nodeMap.get(nodeNum),
+      options.includeMismatchPki ?? true,
+    )
+  ) {
+    return false;
   }
+
+  const updated = new Map(nodeDB.nodeErrors);
+  updated.delete(nodeNum);
+  nodeDB.nodeErrors = updated;
+  return true;
+}
+
+function shouldClearRecoverableNodeError(
+  error: NodeErrorType,
+  node: Protobuf.Mesh.NodeInfo | undefined,
+  includeMismatchPki = true,
+) {
+  if (error === Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY) {
+    return true;
+  }
+
+  if (includeMismatchPki && error === "MISMATCH_PKI") {
+    return hasPublicKey(node?.user?.publicKey);
+  }
+
+  return false;
 }
 
 function applyValidationResult(
@@ -565,6 +595,20 @@ function nodeDBFactory(
           nodeDB.nodeErrors = updated;
         }),
       ),
+
+    clearRecoverableNodeError: (nodeNum) => {
+      let cleared = false;
+      set(
+        produce<PrivateNodeDBState>((draft) => {
+          const nodeDB = draft.nodeDBs.get(id);
+          if (!nodeDB) {
+            throw new Error(`No nodeDB found (id: ${id})`);
+          }
+          cleared = clearRecoverableNodeError(nodeDB, nodeNum, { includeMismatchPki: false });
+        }),
+      );
+      return cleared;
+    },
 
     removeAllNodeErrors: () =>
       set(
@@ -1100,7 +1144,10 @@ function nodeDBFactory(
                   });
                 } else if (validation.clearExistingError) {
                   const currentError = mergedErrors.get(num);
-                  if (currentError?.error === Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY) {
+                  if (
+                    currentError &&
+                    shouldClearRecoverableNodeError(currentError.error, mergedNodes.get(num))
+                  ) {
                     mergedErrors.delete(num);
                   }
                 }

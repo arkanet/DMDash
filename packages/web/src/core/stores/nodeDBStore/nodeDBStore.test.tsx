@@ -226,6 +226,19 @@ describe("NodeDB store", () => {
     expect(db.getNodeError(10)).toBeUndefined();
   });
 
+  it("clearRecoverableNodeError clears only externally recoverable PKI errors", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(1);
+
+    db.setNodeError(10, Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY);
+    expect(db.clearRecoverableNodeError(10)).toBe(true);
+    expect(db.getNodeError(10)).toBeUndefined();
+
+    db.setNodeError(11, "MISMATCH_PKI");
+    expect(db.clearRecoverableNodeError(11)).toBe(false);
+    expect(db.getNodeError(11)?.error).toBe("MISMATCH_PKI");
+  });
+
   it("getMyNode returns undefined before setNodeNum; works after", async () => {
     const { useNodeDBStore } = await freshStore();
     const db = useNodeDBStore.getState().addNodeDB(1);
@@ -597,6 +610,53 @@ describe("NodeDB – merge semantics, PKI checks & extras", () => {
     expect(db.getNode(5)?.user?.longName).toBe("newer-5");
     expect(db.getNode(5)?.user?.publicKey).toEqual(keyOld);
     expect(db.getNodeError(5)?.error).toBe("MISMATCH_PKI");
+  });
+
+  it("clears stale mismatch PKI after later traffic confirms the trusted key", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(45_1);
+
+    db.addNode(makeNode(5, { user: makeUser({ publicKey: keyOld, longName: "old-5" }) }));
+    db.addUser({
+      from: 5,
+      to: 0,
+      id: 124,
+      rxTime: new Date(),
+      data: makeUser({ publicKey: keyNew, longName: "new-5" }),
+    } as any);
+
+    expect(db.getNodeError(5)?.error).toBe("MISMATCH_PKI");
+
+    db.processPacket({ from: 5, time: 1111, snr: 7 });
+
+    expect(db.getNode(5)?.user?.publicKey).toEqual(keyOld);
+    expect(db.getNodeError(5)).toBeUndefined();
+  });
+
+  it("does not flag matching public keys serialized as numeric records", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(45_2);
+    const numericRecordKey = Object.fromEntries(
+      Array.from(keyOld).map((byte, index) => [String(index), byte]),
+    );
+
+    db.addNode({
+      num: 5,
+      user: { publicKey: numericRecordKey, longName: "old-5" },
+    } as any);
+    db.addUser({
+      from: 5,
+      to: 0,
+      id: 124,
+      rxTime: new Date(),
+      data: makeUser({ publicKey: new Uint8Array(keyOld), longName: "same-5" }),
+    } as any);
+
+    const node = db.getNode(5)!;
+    expect(node.user?.longName).toBe("same-5");
+    expect(node.user?.publicKey).toBeInstanceOf(Uint8Array);
+    expect(node.user?.publicKey).toEqual(keyOld);
+    expect(db.getNodeError(5)).toBeUndefined();
   });
 
   it("accepts a changed user.id on the same node number like Android does", async () => {
