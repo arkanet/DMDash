@@ -1125,6 +1125,36 @@ const RemoteAdminPage = () => {
     [activeSection?.key, navigate, nodeNum, sections, t],
   );
 
+  const mobileSubNav = (
+    <div className="flex items-center gap-1 overflow-x-auto">
+      {sections.map((section) => {
+        const Icon = section.icon;
+        const active = activeSection?.key === section.key;
+        return (
+          <button
+            key={section.key}
+            type="button"
+            onClick={() => navigate({ to: section.route.to, params: { nodeNum } })}
+            className={cn(
+              "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium",
+              active
+                ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800",
+            )}
+          >
+            <Icon className="size-4" />
+            <span className="whitespace-nowrap">{section.label}</span>
+            {section.changeCount > 0 ? (
+              <span className="rounded-full bg-blue-500 px-1.5 text-[0.65rem] leading-4 text-white">
+                {section.changeCount}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const hasDrafts =
     configChangeCount > 0 ||
     moduleConfigChangeCount > 0 ||
@@ -1308,6 +1338,7 @@ const RemoteAdminPage = () => {
         leftBar={leftSidebar}
         label={pageLabel}
         actions={actions}
+        mobileSubNav={mobileSubNav}
       >
         {ActiveComponent && (
           <ActiveComponent
