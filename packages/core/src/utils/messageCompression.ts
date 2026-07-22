@@ -42,7 +42,17 @@ function compressBytes(input: Uint8Array): Uint8Array<ArrayBuffer> | undefined {
 
   const out: Uint8Array<ArrayBuffer> = new Uint8Array(Math.max(input.length * 2 + 32, 64));
   const written = byteLengthFromUnishoxResult(
-    runWithoutUnishoxLogs(() => unishox2.unishox2_compress_simple(input, input.length, out)),
+    runWithoutUnishoxLogs(() =>
+      unishox2.unishox2_compress(
+        input,
+        input.length,
+        out,
+        unishox2.USX_HCODES_DFLT,
+        unishox2.USX_HCODE_LENS_DFLT,
+        unishox2.USX_FREQ_SEQ_DFLT,
+        unishox2.USX_TEMPLATES,
+      ),
+    ),
   );
 
   if (written <= 0 || written > out.length) {

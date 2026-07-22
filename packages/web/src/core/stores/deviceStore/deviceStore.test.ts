@@ -363,6 +363,19 @@ describe("DeviceStore – metadata, dialogs, unread counts, message draft", () =
     expect(useDeviceStore.getState().devices.get(1)?.metadata.get(123)).toEqual(metadata);
   });
 
+  it("setDeviceUiConfig stores the current device UI config", async () => {
+    const { useDeviceStore } = await freshStore(false);
+    const state = useDeviceStore.getState();
+    const device = state.addDevice(1);
+    const deviceUiConfig = create(Protobuf.DeviceUI.DeviceUIConfigSchema, {
+      gpsFormat: Protobuf.DeviceUI.DeviceUIConfig_GpsCoordinateFormat.MGRS,
+    });
+
+    device.setDeviceUiConfig(deviceUiConfig);
+
+    expect(useDeviceStore.getState().devices.get(1)?.deviceUiConfig).toEqual(deviceUiConfig);
+  });
+
   it("dialogs set/get work and throw if device missing", async () => {
     const { useDeviceStore } = await freshStore(false);
     const state = useDeviceStore.getState();

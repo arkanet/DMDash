@@ -22,6 +22,7 @@ function createNeighborInfoRequestPayload() {
 }
 
 type ConnectionLike = {
+  requestNodeInfo?: (nodeNum: number) => Promise<unknown>;
   traceRoute?: (nodeNum: number, priority?: Protobuf.Mesh.MeshPacket_Priority) => Promise<unknown>;
   requestEnvironmentTelemetry?: (nodeNum: number) => Promise<unknown>;
   requestNeighborInfo?: (nodeNum: number) => Promise<unknown>;
@@ -50,7 +51,9 @@ export function requestNodeInfo(
 
   let request: Promise<unknown>;
 
-  if (typeof connection.sendPacket === "function") {
+  if (typeof connection.requestNodeInfo === "function") {
+    request = connection.requestNodeInfo(nodeNum);
+  } else if (typeof connection.sendPacket === "function") {
     request = connection.sendPacket(
       new Uint8Array(),
       Protobuf.Portnums.PortNum.NODEINFO_APP,

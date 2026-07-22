@@ -43,6 +43,16 @@ function getPositionAdminPayload(
   return undefined;
 }
 
+function getDeviceUiAdminPayload(
+  message: Protobuf.Admin.AdminMessage,
+): Protobuf.DeviceUI.DeviceUIConfig | undefined {
+  if (message.payloadVariant.case === "storeUiConfig") {
+    return message.payloadVariant.value;
+  }
+
+  return undefined;
+}
+
 function createEmptyPosition(): Protobuf.Mesh.Position {
   return create(Protobuf.Mesh.PositionSchema, {
     latitudeI: 0,
@@ -63,6 +73,7 @@ const ConfigPage = () => {
     clearAllChanges,
     setConfig,
     setModuleConfig,
+    setDeviceUiConfig,
     addChannel,
     getChange,
     getConfigChangeCount,
@@ -238,6 +249,11 @@ const ConfigPage = () => {
             data: positionPayload,
           });
         }
+
+        const deviceUiPayload = getDeviceUiAdminPayload(message);
+        if (deviceUiPayload) {
+          setDeviceUiConfig(deviceUiPayload);
+        }
       }
 
       if (shouldCommitSettings) {
@@ -306,6 +322,7 @@ const ConfigPage = () => {
     connectionId,
     setConfig,
     setModuleConfig,
+    setDeviceUiConfig,
     clearAllChanges,
     isRemote,
     nodeDB,

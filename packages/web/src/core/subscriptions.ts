@@ -182,6 +182,11 @@ export const subscribeAll = (
     device.addMetadata(metadataPacket.from, metadataPacket.data);
   });
 
+  connection.events.onDeviceUiConfigPacket.subscribe((deviceUiConfigPacket) => {
+    recordDirectNodeResponse(deviceUiConfigPacket);
+    device.setDeviceUiConfig(deviceUiConfigPacket.data);
+  });
+
   connection.events.onFromRadio.subscribe((fromRadio) => {
     useDebugStore.getState().addFromRadio(device.id, fromRadio);
   });

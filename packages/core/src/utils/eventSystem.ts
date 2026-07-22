@@ -135,6 +135,15 @@ export class EventSystem {
   > = new SimpleEventDispatcher<PacketMetadata<Protobuf.Mesh.DeviceMetadata>>();
 
   /**
+   * Fires when the device receives a Device UI config packet
+   *
+   * @event onDeviceUiConfigPacket
+   */
+  public readonly onDeviceUiConfigPacket: SimpleEventDispatcher<
+    PacketMetadata<Protobuf.DeviceUI.DeviceUIConfig>
+  > = new SimpleEventDispatcher<PacketMetadata<Protobuf.DeviceUI.DeviceUIConfig>>();
+
+  /**
    * Fires when the device receives a Canned Message Module message packet
    *
    * @event onCannedMessageModulePacket

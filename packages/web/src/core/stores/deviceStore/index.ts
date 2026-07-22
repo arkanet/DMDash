@@ -94,6 +94,7 @@ export interface Device extends DeviceData {
   channels: Map<Types.ChannelNumber, Protobuf.Channel.Channel>;
   config: Protobuf.LocalOnly.LocalConfig;
   moduleConfig: Protobuf.LocalOnly.LocalModuleConfig;
+  deviceUiConfig: Protobuf.DeviceUI.DeviceUIConfig;
   changeRegistry: ChangeRegistry; // Unified change tracking
   hardware: Protobuf.Mesh.MyNodeInfo;
   metadata: Map<number, Protobuf.Mesh.DeviceMetadata>;
@@ -111,6 +112,7 @@ export interface Device extends DeviceData {
   setConnectionId: (id: ConnectionId | null) => void;
   setConfig: (config: Protobuf.Config.Config) => void;
   setModuleConfig: (config: Protobuf.ModuleConfig.ModuleConfig) => void;
+  setDeviceUiConfig: (config: Protobuf.DeviceUI.DeviceUIConfig) => void;
   getEffectiveConfig<K extends ValidConfigType>(
     payloadVariant: K,
   ): Protobuf.LocalOnly.LocalConfig[K] | undefined;
@@ -226,6 +228,7 @@ function deviceFactory(
     channels: new Map(),
     config: create(Protobuf.LocalOnly.LocalConfigSchema),
     moduleConfig: create(Protobuf.LocalOnly.LocalModuleConfigSchema),
+    deviceUiConfig: create(Protobuf.DeviceUI.DeviceUIConfigSchema),
     changeRegistry: createChangeRegistry(),
     hardware: create(Protobuf.Mesh.MyNodeInfoSchema),
     metadata: new Map(),
@@ -396,6 +399,16 @@ function deviceFactory(
                 break;
               }
             }
+          }
+        }),
+      );
+    },
+    setDeviceUiConfig: (config: Protobuf.DeviceUI.DeviceUIConfig) => {
+      set(
+        produce<PrivateDeviceState>((draft) => {
+          const device = draft.devices.get(id);
+          if (device) {
+            device.deviceUiConfig = config;
           }
         }),
       );
@@ -999,16 +1012,16 @@ function deviceFactory(
     },
 
     queueAdminMessage: (message: Protobuf.Admin.AdminMessage) => {
-      // Generate a unique ID for this admin message
-      const messageId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
-
-      // Determine the variant type
       const variant =
         message.payloadVariant.case === "setFixedPosition"
           ? "setFixedPosition"
           : message.payloadVariant.case === "removeFixedPosition"
             ? "removeFixedPosition"
-            : "other";
+            : message.payloadVariant.case === "storeUiConfig"
+              ? "storeUiConfig"
+              : "other";
+      const messageId =
+        variant === "other" ? `${Date.now()}-${Math.random().toString(36).substring(7)}` : variant;
 
       set(
         produce<PrivateDeviceState>((draft) => {
@@ -1024,6 +1037,14 @@ function deviceFactory(
                 (entry.key.variant === "setFixedPosition" ||
                   entry.key.variant === "removeFixedPosition")
               ) {
+                device.changeRegistry.changes.delete(keyStr);
+              }
+            }
+          }
+
+          if (variant === "storeUiConfig") {
+            for (const [keyStr, entry] of device.changeRegistry.changes.entries()) {
+              if (entry.key.type === "adminMessage" && entry.key.variant === "storeUiConfig") {
                 device.changeRegistry.changes.delete(keyStr);
               }
             }

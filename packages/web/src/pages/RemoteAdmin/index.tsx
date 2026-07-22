@@ -86,6 +86,16 @@ function getPositionAdminPayload(
   return undefined;
 }
 
+function getDeviceUiAdminPayload(
+  message: Protobuf.Admin.AdminMessage,
+): Protobuf.DeviceUI.DeviceUIConfig | undefined {
+  if (message.payloadVariant.case === "storeUiConfig") {
+    return message.payloadVariant.value;
+  }
+
+  return undefined;
+}
+
 const isRemoteAdminAckTimeoutError = (
   error: unknown,
 ): error is { id: number; error: Protobuf.Mesh.Routing_Error } => {
@@ -247,6 +257,9 @@ const RemoteAdminPage = () => {
   const [moduleConfig, setModuleConfigState] = useState(() =>
     create(Protobuf.LocalOnly.LocalModuleConfigSchema),
   );
+  const [deviceUiConfig, setDeviceUiConfigState] = useState(() =>
+    create(Protobuf.DeviceUI.DeviceUIConfigSchema),
+  );
   const [channels, setChannelsState] = useState<Map<Types.ChannelNumber, Protobuf.Channel.Channel>>(
     () => new Map(),
   );
@@ -288,6 +301,10 @@ const RemoteAdminPage = () => {
 
   const setModuleConfig = useCallback((newConfig: Protobuf.ModuleConfig.ModuleConfig) => {
     setModuleConfigState((current) => applyModuleConfigMessage(current, newConfig));
+  }, []);
+
+  const setDeviceUiConfig = useCallback((newConfig: Protobuf.DeviceUI.DeviceUIConfig) => {
+    setDeviceUiConfigState(newConfig);
   }, []);
 
   const addChannel = useCallback((channel: Protobuf.Channel.Channel) => {
@@ -361,13 +378,16 @@ const RemoteAdminPage = () => {
   );
 
   const queueAdminMessage = useCallback((message: Protobuf.Admin.AdminMessage) => {
-    const messageId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const variant =
       message.payloadVariant.case === "setFixedPosition"
         ? "setFixedPosition"
         : message.payloadVariant.case === "removeFixedPosition"
           ? "removeFixedPosition"
-          : "other";
+          : message.payloadVariant.case === "storeUiConfig"
+            ? "storeUiConfig"
+            : "other";
+    const messageId =
+      variant === "other" ? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` : variant;
 
     setChangeRegistry((current) => {
       const next = new Map(current.changes);
@@ -378,6 +398,13 @@ const RemoteAdminPage = () => {
             (entry.key.variant === "setFixedPosition" ||
               entry.key.variant === "removeFixedPosition")
           ) {
+            next.delete(keyStr);
+          }
+        }
+      }
+      if (variant === "storeUiConfig") {
+        for (const [keyStr, entry] of next.entries()) {
+          if (entry.key.type === "adminMessage" && entry.key.variant === "storeUiConfig") {
             next.delete(keyStr);
           }
         }
@@ -658,6 +685,7 @@ const RemoteAdminPage = () => {
         await ensureRemoteSession();
 
         let sendFailure: Promise<never> | undefined;
+        const extraSendFailures: Promise<never>[] = [];
 
         if (tab === "user") {
           sendFailure = createRemoteAdminSendFailurePromise(
@@ -683,6 +711,17 @@ const RemoteAdminPage = () => {
             },
             { tolerateAckTimeout: true },
           );
+          if (tab === "display") {
+            extraSendFailures.push(
+              createRemoteAdminSendFailurePromise(
+                {
+                  case: "getUiConfigRequest",
+                  value: true,
+                },
+                { tolerateAckTimeout: true },
+              ),
+            );
+          }
         } else if (REMOTE_MODULE_TAB_REQUESTS[tab] !== undefined) {
           sendFailure = createRemoteAdminSendFailurePromise(
             {
@@ -693,12 +732,16 @@ const RemoteAdminPage = () => {
           );
         }
 
-        if (options?.awaitResult && sendFailure) {
-          await Promise.race([waitForRemoteTabResponse(tab), sendFailure]);
-        } else if (sendFailure) {
-          void sendFailure.catch((error) => {
-            console.warn(`remote admin ${tab} request failed`, error);
-            markRemoteTabFailed(tab);
+        const sendFailures = sendFailure ? [sendFailure, ...extraSendFailures] : extraSendFailures;
+
+        if (options?.awaitResult && sendFailures.length > 0) {
+          await Promise.race([waitForRemoteTabResponse(tab), ...sendFailures]);
+        } else {
+          sendFailures.forEach((failure) => {
+            void failure.catch((error) => {
+              console.warn(`remote admin ${tab} request failed`, error);
+              markRemoteTabFailed(tab);
+            });
           });
         }
       } catch (error) {
@@ -773,6 +816,10 @@ const RemoteAdminPage = () => {
           }
           break;
         }
+        case "getUiConfigResponse":
+          setDeviceUiConfig(adminMessage.payloadVariant.value);
+          markRemoteTabLoaded("display");
+          break;
         case "getModuleConfigResponse": {
           setModuleConfig(adminMessage.payloadVariant.value);
           if (adminMessage.payloadVariant.value.payloadVariant.case === "statusmessage") {
@@ -837,6 +884,7 @@ const RemoteAdminPage = () => {
     nodeDB,
     createRemoteAdminSendFailurePromise,
     setConfig,
+    setDeviceUiConfig,
     setModuleConfig,
     startRemoteTabTimeout,
   ]);
@@ -998,6 +1046,11 @@ const RemoteAdminPage = () => {
             data: positionPayload,
           });
         }
+
+        const deviceUiPayload = getDeviceUiAdminPayload(message);
+        if (deviceUiPayload) {
+          setDeviceUiConfig(deviceUiPayload);
+        }
       }
 
       if (hasTransactionalChanges) {
@@ -1054,6 +1107,7 @@ const RemoteAdminPage = () => {
     nodeNum,
     sendRemoteAdmin,
     setConfig,
+    setDeviceUiConfig,
     setModuleConfig,
     t,
     toast,
@@ -1267,6 +1321,7 @@ const RemoteAdminPage = () => {
     () => ({
       config,
       moduleConfig,
+      deviceUiConfig,
       channels,
       hardware: create(Protobuf.Mesh.MyNodeInfoSchema, {
         ...localDevice.hardware,
@@ -1276,6 +1331,7 @@ const RemoteAdminPage = () => {
       connectionId: localDevice.connectionId,
       setConfig,
       setModuleConfig,
+      setDeviceUiConfig,
       addChannel,
       setDialogOpen: () => undefined,
       setChange,
@@ -1306,6 +1362,7 @@ const RemoteAdminPage = () => {
       channels,
       clearAllChanges,
       config,
+      deviceUiConfig,
       getAllChannelChanges,
       getAllConfigChanges,
       getAllModuleConfigChanges,
@@ -1322,6 +1379,7 @@ const RemoteAdminPage = () => {
       removeChange,
       setChange,
       setConfig,
+      setDeviceUiConfig,
       setModuleConfig,
     ],
   );

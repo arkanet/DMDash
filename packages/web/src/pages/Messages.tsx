@@ -34,6 +34,7 @@ import {
   getDirectMessageKeyExchangeStatus,
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
+import { resolveTextCompressionModeForFirmware } from "@core/utils/settingsCapabilities.ts";
 import { requestNodeInfo } from "@core/services/darkmesh/nodeActions.ts";
 import { cn } from "@core/utils/cn.ts";
 import { randId } from "@core/utils/randId.ts";
@@ -142,13 +143,17 @@ function SelectMessageChat() {
 }
 
 export const MessagesPage = () => {
-  const { channels, getUnreadCount, resetUnread, connection, config } = useDevice();
+  const { channels, getUnreadCount, resetUnread, connection, config, metadata } = useDevice();
   const { getNodes, getNode, getMyNode, hasNodeError, getNodeError } = useNodeDB();
 
   const { setMessageState } = useMessages();
   const { deviceId } = useDeviceContext();
   const compressionMode = useDarkMeshStore(
     (state) => state.compressionModeByDevice?.[deviceId] ?? "app",
+  );
+  const effectiveCompressionMode = resolveTextCompressionModeForFirmware(
+    compressionMode,
+    metadata.get(0),
   );
   const loraSpreadFactor = config.lora?.spreadFactor;
   const messageInputRef = useRef<MessageInputHandle | null>(null);
@@ -489,7 +494,7 @@ export const MessagesPage = () => {
             undefined,
             true,
             {
-              mode: compressionMode,
+              mode: effectiveCompressionMode,
               spreadingFactor: loraSpreadFactor,
             },
           );
@@ -553,10 +558,10 @@ export const MessagesPage = () => {
       connection,
       directMessageBlockDescription,
       directMessageHasPublicKey,
+      effectiveCompressionMode,
       isDirect,
       myNodeNum,
       numericChatId,
-      compressionMode,
       loraSpreadFactor,
       replyTo?.messageId,
       setMessageState,

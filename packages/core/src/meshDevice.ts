@@ -120,7 +120,7 @@ export class MeshDevice {
     let textMetadata: Partial<Omit<PacketMetadata<unknown>, "data">> | undefined;
 
     if (compressed) {
-      const compressionMode = compressionOptions?.mode ?? "remote";
+      const compressionMode = compressionOptions?.mode ?? "app";
 
       if (compressionMode === "app") {
         const compressedText = compressTextForMesh(text);
@@ -538,6 +538,48 @@ export class MeshDevice {
     );
   }
 
+  public async getDeviceUiConfig(): Promise<number> {
+    this.log.debug(Emitter[Emitter.GetConfig], "⚙️ Requesting device UI config");
+
+    const getDeviceUiConfigRequestMessage = create(Protobuf.Admin.AdminMessageSchema, {
+      payloadVariant: {
+        case: "getUiConfigRequest",
+        value: true,
+      },
+    });
+
+    return await this.sendPacket(
+      toBinary(Protobuf.Admin.AdminMessageSchema, getDeviceUiConfigRequestMessage),
+      Protobuf.Portnums.PortNum.ADMIN_APP,
+      "self",
+      ChannelNumber.Primary,
+      true,
+      true,
+    );
+  }
+
+  public async storeDeviceUiConfig(
+    deviceUiConfig: Protobuf.DeviceUI.DeviceUIConfig,
+  ): Promise<number> {
+    this.log.debug(Emitter[Emitter.SetConfig], "⚙️ Storing device UI config");
+
+    const storeDeviceUiConfigMessage = create(Protobuf.Admin.AdminMessageSchema, {
+      payloadVariant: {
+        case: "storeUiConfig",
+        value: deviceUiConfig,
+      },
+    });
+
+    return await this.sendPacket(
+      toBinary(Protobuf.Admin.AdminMessageSchema, storeDeviceUiConfigMessage),
+      Protobuf.Portnums.PortNum.ADMIN_APP,
+      "self",
+      ChannelNumber.Primary,
+      true,
+      false,
+    );
+  }
+
   /**
    * Requests NeighborInfo from a remote node (on port NEIGHBORINFO_APP).
    * This is an on-demand request that asks the target node to reply directly
@@ -834,17 +876,24 @@ export class MeshDevice {
   /**
    * Serial connection requires a heartbeat ping to stay connected, otherwise times out after 15 minutes
    */
-  public heartbeat(): Promise<number> {
+  public heartbeat(nonce = 0): Promise<number> {
     this.log.debug(Emitter[Emitter.Ping], "❤️ Send heartbeat ping to radio");
 
     const toRadio = create(Protobuf.Mesh.ToRadioSchema, {
       payloadVariant: {
         case: "heartbeat",
-        value: {},
+        value: { nonce },
       },
     });
 
     return this.sendRaw(toBinary(Protobuf.Mesh.ToRadioSchema, toRadio));
+  }
+
+  /**
+   * Firmware 2.7.26 uses heartbeat nonce 1 as the PhoneAPI nodeinfo ping.
+   */
+  public requestLocalNodeInfo(): Promise<number> {
+    return this.heartbeat(1);
   }
 
   /**
@@ -920,6 +969,24 @@ export class MeshDevice {
       Protobuf.Portnums.PortNum.POSITION_APP,
       destination,
       ChannelNumber.Primary,
+      false,
+      true,
+    );
+  }
+
+  public async requestNodeInfo(
+    destination: Destination,
+    channel: ChannelNumber = ChannelNumber.Primary,
+  ): Promise<number> {
+    if (destination === "self" || destination === this.myNodeInfo.myNodeNum) {
+      return this.requestLocalNodeInfo();
+    }
+
+    return await this.sendPacket(
+      new Uint8Array(),
+      Protobuf.Portnums.PortNum.NODEINFO_APP,
+      destination,
+      channel,
       false,
       true,
     );
@@ -1165,6 +1232,15 @@ export class MeshDevice {
             );
 
             this.events.onDeviceMetadataPacket.dispatch({
+              ...packetMetadata,
+              data: adminMessage.payloadVariant.value,
+            });
+            break;
+          }
+          case "getUiConfigResponse": {
+            this.log.debug(Emitter[Emitter.GetConfig], "⚙️ Received device UI config packet");
+
+            this.events.onDeviceUiConfigPacket.dispatch({
               ...packetMetadata,
               data: adminMessage.payloadVariant.value,
             });

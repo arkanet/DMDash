@@ -1,5 +1,5 @@
 import type { ValidConfigType, ValidModuleConfigType } from "@core/stores";
-import { Protobuf } from "@meshtastic/core";
+import { Protobuf, type Types } from "@meshtastic/core";
 
 const MODULE_CONFIG_TYPE_INDEX: Record<
   Exclude<ValidModuleConfigType, "statusmessage" | "trafficManagement">,
@@ -23,6 +23,7 @@ const MODULE_CONFIG_TYPE_INDEX: Record<
 const STATUS_MESSAGE_INDEX = 13;
 const MIN_STATUS_MESSAGE_VERSION = [2, 7, 17] as const;
 const MIN_TRAFFIC_MANAGEMENT_VERSION = [2, 7, 20] as const;
+const MIN_APP_SIDE_TEXT_COMPRESSION_VERSION = [2, 7, 26] as const;
 
 const parseFirmwareVersion = (firmwareVersion?: string) => {
   if (!firmwareVersion) {
@@ -59,6 +60,27 @@ const isAtLeastVersion = (
   }
 
   return true;
+};
+
+export const isLegacyFirmwareTextCompressionSupported = (
+  metadata?: Protobuf.Mesh.DeviceMetadata,
+) => {
+  if (!metadata?.firmwareVersion) {
+    return true;
+  }
+
+  return !isAtLeastVersion(metadata.firmwareVersion, MIN_APP_SIDE_TEXT_COMPRESSION_VERSION);
+};
+
+export const resolveTextCompressionModeForFirmware = (
+  mode: Types.TextCompressionMode,
+  metadata?: Protobuf.Mesh.DeviceMetadata,
+): Types.TextCompressionMode => {
+  if (mode === "remote" && !isLegacyFirmwareTextCompressionSupported(metadata)) {
+    return "app";
+  }
+
+  return mode;
 };
 
 const isExcludedModule = (excludedModules: number | bigint | undefined, index: number) => {

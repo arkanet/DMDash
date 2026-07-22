@@ -251,7 +251,18 @@ export const decodePacket = (device: MeshDevice) =>
               break;
             }
 
-            case "deviceuiConfig":
+            case "deviceuiConfig": {
+              device.events.onDeviceUiConfigPacket.dispatch({
+                id: decodedMessage.id,
+                rxTime: new Date(),
+                from: 0,
+                to: 0,
+                type: "direct",
+                channel: Types.ChannelNumber.Primary,
+                data: decodedMessage.payloadVariant.value,
+              });
+              break;
+            }
             case "fileInfo": {
               device.log.trace(
                 Types.Emitter[Types.Emitter.HandleFromRadio],

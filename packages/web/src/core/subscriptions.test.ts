@@ -22,6 +22,7 @@ function createEvent<T>() {
 function createConnectionEvents() {
   return {
     onDeviceMetadataPacket: createEvent<unknown>(),
+    onDeviceUiConfigPacket: createEvent<unknown>(),
     onFromRadio: createEvent<unknown>(),
     onLogRecord: createEvent<unknown>(),
     onDeviceDebugLog: createEvent<unknown>(),
@@ -58,6 +59,7 @@ function createSubscriptionDevice(deviceId: number, myNodeNum = 0) {
     addChannel: vi.fn(),
     setConfig: vi.fn(),
     setModuleConfig: vi.fn(),
+    setDeviceUiConfig: vi.fn(),
     incrementUnread: vi.fn(),
     addTraceRoute: vi.fn(),
     setPendingSettingsChanges: vi.fn(),
@@ -108,6 +110,7 @@ describe("subscribeAll message status updates", () => {
       addChannel: vi.fn(),
       setConfig: vi.fn(),
       setModuleConfig: vi.fn(),
+      setDeviceUiConfig: vi.fn(),
       incrementUnread: vi.fn(),
       addTraceRoute: vi.fn(),
       setPendingSettingsChanges: vi.fn(),
@@ -247,6 +250,7 @@ describe("subscribeAll message status updates", () => {
       addChannel: vi.fn(),
       setConfig: vi.fn(),
       setModuleConfig: vi.fn(),
+      setDeviceUiConfig: vi.fn(),
       incrementUnread: vi.fn(),
       addTraceRoute: vi.fn(),
       setPendingSettingsChanges: vi.fn(),
@@ -319,6 +323,7 @@ describe("subscribeAll message status updates", () => {
       addChannel: vi.fn(),
       setConfig: vi.fn(),
       setModuleConfig: vi.fn(),
+      setDeviceUiConfig: vi.fn(),
       incrementUnread: vi.fn(),
       addTraceRoute: vi.fn(),
       setPendingSettingsChanges: vi.fn(),
@@ -358,6 +363,7 @@ describe("subscribeAll message status updates", () => {
       addChannel: vi.fn(),
       setConfig: vi.fn(),
       setModuleConfig: vi.fn(),
+      setDeviceUiConfig: vi.fn(),
       incrementUnread: vi.fn(),
       addTraceRoute: vi.fn(),
       setPendingSettingsChanges: vi.fn(),
@@ -399,6 +405,7 @@ describe("subscribeAll message status updates", () => {
       addChannel: vi.fn(),
       setConfig: vi.fn(),
       setModuleConfig: vi.fn(),
+      setDeviceUiConfig: vi.fn(),
       incrementUnread: vi.fn(),
       addTraceRoute: vi.fn(),
       setPendingSettingsChanges: vi.fn(),
@@ -572,6 +579,26 @@ describe("subscribeAll message status updates", () => {
     expect(device.setDialogOpen).toHaveBeenCalledWith("refreshKeys", false);
     expect(device.setRefreshKeysNodeNum).toHaveBeenCalledWith(undefined);
     expect(device.addMetadata).toHaveBeenCalledWith(123, { firmwareVersion: "2.7.21" });
+  });
+
+  it("stores device UI config packets", () => {
+    const events = createConnectionEvents();
+    const messageStore = useMessageStore.getState().addMessageStore(9008);
+    const device = createSubscriptionDevice(9008);
+    const nodeDB = createSubscriptionNodeDB();
+    const deviceUiConfig = {
+      gpsFormat: Protobuf.DeviceUI.DeviceUIConfig_GpsCoordinateFormat.MGRS,
+    };
+
+    subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
+
+    events.onDeviceUiConfigPacket.dispatch({
+      from: 0,
+      type: "direct",
+      data: deviceUiConfig,
+    });
+
+    expect(device.setDeviceUiConfig).toHaveBeenCalledWith(deviceUiConfig);
   });
 
   it("does not suppress PKI_UNKNOWN after a broadcast telemetry packet", () => {

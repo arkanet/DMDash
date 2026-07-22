@@ -6,6 +6,7 @@ export * as Channel from "./dist/meshtastic/channel_pb.ts";
 export * as ClientOnly from "./dist/meshtastic/clientonly_pb.ts";
 export * as Config from "./dist/meshtastic/config_pb.ts";
 export * as ConnectionStatus from "./dist/meshtastic/connection_status_pb.ts";
+export * as DeviceUI from "./dist/meshtastic/device_ui_pb.ts";
 export * as LocalOnly from "./dist/meshtastic/localonly_pb.ts";
 export * as Mesh from "./dist/meshtastic/mesh_pb.ts";
 export * as ModuleConfig from "./dist/meshtastic/module_config_pb.ts";

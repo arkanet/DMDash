@@ -123,6 +123,69 @@ describe("MeshDevice message sending", () => {
     await expect(sendPromise).resolves.toBe(packet.id);
   });
 
+  it("defaults compressed text sends to app-side compression", async () => {
+    const writes: Uint8Array[] = [];
+    const receivedMessages: PacketMetadata<string>[] = [];
+    const device = new MeshDevice({
+      toDevice: new WritableStream<Uint8Array>({
+        write(chunk) {
+          writes.push(chunk);
+        },
+      }),
+      fromDevice: new ReadableStream({ start: (controller) => controller.close() }),
+      disconnect: () => Promise.resolve(),
+    });
+
+    device.events.onMyNodeInfo.dispatch({
+      myNodeNum: 111,
+    } as Protobuf.Mesh.MyNodeInfo);
+    device.events.onMessagePacket.subscribe((packet) => {
+      receivedMessages.push(packet);
+    });
+
+    const text = "default default default darkmesh app compression compression";
+    const sendPromise = device.sendText(
+      text,
+      "broadcast",
+      true,
+      ChannelNumber.Primary,
+      undefined,
+      undefined,
+      true,
+    );
+
+    await waitForWrite(writes);
+    const firstWrite = writes[0];
+    if (!firstWrite) {
+      throw new Error("Expected MeshDevice write");
+    }
+
+    const toRadio = fromBinary(Protobuf.Mesh.ToRadioSchema, firstWrite);
+    if (toRadio.payloadVariant.case !== "packet") {
+      throw new Error("Expected packet payload");
+    }
+
+    const packet = toRadio.payloadVariant.value;
+    if (packet.payloadVariant.case !== "decoded") {
+      throw new Error("Expected decoded packet");
+    }
+
+    expect(packet.payloadVariant.value.portnum).toBe(
+      Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP,
+    );
+    expect(packet.payloadVariant.value.payload.length).toBeLessThan(
+      new TextEncoder().encode(text).length,
+    );
+    expect(receivedMessages[0]).toMatchObject({
+      data: text,
+      compressed: true,
+      compressionMode: "app",
+    });
+
+    device.queue.processAck(packet.id);
+    await expect(sendPromise).resolves.toBe(packet.id);
+  });
+
   it("keeps legacy firmware compression mode as compressed port with plain text payload", async () => {
     const writes: Uint8Array[] = [];
     const receivedMessages: PacketMetadata<string>[] = [];
@@ -184,6 +247,135 @@ describe("MeshDevice message sending", () => {
 
     device.queue.processAck(packet.id);
     await expect(sendPromise).resolves.toBe(packet.id);
+  });
+
+  it("uses heartbeat nonce 1 for local nodeinfo refresh", async () => {
+    const writes: Uint8Array[] = [];
+    const device = new MeshDevice({
+      toDevice: new WritableStream<Uint8Array>({
+        write(chunk) {
+          writes.push(chunk);
+        },
+      }),
+      fromDevice: new ReadableStream({ start: (controller) => controller.close() }),
+      disconnect: () => Promise.resolve(),
+    });
+
+    device.events.onMyNodeInfo.dispatch({
+      myNodeNum: 111,
+    } as Protobuf.Mesh.MyNodeInfo);
+
+    const requestPromise = device.requestNodeInfo(111);
+
+    await waitForWrite(writes);
+    const firstWrite = writes[0];
+    if (!firstWrite) {
+      throw new Error("Expected MeshDevice write");
+    }
+
+    const toRadio = fromBinary(Protobuf.Mesh.ToRadioSchema, firstWrite);
+    expect(toRadio.payloadVariant.case).toBe("heartbeat");
+    if (toRadio.payloadVariant.case !== "heartbeat") {
+      throw new Error("Expected heartbeat payload");
+    }
+
+    expect(toRadio.payloadVariant.value.nonce).toBe(1);
+
+    const queuedId = device.queue.getState()[0]?.id;
+    if (queuedId === undefined) {
+      throw new Error("Expected queued heartbeat");
+    }
+    device.queue.processAck(queuedId);
+    await expect(requestPromise).resolves.toBe(queuedId);
+  });
+
+  it("keeps remote nodeinfo requests on the NODEINFO_APP port", async () => {
+    const writes: Uint8Array[] = [];
+    const device = new MeshDevice({
+      toDevice: new WritableStream<Uint8Array>({
+        write(chunk) {
+          writes.push(chunk);
+        },
+      }),
+      fromDevice: new ReadableStream({ start: (controller) => controller.close() }),
+      disconnect: () => Promise.resolve(),
+    });
+
+    device.events.onMyNodeInfo.dispatch({
+      myNodeNum: 111,
+    } as Protobuf.Mesh.MyNodeInfo);
+
+    const requestPromise = device.requestNodeInfo(222);
+
+    await waitForWrite(writes);
+    const firstWrite = writes[0];
+    if (!firstWrite) {
+      throw new Error("Expected MeshDevice write");
+    }
+
+    const toRadio = fromBinary(Protobuf.Mesh.ToRadioSchema, firstWrite);
+    expect(toRadio.payloadVariant.case).toBe("packet");
+    if (toRadio.payloadVariant.case !== "packet") {
+      throw new Error("Expected packet payload");
+    }
+
+    const packet = toRadio.payloadVariant.value;
+    expect(packet.to).toBe(222);
+    expect(packet.wantAck).toBe(false);
+    expect(packet.payloadVariant.case).toBe("decoded");
+    if (packet.payloadVariant.case !== "decoded") {
+      throw new Error("Expected decoded packet");
+    }
+    expect(packet.payloadVariant.value.portnum).toBe(Protobuf.Portnums.PortNum.NODEINFO_APP);
+
+    device.queue.processAck(packet.id);
+    await expect(requestPromise).resolves.toBe(packet.id);
+  });
+
+  it("requests device UI config with the dedicated admin command", async () => {
+    const writes: Uint8Array[] = [];
+    const device = new MeshDevice({
+      toDevice: new WritableStream<Uint8Array>({
+        write(chunk) {
+          writes.push(chunk);
+        },
+      }),
+      fromDevice: new ReadableStream({ start: (controller) => controller.close() }),
+      disconnect: () => Promise.resolve(),
+    });
+
+    device.events.onMyNodeInfo.dispatch({
+      myNodeNum: 111,
+    } as Protobuf.Mesh.MyNodeInfo);
+
+    const requestPromise = device.getDeviceUiConfig();
+
+    await waitForWrite(writes);
+    const firstWrite = writes[0];
+    if (!firstWrite) {
+      throw new Error("Expected MeshDevice write");
+    }
+
+    const toRadio = fromBinary(Protobuf.Mesh.ToRadioSchema, firstWrite);
+    expect(toRadio.payloadVariant.case).toBe("packet");
+    if (toRadio.payloadVariant.case !== "packet") {
+      throw new Error("Expected packet payload");
+    }
+
+    const packet = toRadio.payloadVariant.value;
+    expect(packet.payloadVariant.case).toBe("decoded");
+    if (packet.payloadVariant.case !== "decoded") {
+      throw new Error("Expected decoded packet");
+    }
+
+    const data = packet.payloadVariant.value;
+    expect(data.portnum).toBe(Protobuf.Portnums.PortNum.ADMIN_APP);
+    const adminMessage = fromBinary(Protobuf.Admin.AdminMessageSchema, data.payload);
+    expect(adminMessage.payloadVariant.case).toBe("getUiConfigRequest");
+    expect(data.wantResponse).toBe(true);
+
+    device.queue.processAck(packet.id);
+    await expect(requestPromise).resolves.toBe(packet.id);
   });
 
   it("decompresses incoming app-compressed text packets", () => {

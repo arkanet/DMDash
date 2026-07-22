@@ -3,7 +3,9 @@ import { Protobuf } from "@meshtastic/core";
 import {
   getSettingsMetadata,
   isConfigTabSupported,
+  isLegacyFirmwareTextCompressionSupported,
   isModuleConfigTabSupported,
+  resolveTextCompressionModeForFirmware,
 } from "./settingsCapabilities.ts";
 
 const createMetadata = (overrides: Partial<Protobuf.Mesh.DeviceMetadata> = {}) =>
@@ -73,5 +75,17 @@ describe("settingsCapabilities", () => {
 
     expect(isModuleConfigTabSupported("remoteHardware", available)).toBe(true);
     expect(isModuleConfigTabSupported("remoteHardware", excluded)).toBe(false);
+  });
+
+  it("keeps firmware text compression only for legacy or unknown firmware", () => {
+    const legacy = createMetadata({ firmwareVersion: "2.7.21" });
+    const appCompression = createMetadata({ firmwareVersion: "2.7.26-darkmesh" });
+
+    expect(isLegacyFirmwareTextCompressionSupported(undefined)).toBe(true);
+    expect(isLegacyFirmwareTextCompressionSupported(legacy)).toBe(true);
+    expect(isLegacyFirmwareTextCompressionSupported(appCompression)).toBe(false);
+    expect(resolveTextCompressionModeForFirmware("remote", legacy)).toBe("remote");
+    expect(resolveTextCompressionModeForFirmware("remote", appCompression)).toBe("app");
+    expect(resolveTextCompressionModeForFirmware("app", appCompression)).toBe("app");
   });
 });

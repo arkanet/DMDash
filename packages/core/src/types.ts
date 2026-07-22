@@ -61,6 +61,10 @@ export type PacketDestination = "broadcast" | "direct";
 export type TextCompressionMode = "app" | "remote";
 
 export interface TextCompressionOptions {
+  /**
+   * `app` compresses in DMDash before sending. `remote` sends plain text on the
+   * compressed port for legacy firmware that still performs compression itself.
+   */
   mode?: TextCompressionMode;
   spreadingFactor?: number;
 }
