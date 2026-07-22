@@ -88,6 +88,8 @@ export async function startVisualTraceroute(
       ? Protobuf.Mesh.MeshPacket_Priority.MAX
       : Protobuf.Mesh.MeshPacket_Priority.UNSET;
 
+    darkMeshState.incrementTraceTotal(deviceId);
+
     // `connection.traceRoute` returns the outgoing mesh packet id immediately,
     // matching the Android flow that records request timing before radio ACK.
     const requestId = (await connection.traceRoute(nodeNum, priority)) as number | undefined;

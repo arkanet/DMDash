@@ -3,8 +3,10 @@ import * as Protobuf from "@meshtastic/protobufs";
 import { Logger } from "tslog";
 
 import { Constants } from "./constants.ts";
-import type { Destination, PacketMetadata, Transport } from "./types.ts";
+import type { Destination, PacketMetadata, TextCompressionOptions, Transport } from "./types.ts";
 import { ChannelNumber, DeviceStatusEnum, Emitter } from "./types.ts";
+import { estimateLoraAirtimeSaving } from "./utils/loraAirtime.ts";
+import { compressTextForMesh, decompressTextFromMesh } from "./utils/messageCompression.ts";
 import { EventSystem, Queue, Xmodem } from "./utils/mod.ts";
 import { decodePacket } from "./utils/transform/decodePacket.ts";
 
@@ -40,6 +42,7 @@ export class MeshDevice {
   public xModem: Xmodem;
 
   private _heartbeatIntervalId: ReturnType<typeof setInterval> | undefined;
+  private localPacketMetadata = new Map<number, Partial<Omit<PacketMetadata<unknown>, "data">>>();
 
   constructor(transport: Transport, configId?: number) {
     this.log = new Logger({
@@ -104,6 +107,7 @@ export class MeshDevice {
     replyId?: number,
     emoji?: number,
     compressed = false,
+    compressionOptions?: TextCompressionOptions,
   ): Promise<number> {
     this.log.debug(
       Emitter[Emitter.SendText],
@@ -111,12 +115,43 @@ export class MeshDevice {
     );
 
     const enc = new TextEncoder();
-    const portNum = compressed
-      ? Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP
-      : Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP;
+    let byteData = enc.encode(text);
+    let portNum = Protobuf.Portnums.PortNum.TEXT_MESSAGE_APP;
+    let textMetadata: Partial<Omit<PacketMetadata<unknown>, "data">> | undefined;
+
+    if (compressed) {
+      const compressionMode = compressionOptions?.mode ?? "remote";
+
+      if (compressionMode === "app") {
+        const compressedText = compressTextForMesh(text);
+
+        if (compressedText) {
+          const airtime = estimateLoraAirtimeSaving(
+            compressedText.originalBytes,
+            compressedText.compressedBytes,
+            compressionOptions?.spreadingFactor,
+          );
+
+          byteData = compressedText.payload;
+          portNum = Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP;
+          textMetadata = {
+            compressed: true,
+            compressionMode,
+            savedBytes: compressedText.savedBytes,
+            savedAirtimeMs: airtime.savedAirtimeMs,
+          };
+        }
+      } else {
+        portNum = Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP;
+        textMetadata = {
+          compressed: true,
+          compressionMode,
+        };
+      }
+    }
 
     return await this.sendPacket(
-      enc.encode(text),
+      byteData,
       portNum,
       destination ?? "broadcast",
       channel,
@@ -125,6 +160,7 @@ export class MeshDevice {
       true,
       replyId,
       emoji,
+      textMetadata,
     );
   }
 
@@ -166,6 +202,7 @@ export class MeshDevice {
     echoResponse = false,
     replyId?: number,
     emoji?: number,
+    packetMetadata?: Partial<Omit<PacketMetadata<unknown>, "data">>,
   ): Promise<number> {
     this.log.trace(
       Emitter[Emitter.SendPacket],
@@ -198,6 +235,10 @@ export class MeshDevice {
       wantAck: shouldRequestAck,
       channel,
     });
+
+    if (packetMetadata) {
+      this.localPacketMetadata.set(meshPacket.id, packetMetadata);
+    }
 
     const toRadioMessage = create(Protobuf.Mesh.ToRadioSchema, {
       payloadVariant: {
@@ -963,6 +1004,10 @@ export class MeshDevice {
   ) {
     let adminMessage: Protobuf.Admin.AdminMessage | undefined;
     let routingPacket: Protobuf.Mesh.Routing | undefined;
+    const isCompressedMessage =
+      dataPacket.portnum === Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP;
+    const localMetadata = this.localPacketMetadata.get(meshPacket.id);
+    this.localPacketMetadata.delete(meshPacket.id);
 
     const packetMetadata: Omit<PacketMetadata<unknown>, "data"> = {
       id: meshPacket.id,
@@ -980,7 +1025,8 @@ export class MeshDevice {
       portNum: dataPacket.portnum,
       hopStart: meshPacket.hopStart,
       hopLimit: meshPacket.hopLimit,
-      compressed: dataPacket.portnum === Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP,
+      compressed: isCompressedMessage,
+      ...localMetadata,
     };
     const buildMeshPacketJson = () =>
       toJsonString(Protobuf.Mesh.MeshPacketSchema, meshPacket, {
@@ -1006,7 +1052,10 @@ export class MeshDevice {
       case Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP: {
         this.events.onMessagePacket.dispatch({
           ...packetMetadata,
-          data: new TextDecoder().decode(dataPacket.payload),
+          data: isCompressedMessage
+            ? (decompressTextFromMesh(dataPacket.payload) ??
+              new TextDecoder().decode(dataPacket.payload))
+            : new TextDecoder().decode(dataPacket.payload),
         });
         break;
       }

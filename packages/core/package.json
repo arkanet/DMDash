@@ -45,6 +45,7 @@
     "publish:jsr": "pnpm run prepack && pnpm prepare:jsr && deno publish --allow-dirty --no-check"
   },
   "dependencies": {
-    "crc": "npm:crc@^4.3.2"
+    "crc": "npm:crc@^4.3.2",
+    "unishox2.siara.cc": "^1.1.5"
   }
 }

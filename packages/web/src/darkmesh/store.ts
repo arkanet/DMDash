@@ -45,6 +45,18 @@ export interface HuntConfig {
   lastError?: string;
 }
 
+export type MessageCompressionMode = "app" | "remote";
+
+export interface MeshStats {
+  traceTotal: number;
+  traceSuccess: number;
+  traceLongestKm: number;
+  traceMaxTraveledKm: number;
+  compressionSentTotal: number;
+  compressionBytesSaved: number;
+  compressionAirtimeSavedMs: number;
+}
+
 export interface GatewaySnapshot {
   nodeNum: number;
   nodeName: string;
@@ -73,6 +85,8 @@ interface DarkMeshPersistedState {
   selectedTraceRoute?: TraceRouteSelection;
   neighborDiscoveryByDevice?: Record<number, Record<number, NeighborDiscoveryRecord[]>>;
   tracePriorityByDevice?: Record<number, boolean>;
+  compressionModeByDevice?: Record<number, MessageCompressionMode>;
+  meshStatsByDevice?: Record<number, MeshStats>;
 }
 
 interface DarkMeshState extends DarkMeshPersistedState {
@@ -83,7 +97,15 @@ interface DarkMeshState extends DarkMeshPersistedState {
   mapPopupNodeByDevice: Record<number, number | undefined>;
   gatewaysByDevice: Record<number, GatewaySnapshot | undefined>;
   tracePriorityByDevice?: Record<number, boolean>;
+  compressionModeByDevice?: Record<number, MessageCompressionMode>;
+  meshStatsByDevice?: Record<number, MeshStats>;
   setTracePriority: (deviceId: number, enabled: boolean) => void;
+  setCompressionMode: (deviceId: number, mode: MessageCompressionMode) => void;
+  addCompressionSavings: (deviceId: number, savedBytes: number, savedAirtimeMs: number) => void;
+  incrementTraceTotal: (deviceId: number) => void;
+  incrementTraceSuccess: (deviceId: number) => void;
+  recordTraceDistance: (deviceId: number, distanceKm: number) => void;
+  resetMeshStats: (deviceId: number, scope?: "all" | "compression" | "trace") => void;
   addSchedule: (
     schedule: Omit<ScheduledDarkMeshMessage, "id" | "createdAt"> & {
       id?: string;
@@ -135,6 +157,23 @@ export const defaultHuntConfig: HuntConfig = {
   forwardedCount: 0,
 };
 
+export const defaultMeshStats: MeshStats = {
+  traceTotal: 0,
+  traceSuccess: 0,
+  traceLongestKm: 0,
+  traceMaxTraveledKm: 0,
+  compressionSentTotal: 0,
+  compressionBytesSaved: 0,
+  compressionAirtimeSavedMs: 0,
+};
+
+function resolveMeshStats(
+  state: Pick<DarkMeshState, "meshStatsByDevice">,
+  deviceId: number,
+): MeshStats {
+  return state.meshStatsByDevice?.[deviceId] ?? defaultMeshStats;
+}
+
 export const useDarkMeshStore = create<DarkMeshState>()(
   persist(
     (set) => ({
@@ -149,6 +188,110 @@ export const useDarkMeshStore = create<DarkMeshState>()(
       pendingTraceRouteTargetByDevice: {},
       pendingTraceRouteRequestByDevice: {},
       gatewaysByDevice: {},
+      compressionModeByDevice: {},
+      meshStatsByDevice: {},
+
+      setCompressionMode: (deviceId, mode) =>
+        set((state) => ({
+          compressionModeByDevice: {
+            ...(state.compressionModeByDevice ?? {}),
+            [deviceId]: mode,
+          },
+        })),
+
+      addCompressionSavings: (deviceId, savedBytes, savedAirtimeMs) =>
+        set((state) => {
+          const stats = resolveMeshStats(state, deviceId);
+          return {
+            meshStatsByDevice: {
+              ...(state.meshStatsByDevice ?? {}),
+              [deviceId]: {
+                ...stats,
+                compressionSentTotal: stats.compressionSentTotal + 1,
+                compressionBytesSaved: stats.compressionBytesSaved + Math.max(0, savedBytes),
+                compressionAirtimeSavedMs:
+                  stats.compressionAirtimeSavedMs + Math.max(0, savedAirtimeMs),
+              },
+            },
+          };
+        }),
+
+      incrementTraceTotal: (deviceId) =>
+        set((state) => {
+          const stats = resolveMeshStats(state, deviceId);
+          return {
+            meshStatsByDevice: {
+              ...(state.meshStatsByDevice ?? {}),
+              [deviceId]: {
+                ...stats,
+                traceTotal: stats.traceTotal + 1,
+              },
+            },
+          };
+        }),
+
+      incrementTraceSuccess: (deviceId) =>
+        set((state) => {
+          const stats = resolveMeshStats(state, deviceId);
+          return {
+            meshStatsByDevice: {
+              ...(state.meshStatsByDevice ?? {}),
+              [deviceId]: {
+                ...stats,
+                traceSuccess: stats.traceSuccess + 1,
+              },
+            },
+          };
+        }),
+
+      recordTraceDistance: (deviceId, distanceKm) =>
+        set((state) => {
+          if (!Number.isFinite(distanceKm) || distanceKm <= 0) {
+            return {};
+          }
+
+          const stats = resolveMeshStats(state, deviceId);
+          const roundedDistance = Math.round(distanceKm);
+          return {
+            meshStatsByDevice: {
+              ...(state.meshStatsByDevice ?? {}),
+              [deviceId]: {
+                ...stats,
+                traceLongestKm: Math.max(stats.traceLongestKm, roundedDistance),
+                traceMaxTraveledKm: stats.traceMaxTraveledKm + roundedDistance,
+              },
+            },
+          };
+        }),
+
+      resetMeshStats: (deviceId, scope = "all") =>
+        set((state) => {
+          const current = resolveMeshStats(state, deviceId);
+          const next =
+            scope === "compression"
+              ? {
+                  ...current,
+                  compressionSentTotal: 0,
+                  compressionBytesSaved: 0,
+                  compressionAirtimeSavedMs: 0,
+                }
+              : scope === "trace"
+                ? {
+                    ...current,
+                    traceTotal: 0,
+                    traceSuccess: 0,
+                    traceLongestKm: 0,
+                    traceMaxTraveledKm: 0,
+                  }
+                : defaultMeshStats;
+
+          return {
+            meshStatsByDevice: {
+              ...(state.meshStatsByDevice ?? {}),
+              [deviceId]: next,
+            },
+          };
+        }),
 
       addSchedule: (schedule) =>
         set((state) => ({
@@ -358,6 +501,8 @@ export const useDarkMeshStore = create<DarkMeshState>()(
         selectedTraceRoute: state.selectedTraceRoute,
         neighborDiscoveryByDevice: state.neighborDiscoveryByDevice,
         tracePriorityByDevice: state.tracePriorityByDevice,
+        compressionModeByDevice: state.compressionModeByDevice,
+        meshStatsByDevice: state.meshStatsByDevice,
       }),
     },
   ),

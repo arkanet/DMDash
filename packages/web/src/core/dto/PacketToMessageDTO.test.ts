@@ -38,6 +38,9 @@ describe("PacketToMessageDTO", () => {
       type: "broadcast",
       rxTime,
       compressed: true,
+      compressionMode: "app",
+      savedBytes: 12,
+      savedAirtimeMs: 43.5,
       hopStart: 4,
       hopLimit: 1,
     } as Types.PacketMetadata<string>;
@@ -53,6 +56,9 @@ describe("PacketToMessageDTO", () => {
       type: MessageType.Broadcast,
       state: MessageState.Received,
       compressed: true,
+      compressionMode: "app",
+      savedBytes: 12,
+      savedAirtimeMs: 43.5,
       hopsAway: 3,
     });
     expect(message.date).toBe(rxTime.getTime());

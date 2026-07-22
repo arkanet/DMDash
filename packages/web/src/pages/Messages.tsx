@@ -1,4 +1,5 @@
 import { messagesWithParamsRoute } from "@app/routes.tsx";
+import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { GatewayHeader } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
 import { ChannelChat } from "@components/PageComponents/Messages/ChannelChat.tsx";
 import {
@@ -141,11 +142,15 @@ function SelectMessageChat() {
 }
 
 export const MessagesPage = () => {
-  const { channels, getUnreadCount, resetUnread, connection } = useDevice();
+  const { channels, getUnreadCount, resetUnread, connection, config } = useDevice();
   const { getNodes, getNode, getMyNode, hasNodeError, getNodeError } = useNodeDB();
 
   const { setMessageState } = useMessages();
   const { deviceId } = useDeviceContext();
+  const compressionMode = useDarkMeshStore(
+    (state) => state.compressionModeByDevice?.[deviceId] ?? "app",
+  );
+  const loraSpreadFactor = config.lora?.spreadFactor;
   const messageInputRef = useRef<MessageInputHandle | null>(null);
 
   const { type, chatId } = useParams({ from: messagesWithParamsRoute.id });
@@ -483,6 +488,10 @@ export const MessagesPage = () => {
             replyTo?.messageId,
             undefined,
             true,
+            {
+              mode: compressionMode,
+              spreadingFactor: loraSpreadFactor,
+            },
           );
           if (sendPromise) {
             setReplyTo(undefined);
@@ -547,6 +556,8 @@ export const MessagesPage = () => {
       isDirect,
       myNodeNum,
       numericChatId,
+      compressionMode,
+      loraSpreadFactor,
       replyTo?.messageId,
       setMessageState,
       toast,

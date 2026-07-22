@@ -93,4 +93,55 @@ describe("DarkMesh store persistence", () => {
       },
     });
   });
+
+  it("persists compression mode and mesh stats per device", async () => {
+    const { defaultMeshStats, useDarkMeshStore } = await freshStore();
+    const state = useDarkMeshStore.getState();
+
+    state.setCompressionMode(7, "remote");
+    state.incrementTraceTotal(7);
+    state.incrementTraceSuccess(7);
+    state.recordTraceDistance(7, 12.6);
+    state.addCompressionSavings(7, 25, 123.4);
+
+    expect(useDarkMeshStore.getState().compressionModeByDevice?.[7]).toBe("remote");
+    expect(useDarkMeshStore.getState().meshStatsByDevice?.[7]).toMatchObject({
+      traceTotal: 1,
+      traceSuccess: 1,
+      traceLongestKm: 13,
+      traceMaxTraveledKm: 13,
+      compressionSentTotal: 1,
+      compressionBytesSaved: 25,
+      compressionAirtimeSavedMs: 123.4,
+    });
+
+    state.resetMeshStats(7, "compression");
+
+    expect(useDarkMeshStore.getState().meshStatsByDevice?.[7]).toMatchObject({
+      traceTotal: 1,
+      traceSuccess: 1,
+      traceLongestKm: 13,
+      traceMaxTraveledKm: 13,
+      compressionSentTotal: 0,
+      compressionBytesSaved: 0,
+      compressionAirtimeSavedMs: 0,
+    });
+
+    const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+    expect(persisted.state.compressionModeByDevice[7]).toBe("remote");
+    expect(persisted.state.meshStatsByDevice[7]).toMatchObject({
+      traceTotal: 1,
+      compressionSentTotal: 0,
+    });
+
+    const rehydratedStore = (await freshStore()).useDarkMeshStore;
+    expect(rehydratedStore.getState().compressionModeByDevice?.[7]).toBe("remote");
+    expect(rehydratedStore.getState().meshStatsByDevice?.[7]).toMatchObject({
+      traceTotal: 1,
+      compressionSentTotal: 0,
+    });
+
+    rehydratedStore.getState().resetMeshStats(7);
+    expect(rehydratedStore.getState().meshStatsByDevice?.[7]).toEqual(defaultMeshStats);
+  });
 });

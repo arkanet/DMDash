@@ -25,9 +25,11 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   defaultBeaconConfig,
   defaultHuntConfig,
+  defaultMeshStats,
   useDarkMeshStore,
   type BeaconConfig,
   type HuntConfig,
+  type MessageCompressionMode,
 } from "./store.ts";
 import { validateHuntEndpoint } from "./huntApi.ts";
 import PowerNotificationPanel from "@components/PageComponents/PowerNotification/PowerNotificationPanel.tsx";
@@ -111,6 +113,24 @@ function formatSince(timestamp?: number): string {
   }).format(new Date(timestamp));
 }
 
+function formatMetricNumber(value: number, maximumFractionDigits = 0): string {
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits,
+  }).format(value);
+}
+
+function formatBytes(value: number): string {
+  if (value >= 1_000_000) {
+    return `${formatMetricNumber(value)} byte - ${formatMetricNumber(value / 1_000_000, 6)} MB`;
+  }
+
+  return `${formatMetricNumber(value)} byte`;
+}
+
+function formatAirtime(valueMs: number): string {
+  return `${formatMetricNumber(valueMs, 0)} Ms - ${formatMetricNumber(valueMs / 1000, 2)} Secs`;
+}
+
 const BACKBONE_ROLES = [
   Protobuf.Config.Config_DeviceConfig_Role.ROUTER,
   Protobuf.Config.Config_DeviceConfig_Role.ROUTER_LATE,
@@ -132,6 +152,12 @@ const DarkMeshDashboardPage = () => {
     (state) => state.beaconsByDevice[deviceId] ?? defaultBeaconConfig,
   );
   const huntConfig = useDarkMeshStore((state) => state.huntByDevice[deviceId] ?? defaultHuntConfig);
+  const meshStats = useDarkMeshStore(
+    (state) => state.meshStatsByDevice?.[deviceId] ?? defaultMeshStats,
+  );
+  const compressionMode = useDarkMeshStore(
+    (state) => state.compressionModeByDevice?.[deviceId] ?? "app",
+  );
   const huntDraft = useDarkMeshStore(
     (state) =>
       state.huntDraftByDevice[deviceId] ?? state.huntByDevice[deviceId] ?? defaultHuntConfig,
@@ -143,6 +169,8 @@ const DarkMeshDashboardPage = () => {
   const upsertHuntDraft = useDarkMeshStore((state) => state.upsertHuntDraft);
   const setHuntStatus = useDarkMeshStore((state) => state.setHuntStatus);
   const setHuntError = useDarkMeshStore((state) => state.setHuntError);
+  const setCompressionMode = useDarkMeshStore((state) => state.setCompressionMode);
+  const resetMeshStats = useDarkMeshStore((state) => state.resetMeshStats);
 
   const myNode = getMyNode();
   const schedules = useMemo(
@@ -206,6 +234,8 @@ const DarkMeshDashboardPage = () => {
   };
 
   const [beaconFilter, setBeaconFilter] = useState("");
+  const traceSuccessRate =
+    meshStats.traceTotal > 0 ? (meshStats.traceSuccess / meshStats.traceTotal) * 100 : 0;
 
   const filteredBeaconDestinationOptions = (() => {
     const q = beaconFilter.trim();
@@ -639,6 +669,107 @@ const DarkMeshDashboardPage = () => {
           description="Configure low battery notifications by node scope, battery percentage and voltage thresholds."
         >
           <BatteryAlertsPanel />
+        </DashboardCard>
+
+        <DashboardCard
+          title="Mesh Stats"
+          description="Track DarkMesh traceroute and app-side compression savings for this browser profile."
+        >
+          <label className="block text-sm">
+            <span className="mb-1 block text-slate-500 dark:text-slate-400">
+              Message compression mode
+            </span>
+            <select
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              value={compressionMode}
+              onChange={(event) =>
+                setCompressionMode(deviceId, event.target.value as MessageCompressionMode)
+              }
+            >
+              <option value="app">App compression</option>
+              <option value="remote">Firmware compression</option>
+            </select>
+          </label>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm dark:border-zinc-800 dark:bg-zinc-900/70">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold uppercase text-slate-900 dark:text-slate-100">
+                  Traceroute Stats
+                </h4>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => resetMeshStats(deviceId, "trace")}
+                >
+                  Reset
+                </Button>
+              </div>
+              <dl className="grid gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-500 dark:text-slate-400">TOTAL:</dt>
+                  <dd className="font-medium">{formatMetricNumber(meshStats.traceTotal)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-500 dark:text-slate-400">SUCCESS:</dt>
+                  <dd className="font-medium">{formatMetricNumber(meshStats.traceSuccess)}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-500 dark:text-slate-400">SUCCESS RATE:</dt>
+                  <dd className="font-medium">{formatMetricNumber(traceSuccessRate, 2)} %</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-500 dark:text-slate-400">LONGEST:</dt>
+                  <dd className="font-medium">{formatMetricNumber(meshStats.traceLongestKm)} Km</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-500 dark:text-slate-400">TOTAL TRAVELED:</dt>
+                  <dd className="font-medium">
+                    {formatMetricNumber(meshStats.traceMaxTraveledKm)} Km
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm dark:border-zinc-800 dark:bg-zinc-900/70">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold uppercase text-slate-900 dark:text-slate-100">
+                  Compression Stats
+                </h4>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => resetMeshStats(deviceId, "compression")}
+                >
+                  Reset
+                </Button>
+              </div>
+              <dl className="grid gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-500 dark:text-slate-400">MODE:</dt>
+                  <dd className="font-medium">{compressionMode === "app" ? "App" : "Firmware"}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-500 dark:text-slate-400">SENT TOTAL:</dt>
+                  <dd className="font-medium">
+                    {formatMetricNumber(meshStats.compressionSentTotal)}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-500 dark:text-slate-400">BYTES SAVED:</dt>
+                  <dd className="font-medium text-right">
+                    {formatBytes(meshStats.compressionBytesSaved)}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-500 dark:text-slate-400">AIRTIME SAVED:</dt>
+                  <dd className="font-medium text-right">
+                    {formatAirtime(meshStats.compressionAirtimeSavedMs)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
         </DashboardCard>
 
         <div id="hunting-forwarder" className="scroll-mt-28 md:scroll-mt-6">

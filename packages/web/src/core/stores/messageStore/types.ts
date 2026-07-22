@@ -24,6 +24,9 @@ interface MessageBase {
   routingError?: number;
   hopsAway?: number;
   compressed?: boolean;
+  compressionMode?: Types.TextCompressionMode;
+  savedBytes?: number;
+  savedAirtimeMs?: number;
   reactions?: MessageReactions;
 }
 

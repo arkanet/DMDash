@@ -81,6 +81,9 @@ importers:
       crc:
         specifier: npm:crc@^4.3.2
         version: 4.3.2
+      unishox2.siara.cc:
+        specifier: ^1.1.5
+        version: 1.1.5
 
   packages/protobufs:
     devDependencies:
@@ -5782,6 +5785,9 @@ packages:
   unique-string@2.0.0:
     resolution: {integrity: sha512-uNaeirEPvpZWSgzwsPGtU2zVSTrn/8L5q/IexZmH0eH6SA73CmAA5U4GwORTxQAZs95TAXLNqeLoPPNO5gZfWg==}
     engines: {node: '>=8'}
+
+  unishox2.siara.cc@1.1.5:
+    resolution: {integrity: sha512-1ZYA5P+shV3ElgZcX9u4QZ5+59nnjCbJhi73m6ux4G6XDFxkGyGrQjgY+XDn1WoeAEw9LpzUYaCZXpjD51iqrQ==}
 
   universalify@2.0.1:
     resolution: {integrity: sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==}
@@ -12616,6 +12622,8 @@ snapshots:
   unique-string@2.0.0:
     dependencies:
       crypto-random-string: 2.0.0
+
+  unishox2.siara.cc@1.1.5: {}
 
   universalify@2.0.1: {}
 

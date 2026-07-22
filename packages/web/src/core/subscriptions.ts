@@ -12,6 +12,7 @@ import {
 } from "@core/stores";
 import type { Message } from "@core/stores/messageStore/types.ts";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
+import { distanceBetweenPositions } from "@core/utils/geo.ts";
 import { type MeshDevice, Protobuf, type Types, Types as CoreTypes } from "@meshtastic/core";
 
 const RECENT_NODE_RESPONSE_PKI_SUPPRESSION_MS = 10_000;
@@ -38,6 +39,48 @@ function isDistressBeaconMessage(messagePacket: Types.PacketMetadata<string>): b
   );
 }
 
+function calculateTracerouteDistanceKm(
+  traceRoutePacket: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
+  nodeDB: NodeDB,
+): number | undefined {
+  const sourceNode = nodeDB.getNode(traceRoutePacket.to);
+  const destinationNode = nodeDB.getNode(traceRoutePacket.from);
+
+  if (!sourceNode || !destinationNode) {
+    return undefined;
+  }
+
+  const route = Array.isArray(traceRoutePacket.data?.route) ? traceRoutePacket.data.route : [];
+  const routeBack = Array.isArray(traceRoutePacket.data?.routeBack)
+    ? traceRoutePacket.data.routeBack
+    : [];
+  const forwardNodes = [
+    sourceNode,
+    ...route.map((nodeNum) => nodeDB.getNode(nodeNum)),
+    destinationNode,
+  ];
+  const backwardNodes = [
+    destinationNode,
+    ...routeBack.map((nodeNum) => nodeDB.getNode(nodeNum)),
+    sourceNode,
+  ];
+  const pathDistance = (nodes: Array<Protobuf.Mesh.NodeInfo | undefined>) => {
+    let total = 0;
+
+    for (let index = 0; index < nodes.length - 1; index += 1) {
+      const distance = distanceBetweenPositions(nodes[index]?.position, nodes[index + 1]?.position);
+      if (distance !== undefined) {
+        total += distance;
+      }
+    }
+
+    return total;
+  };
+  const totalDistance = pathDistance(forwardNodes) + pathDistance(backwardNodes);
+
+  return totalDistance > 0 ? totalDistance : undefined;
+}
+
 export const subscribeAll = (
   device: Device,
   connection: MeshDevice,
@@ -46,6 +89,7 @@ export const subscribeAll = (
 ) => {
   let myNodeNum = 0;
   const recentNodeResponseAt = new Map<number, number>();
+  const countedCompressionPacketIds = new Set<number>();
 
   const dismissRecoveredPkiDialog = (nodeNum: number) => {
     const cleared = nodeDB.clearRecoverableNodeError(nodeNum);
@@ -315,6 +359,19 @@ export const subscribeAll = (
     const message = dto.toMessage();
     messageStore.saveMessage(message);
 
+    if (
+      message.from === myNodeNum &&
+      message.compressionMode === "app" &&
+      typeof message.savedBytes === "number" &&
+      typeof message.savedAirtimeMs === "number" &&
+      !countedCompressionPacketIds.has(message.messageId)
+    ) {
+      countedCompressionPacketIds.add(message.messageId);
+      useDarkMeshStore
+        .getState()
+        .addCompressionSavings(device.id, message.savedBytes, message.savedAirtimeMs);
+    }
+
     if (message.type === MessageType.Direct) {
       recordNodeResponse(message.from);
       if (message.to === myNodeNum) {
@@ -373,8 +430,19 @@ export const subscribeAll = (
     const maybeTrace = traceRoutePacket as unknown as {
       requestId?: number | undefined;
     };
+    const recordSuccessfulTrace = () => {
+      const state = useDarkMeshStore.getState();
+      state.incrementTraceSuccess(device.id);
+
+      const distanceKm = calculateTracerouteDistanceKm(traceRoutePacket, nodeDB);
+      if (distanceKm !== undefined) {
+        state.recordTraceDistance(device.id, distanceKm);
+      }
+    };
+
     if (pendingRequestId !== undefined && typeof maybeTrace.requestId === "number") {
       if (maybeTrace.requestId === pendingRequestId) {
+        recordSuccessfulTrace();
         darkMeshState.setSelectedTraceRoute({ ...traceRoutePacket });
         darkMeshState.setPendingTraceRouteTarget(device.id, undefined);
         darkMeshState.setPendingTraceRouteRequest(device.id, undefined);
@@ -384,6 +452,7 @@ export const subscribeAll = (
 
     // Fallback: match by node number (legacy behavior)
     if (pendingTarget !== undefined && traceRoutePacket.from === pendingTarget) {
+      recordSuccessfulTrace();
       darkMeshState.setSelectedTraceRoute({ ...traceRoutePacket });
       darkMeshState.setPendingTraceRouteTarget(device.id, undefined);
       darkMeshState.setPendingTraceRouteRequest(device.id, undefined);

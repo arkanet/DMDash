@@ -14,6 +14,9 @@ class PacketToMessageDTO {
   replyId?: number;
   hopsAway?: number;
   compressed?: boolean;
+  compressionMode?: Types.TextCompressionMode;
+  savedBytes?: number;
+  savedAirtimeMs?: number;
 
   constructor(data: Types.PacketMetadata<string>, nodeNum: number) {
     this.channel = data.channel;
@@ -29,6 +32,9 @@ class PacketToMessageDTO {
         ? Math.max(0, data.hopStart - data.hopLimit)
         : undefined;
     this.compressed = data.compressed;
+    this.compressionMode = data.compressionMode;
+    this.savedBytes = data.savedBytes;
+    this.savedAirtimeMs = data.savedAirtimeMs;
 
     let dateTimestamp = Date.now();
     if (data.rxTime instanceof Date) {
@@ -58,6 +64,9 @@ class PacketToMessageDTO {
       replyId: this.replyId,
       hopsAway: this.hopsAway,
       compressed: this.compressed,
+      compressionMode: this.compressionMode,
+      savedBytes: this.savedBytes,
+      savedAirtimeMs: this.savedAirtimeMs,
     };
   }
 }

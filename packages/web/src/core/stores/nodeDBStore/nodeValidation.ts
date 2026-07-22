@@ -121,7 +121,7 @@ function preserveExistingPublicKey(
   newNode: Protobuf.Mesh.NodeInfo,
 ): Protobuf.Mesh.NodeInfo {
   const trustedPublicKey = normalizePublicKey(oldNode.user?.publicKey);
-  if (!hasPublicKey(trustedPublicKey)) {
+  if (!trustedPublicKey || !hasPublicKey(trustedPublicKey)) {
     return newNode;
   }
 

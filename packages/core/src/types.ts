@@ -58,6 +58,12 @@ export enum DeviceStatusEnum {
 export type LogEventPacket = LogEvent & { date: Date };
 
 export type PacketDestination = "broadcast" | "direct";
+export type TextCompressionMode = "app" | "remote";
+
+export interface TextCompressionOptions {
+  mode?: TextCompressionMode;
+  spreadingFactor?: number;
+}
 
 export interface PacketMetadata<T> {
   id: number;
@@ -76,6 +82,9 @@ export interface PacketMetadata<T> {
   hopStart?: number;
   hopLimit?: number;
   compressed?: boolean;
+  compressionMode?: TextCompressionMode;
+  savedBytes?: number;
+  savedAirtimeMs?: number;
   meshPacketJson?: string;
   data: T;
 }

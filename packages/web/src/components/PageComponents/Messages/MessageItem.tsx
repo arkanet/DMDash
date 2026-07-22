@@ -468,6 +468,26 @@ export const MessageItem = ({
       count: message.hopsAway,
     });
   }, [isSender, message.hopsAway, t]);
+  const compressionSavingsLabel = useMemo(() => {
+    if (
+      !isSender ||
+      !message.compressed ||
+      typeof message.savedBytes !== "number" ||
+      typeof message.savedAirtimeMs !== "number"
+    ) {
+      return undefined;
+    }
+
+    const savedBytes = new Intl.NumberFormat(locale).format(message.savedBytes);
+    const savedAirtime =
+      message.savedAirtimeMs > 0
+        ? `${message.savedAirtimeMs.toLocaleString(locale, {
+            maximumFractionDigits: 2,
+          })} ms`
+        : "N/A";
+
+    return `${savedBytes}B · ${savedAirtime}`;
+  }, [isSender, locale, message.compressed, message.savedAirtimeMs, message.savedBytes]);
   const openNodeDetails = useCallback(
     (nodeNum: number) => {
       setNodeNumDetails(nodeNum);
@@ -984,6 +1004,7 @@ export const MessageItem = ({
                       </Tooltip>
                     </TooltipProvider>
                   )}
+                  {compressionSavingsLabel ? <span>{compressionSavingsLabel}</span> : null}
                   {shouldShowStatusIcon && (
                     <StatusTooltip statusInfo={messageStatusInfo}>
                       <span aria-label={messageStatusInfo.ariaLabel} role="img">
