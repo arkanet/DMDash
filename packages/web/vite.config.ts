@@ -210,6 +210,9 @@ export default defineConfig(({ mode }) => {
       }),
       VitePWA({
         includeAssets: [
+          "favicon.ico",
+          "apple-touch-icon.png",
+          "logo_black.svg",
           "darkmesh-dashboard-logo.png",
           "darkmesh-dashboard-180.png",
           "darkmesh-dashboard-192.png",
@@ -228,7 +231,7 @@ export default defineConfig(({ mode }) => {
           start_url: "/",
           display: "standalone",
           theme_color: "#D32F2F",
-          background_color: "#D32F2F",
+          background_color: "#000000",
           icons: [
             {
               src: "/darkmesh-dashboard-192.png",
