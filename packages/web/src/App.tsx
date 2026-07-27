@@ -11,9 +11,7 @@ import {
   AlertDialogTitle,
 } from "@components/UI/AlertDialog.tsx";
 import { ErrorPage } from "@components/UI/ErrorPage.tsx";
-import Footer from "@components/UI/Footer.tsx";
 import { LOST_CONNECTION_CRITICAL_GRACE_MS } from "@core/constants/connection.ts";
-import { cn } from "@core/utils/cn.ts";
 import { type Device, SidebarProvider, useAppStore, useDeviceStore } from "@core/stores";
 import type { Connection } from "@core/stores/deviceStore/types.ts";
 import { DarkMeshRuntime } from "@app/darkmesh/runtime.tsx";
@@ -405,12 +403,7 @@ export function App() {
       <DeviceWrapper deviceId={selectedDeviceId}>
         <div className="mobile-viewport-fill flex h-full min-h-0 w-full flex-col bg-background-primary text-text-primary">
           <SidebarProvider>
-            <div
-              className={cn(
-                "flex min-h-0 flex-1 flex-col overflow-hidden",
-                !isPublicGuideRoute && "pb-[calc(env(safe-area-inset-bottom)+1.5rem)] md:pb-10",
-              )}
-            >
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {isConnectionsRoute ? (
                 <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
                   <div className="min-h-0 flex-1 overflow-y-auto">
@@ -441,7 +434,6 @@ export function App() {
             </div>
           </SidebarProvider>
         </div>
-        <Footer />
       </DeviceWrapper>
     </ErrorBoundary>
   ); // </ThemeProvider>

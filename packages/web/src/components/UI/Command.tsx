@@ -13,7 +13,7 @@ const Command = React.forwardRef<
   <CommandPrimitive
     ref={ref}
     className={cn(
-      "flex h-full w-full flex-col overflow-hidden rounded-lg bg-white dark:bg-slate-800",
+      "flex h-full w-full flex-col overflow-hidden rounded-lg bg-white dark:bg-black",
       className,
     )}
     {...props}
@@ -28,7 +28,7 @@ type CommandDialogProps = DialogProps & {
 const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
   return (
     <Dialog {...props}>
-      <DialogContent className="overflow-hidden p-0 shadow-2xl [&_[dialog-overlay]]:bg-red-100">
+      <DialogContent className="overflow-hidden bg-white p-0 shadow-2xl dark:bg-black [&_[dialog-overlay]]:bg-red-100">
         <VisuallyHidden asChild>
           <DialogTitle>Command Menu</DialogTitle>
         </VisuallyHidden>
@@ -119,7 +119,7 @@ const CommandItem = React.forwardRef<
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-md py-1.5 px-2 text-sm font-medium outline-hidden aria-selected:bg-slate-100 data-[disabled='true']:pointer-events-none data-[disabled='true']:opacity-50 dark:aria-selected:bg-slate-700 dark:text-white ",
+      "relative flex cursor-default select-none items-center rounded-md py-1.5 px-2 text-sm font-medium outline-hidden aria-selected:bg-slate-100 data-[disabled='true']:pointer-events-none data-[disabled='true']:opacity-50 dark:aria-selected:bg-zinc-900 dark:text-white ",
       className,
     )}
     {...props}

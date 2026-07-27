@@ -1,11 +1,4 @@
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@components/UI/Command.tsx";
+import { CommandDialog, CommandGroup, CommandItem, CommandList } from "@components/UI/Command.tsx";
 import { usePinnedItems } from "@core/hooks/usePinnedItems.ts";
 import { useAppStore, useDevice } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
@@ -165,9 +158,7 @@ export const CommandPalette = () => {
 
   return (
     <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
-      <CommandInput placeholder={t("search.commandPalette")} />
       <CommandList>
-        <CommandEmpty>{t("emptyState")}</CommandEmpty>
         {sortedGroups.map((group) => (
           <CommandGroup
             key={group.label}
