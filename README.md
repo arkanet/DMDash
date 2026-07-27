@@ -11,22 +11,23 @@ The goal of `DMDash` is to provide a web-first DarkMesh dashboard that:
 - preserves Meshtastic protocol compatibility
 - reuses the Meshtastic web runtime, transports, and data model
 - ports DarkMesh-specific user flows from the Android app into the browser
-- stays aligned with DarkMesh firmware branches `2.7.15-ghost` and `2.7.21-ghost`, while comparing against Meshtastic firmware hardware declarations
+- stays aligned with DarkMesh firmware branches `2.7.15-ghost`, `2.7.21-ghost`, and `2.7.26-darkmesh`, while comparing against Meshtastic firmware hardware declarations
 
 ## What You Can Do Today
 
 The current DMDash build exposes these user-facing capabilities on top of the Meshtastic web base:
 
 - connection manager with `HTTP(S)`, Web Bluetooth, and Web Serial transports
-- DarkMesh-branded dashboard with notifications, traceroute history, scheduled message rules, distress beacon controls, hunt forwarding, and NodeDB maintenance tools
+- DarkMesh-branded dashboard with notifications, Mesh Stats, traceroute history, scheduled message rules, distress beacon controls, hunt forwarding, and NodeDB maintenance tools
 - `.dmdb` import/export based on Meshtastic `SharedContact`
-- direct and broadcast messaging with replies, mentions, reactions, emoji picker, compression indicators, and clickable avatars
+- direct and broadcast messaging with replies, mentions, reactions, emoji picker, app-side Unishox2 compression, legacy firmware compression fallback, compression indicators, and clickable avatars
 - inline node `Status Message` display in chat plus avatar badges with unread/read visual state
 - map view with live markers, node popups, details dialog, neighbor info, environment metrics, and traceroute overlays
-- node list with filters, favorites, signal visibility, encryption status, and quick detail access
+- node list with filters, favorites, signal visibility, encryption status, quick detail access, and mobile long-press search handoff from the map and gateway widgets
 - local `Radio`, `Device`, and `Module` settings with firmware-aware tab visibility
-- Remote Admin for `Radio`, `Device`, and `Module` configuration on compatible remote nodes
+- Remote Admin for `Radio`, `Device`, and `Module` configuration on compatible remote nodes, including mobile parent navigation
 - module settings coverage for features such as `Remote Hardware`, `Status Message`, and `Traffic Management` when supported by firmware
+- DarkMesh white-on-black web app icons for favicon, Apple touch icon, and PWA install surfaces
 
 Feature availability still depends on browser capabilities, transport type, node firmware, and device role.
 
@@ -68,10 +69,22 @@ Below are quick previews of selected DarkMesh dashboard features; click a thumbn
 
 The compatibility model is:
 
-- `DarkMesh-Firmware` branches `2.7.15-ghost` and `2.7.21-ghost` are used as DarkMesh firmware references
+- `DarkMesh-Firmware` branches `2.7.15-ghost`, `2.7.21-ghost`, and `2.7.26-darkmesh` are used as DarkMesh firmware references
 - `meshtastic/firmware` `master` is used as the Meshtastic firmware hardware reference
 - `DarkMesh-Firmware` currently points its `protobufs/` submodule to the official Meshtastic protobuf repository
 - `DMDash` therefore keeps the official Meshtastic protobuf schema as the source of truth
+
+### Compressed Message Compatibility
+
+DarkMesh firmware `2.7.26-darkmesh` moves text compression to the application layer. DMDash now follows that model by default:
+
+- outbound compressed text is compressed in the web client with Unishox2 and sent on `TEXT_MESSAGE_COMPRESSED_APP`
+- incoming `TEXT_MESSAGE_COMPRESSED_APP` payloads are decoded in the web client when they contain app-compressed data
+- legacy firmware compression remains available through the `remote` compression mode, which keeps sending clear text on the compressed port for older firmware that still handles compression itself
+- plain-text payloads received on the compressed port remain readable for backward compatibility
+- message metadata preserves `compressed`, `compressionMode`, `savedBytes`, and estimated saved airtime where available
+
+The compatibility gate treats firmware `2.7.26+` as app-side compression capable. Older or unknown firmware can still expose the legacy firmware compression option.
 
 For the analysis and current baseline, see:
 
@@ -80,6 +93,7 @@ For the analysis and current baseline, see:
 - [docs/compatibility-report.md](docs/compatibility-report.md)
 - [docs/device-image-coverage.md](docs/device-image-coverage.md)
 - [docs/pictures-sync.md](docs/pictures-sync.md)
+- [CHANGELOG.md](CHANGELOG.md)
 
 ## Upstream Strategy
 
@@ -251,6 +265,8 @@ This is an intentional browser-side approximation, not a protocol break.
 
 Some settings and Remote Admin subsections are also firmware-gated, so different nodes can expose different tabs.
 
+Compression mode is also firmware-aware: DMDash prefers app-side compression for `2.7.26-darkmesh` and newer compatible firmware, while preserving the legacy firmware-side request mode for older DarkMesh nodes.
+
 ## Verified Status
 
 At the current repository state:
@@ -299,13 +315,21 @@ Recent work added or stabilized the following areas:
 - unread/read status message badge behavior for avatars
 - module coverage for `Status Message`, `Traffic Management`, and `Remote Hardware`
 - battery and power notification workflows from the DarkMesh dashboard
+- Mesh Stats in the mobile Extra menu, including traceroute and compression counters
+- app-side Unishox2 compression with firmware-side legacy fallback
+- guarded Unishox2 decompression so invalid compressed payloads do not render as unreadable text
+- mobile long-press node search from Relay Confidence, map markers, node tabs, and node cards
+- tighter mobile Extra menu layout without search/footer padding and with dark-mode black background
+- DarkMesh favicon, Apple touch icon, and PWA icon assets
 
 ## Documentation Changelog
 
 Recent README-visible changes:
 
+- added [CHANGELOG.md](CHANGELOG.md) with the latest 7 commits on `fix-update`
 - documented the in-app demo/guide route at `/guide`, with static-compatible `/guide/index.html` paths
 - split `System Sync` and `Pictures Sync` responsibilities
 - added the DeviceImage hardware coverage report and guardrail commands
 - expanded upstream tracking to include Meshtastic firmware hardware declarations
-- updated compatibility wording to cover DarkMesh `2.7.15-ghost`, DarkMesh `2.7.21-ghost`, and Meshtastic firmware
+- updated compatibility wording to cover DarkMesh `2.7.15-ghost`, DarkMesh `2.7.21-ghost`, DarkMesh `2.7.26-darkmesh`, and Meshtastic firmware
+- added compression compatibility notes for app-side Unishox2 and legacy firmware-side compression mode

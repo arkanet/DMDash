@@ -28,6 +28,15 @@ When running the local dev server, open `/guide/index.html` on the same host to 
 
 The current DMDash fork exposes browser-based connection flows for `HTTP(S)`, Web Bluetooth, and Web Serial, plus DarkMesh-specific dashboard, messaging, map, and Remote Admin additions documented in the repository root README files.
 
+Recent DarkMesh alignment work also ports the Android app Mesh Stats surface and the firmware `2.7.26-darkmesh` compression behavior into the web client:
+
+- compressed text defaults to app-side Unishox2 compression and uses `TEXT_MESSAGE_COMPRESSED_APP`
+- legacy firmware compression is still available through the `remote` compression mode for older DarkMesh firmware
+- incoming compressed packets are decoded in the browser with a plain-text fallback for legacy payloads
+- Mesh Stats exposes traceroute counters and compression savings from the Extra menu
+- mobile node search can be triggered by long-pressing gateway confidence, map markers, node tabs, or node cards
+- web app icons now use the DarkMesh white logo on a black background for favicon, Apple touch icon, and PWA install surfaces
+
 ## Stats
 
 ![Alt](https://repobeats.axiom.co/api/embed/e5b062db986cb005d83e81724c00cb2b9cce8e4c.svg "Repobeats analytics image")
