@@ -27,12 +27,35 @@ function byteLengthFromUnishoxResult(written: number) {
   return Math.ceil(written);
 }
 
-function equalBytes(left: Uint8Array, right: Uint8Array) {
-  if (left.length !== right.length) {
-    return false;
+function decodeUtf8(bytes: Uint8Array): string | undefined {
+  try {
+    return textDecoder.decode(bytes);
+  } catch {
+    return undefined;
+  }
+}
+
+function hasUnsupportedControlChars(text: string) {
+  for (const character of text) {
+    const codePoint = character.codePointAt(0);
+    if (
+      codePoint !== undefined &&
+      codePoint < 0x20 &&
+      codePoint !== 0x09 &&
+      codePoint !== 0x0a &&
+      codePoint !== 0x0d
+    ) {
+      return true;
+    }
   }
 
-  return left.every((value, index) => value === right[index]);
+  return false;
+}
+
+function isLikelyPlainTextPayload(payload: Uint8Array) {
+  const text = decodeUtf8(payload);
+
+  return text !== undefined && !hasUnsupportedControlChars(text);
 }
 
 function compressBytes(input: Uint8Array): Uint8Array<ArrayBuffer> | undefined {
@@ -82,14 +105,7 @@ function decompressBytes(input: Uint8Array): Uint8Array<ArrayBuffer> | undefined
     return undefined;
   }
 
-  const decompressed = out.slice(0, written);
-  const roundTrip = compressBytes(decompressed);
-
-  if (!roundTrip || !equalBytes(input, roundTrip)) {
-    return undefined;
-  }
-
-  return decompressed;
+  return out.slice(0, written);
 }
 
 export function compressTextForMesh(text: string): MeshTextCompressionResult | undefined {
@@ -109,15 +125,26 @@ export function compressTextForMesh(text: string): MeshTextCompressionResult | u
 }
 
 export function decompressTextFromMesh(payload: Uint8Array): string | undefined {
+  if (isLikelyPlainTextPayload(payload)) {
+    return undefined;
+  }
+
   const decompressed = decompressBytes(payload);
 
   if (!decompressed) {
     return undefined;
   }
 
-  try {
-    return textDecoder.decode(decompressed);
-  } catch {
+  const text = decodeUtf8(decompressed);
+
+  if (text === undefined || hasUnsupportedControlChars(text)) {
     return undefined;
   }
+
+  const roundTrip = compressBytes(decompressed);
+  if (!roundTrip || decompressBytes(roundTrip) === undefined) {
+    return undefined;
+  }
+
+  return text;
 }

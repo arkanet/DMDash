@@ -421,4 +421,90 @@ describe("MeshDevice message sending", () => {
       to: 111,
     });
   });
+
+  it("decompresses app-compressed text packets with non-canonical padding bits", () => {
+    const receivedMessages: PacketMetadata<string>[] = [];
+    const device = new MeshDevice({
+      toDevice: new WritableStream<Uint8Array>(),
+      fromDevice: new ReadableStream({ start: (controller) => controller.close() }),
+      disconnect: () => Promise.resolve(),
+    });
+    const text = "incoming incoming incoming compressed darkmesh payload";
+    const compressed = compressTextForMesh(text);
+    if (!compressed) {
+      throw new Error("Expected compressible test message");
+    }
+    const payload = new Uint8Array(compressed.payload);
+    payload[payload.length - 1] ^= 1;
+
+    device.events.onMyNodeInfo.dispatch({
+      myNodeNum: 111,
+    } as Protobuf.Mesh.MyNodeInfo);
+    device.events.onMessagePacket.subscribe((packet) => {
+      receivedMessages.push(packet);
+    });
+
+    device.handleMeshPacket(
+      create(Protobuf.Mesh.MeshPacketSchema, {
+        payloadVariant: {
+          case: "decoded",
+          value: {
+            portnum: Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP,
+            payload,
+          },
+        },
+        from: 222,
+        to: 111,
+        id: 124,
+        channel: ChannelNumber.Primary,
+      }),
+    );
+
+    expect(receivedMessages[0]).toMatchObject({
+      data: text,
+      compressed: true,
+      from: 222,
+      to: 111,
+    });
+  });
+
+  it("keeps legacy plain text payloads on the compressed port readable", () => {
+    const receivedMessages: PacketMetadata<string>[] = [];
+    const device = new MeshDevice({
+      toDevice: new WritableStream<Uint8Array>(),
+      fromDevice: new ReadableStream({ start: (controller) => controller.close() }),
+      disconnect: () => Promise.resolve(),
+    });
+    const text = "legacy remote compression request";
+
+    device.events.onMyNodeInfo.dispatch({
+      myNodeNum: 111,
+    } as Protobuf.Mesh.MyNodeInfo);
+    device.events.onMessagePacket.subscribe((packet) => {
+      receivedMessages.push(packet);
+    });
+
+    device.handleMeshPacket(
+      create(Protobuf.Mesh.MeshPacketSchema, {
+        payloadVariant: {
+          case: "decoded",
+          value: {
+            portnum: Protobuf.Portnums.PortNum.TEXT_MESSAGE_COMPRESSED_APP,
+            payload: new TextEncoder().encode(text),
+          },
+        },
+        from: 222,
+        to: 111,
+        id: 125,
+        channel: ChannelNumber.Primary,
+      }),
+    );
+
+    expect(receivedMessages[0]).toMatchObject({
+      data: text,
+      compressed: true,
+      from: 222,
+      to: 111,
+    });
+  });
 });
