@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@components/UI/Tooltip.tsx";
-import { memo } from "react";
+import { memo, type MouseEvent as ReactMouseEvent } from "react";
 import { Marker } from "react-map-gl/maplibre";
 
 export const NodeMarker = memo(function NodeMarker({
@@ -28,6 +28,7 @@ export const NodeMarker = memo(function NodeMarker({
   labelPosition = "above",
   isVisible = true,
   onClick,
+  onContextMenu,
 }: {
   id: number;
   lng: number;
@@ -43,7 +44,8 @@ export const NodeMarker = memo(function NodeMarker({
   showMobileLabel?: boolean;
   labelPosition?: "above" | "below";
   isVisible?: boolean;
-  onClick: (id: number, e: { originalEvent: MouseEvent }) => void;
+  onClick: (id: number, e: { originalEvent: globalThis.MouseEvent }) => void;
+  onContextMenu?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
 }) {
   const [dx, dy] = offset ?? [0, 0];
 
@@ -83,6 +85,7 @@ export const NodeMarker = memo(function NodeMarker({
               className="will-change-transform cursor-pointer animate-fan-out"
               style={style}
               onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
+              onContextMenu={onContextMenu}
             >
               <span className="hidden h-10 w-8 flex-col items-center max-md:flex">
                 <span className="relative flex size-8 items-center justify-center rounded-full border-2 border-white bg-[#2f8fe8] shadow-[0_2px_5px_rgba(0,0,0,0.45)]">
@@ -125,6 +128,7 @@ export const NodeMarker = memo(function NodeMarker({
           )}
           style={labelStyle}
           onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
+          onContextMenu={onContextMenu}
         >
           {label}
         </button>
@@ -135,6 +139,7 @@ export const NodeMarker = memo(function NodeMarker({
           className="absolute top-21 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-white/70 px-2 py-0.5 text-xs text-slate-900 backdrop-blur-xs cursor-pointer"
           style={style}
           onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
+          onContextMenu={onContextMenu}
         >
           {longLabel}
         </button>

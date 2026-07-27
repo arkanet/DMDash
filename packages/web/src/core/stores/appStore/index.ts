@@ -21,6 +21,7 @@ export interface AppState extends AppData {
   connectDialogOpen: boolean;
   nodeNumDetails: number;
   commandPaletteOpen: boolean;
+  pendingNodeSearch: string | undefined;
 
   setRasterSources: (sources: RasterSource[]) => void;
   addRasterSource: (source: RasterSource) => void;
@@ -28,6 +29,7 @@ export interface AppState extends AppData {
   setIdenticonsEnabled: (enabled: boolean) => void;
   setSelectedDevice: (deviceId: number) => void;
   setCommandPaletteOpen: (open: boolean) => void;
+  setPendingNodeSearch: (nodeName: string | undefined) => void;
   setNodeNumToBeRemoved: (nodeNum: number) => void;
   setConnectDialogOpen: (open: boolean) => void;
   setNodeNumDetails: (nodeNum: number) => void;
@@ -38,6 +40,7 @@ export const deviceStoreInitializer: StateCreator<AppState> = (set, _get) => ({
   rasterSources: [],
   identiconsEnabled: true,
   commandPaletteOpen: false,
+  pendingNodeSearch: undefined,
   connectDialogOpen: false,
   nodeNumToBeRemoved: 0,
   nodeNumDetails: 0,
@@ -78,6 +81,13 @@ export const deviceStoreInitializer: StateCreator<AppState> = (set, _get) => ({
     set(
       produce<AppState>((draft) => {
         draft.commandPaletteOpen = open;
+      }),
+    );
+  },
+  setPendingNodeSearch: (nodeName) => {
+    set(
+      produce<AppState>((draft) => {
+        draft.pendingNodeSearch = nodeName;
       }),
     );
   },

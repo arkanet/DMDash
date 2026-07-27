@@ -32,6 +32,10 @@ import {
 import useLang from "@core/hooks/useLang.ts";
 import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useIgnoreNode } from "@core/hooks/useIgnoreNode.ts";
+import {
+  handleNodeSearchContextMenu,
+  useNodeSearchRequest,
+} from "@core/hooks/useNodeSearchRequest.ts";
 import { useToast } from "@core/hooks/useToast.ts";
 import { create, toBinary } from "@bufbuild/protobuf";
 import {
@@ -105,6 +109,7 @@ import {
   type ComponentType,
   type CSSProperties,
   type JSX,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
   useCallback,
   useDeferredValue,
@@ -889,8 +894,10 @@ const NodesPage = (): JSX.Element => {
   const { updateIgnored } = useIgnoreNode();
   const { toast } = useToast();
   const navigate = useNavigate({ from: "/" });
+  const requestNodeSearch = useNodeSearchRequest();
 
-  const { identiconsEnabled, setNodeNumDetails } = useAppStore();
+  const { identiconsEnabled, pendingNodeSearch, setNodeNumDetails, setPendingNodeSearch } =
+    useAppStore();
   const { nodeFilter, defaultFilterValues, isFilterDirty } = useFilterNode();
 
   const [selectedTraceroute, setSelectedTraceroute] = useState<
@@ -927,6 +934,23 @@ const NodesPage = (): JSX.Element => {
   const desktopTableShellRef = useRef<HTMLDivElement | null>(null);
   const [filterState, setFilterState] = useState<FilterState>(() => defaultFilterValues);
   const deferredFilterState = useDeferredValue(filterState);
+
+  useEffect(() => {
+    const nextSearch = pendingNodeSearch?.trim();
+    if (!nextSearch) {
+      return;
+    }
+
+    setFilterState((prev) =>
+      prev.nodeName === nextSearch
+        ? prev
+        : {
+            ...prev,
+            nodeName: nextSearch,
+          },
+    );
+    setPendingNodeSearch(undefined);
+  }, [pendingNodeSearch, setPendingNodeSearch]);
 
   useEffect(() => {
     const shell = desktopTableShellRef.current;
@@ -1629,6 +1653,12 @@ const NodesPage = (): JSX.Element => {
     [toast],
   );
 
+  const handleMobileNodeSearchContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLElement>, nodeName: string | undefined) =>
+      handleNodeSearchContextMenu(event, requestNodeSearch, nodeName),
+    [requestNodeSearch],
+  );
+
   const mobileNodeCards = mobileNodes.map((node) => {
     const shortName = getNodeShortName(node) ?? `!${numberToHexUnpadded(node.num).toUpperCase()}`;
     const longName = getNodeLongName(node) ?? `!${numberToHexUnpadded(node.num).toUpperCase()}`;
@@ -1852,7 +1882,8 @@ const NodesPage = (): JSX.Element => {
     return (
       <div
         key={node.num}
-        className="rounded-md bg-background-secondary p-2.5 text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#303030] dark:text-zinc-100 dark:shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
+        className="select-none rounded-md bg-background-secondary p-2.5 text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#303030] dark:text-zinc-100 dark:shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
+        onContextMenu={(event) => handleMobileNodeSearchContextMenu(event, longName)}
       >
         <div className="grid grid-cols-[auto_auto_auto_minmax(0,1fr)_auto_auto] items-center gap-1">
           <Popover

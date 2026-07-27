@@ -68,6 +68,12 @@ describe("AppStore – basic state & actions", () => {
 
     state.setNodeNumDetails(777);
     expect(useAppStore.getState().nodeNumDetails).toBe(777);
+
+    state.setPendingNodeSearch("Meteo Roma Centocelle");
+    expect(useAppStore.getState().pendingNodeSearch).toBe("Meteo Roma Centocelle");
+
+    state.setPendingNodeSearch(undefined);
+    expect(useAppStore.getState().pendingNodeSearch).toBeUndefined();
   });
 
   it("setRasterSources replaces; addRasterSource appends; removeRasterSource splices by index", async () => {
@@ -110,6 +116,7 @@ describe("AppStore – persistence: partialize + rehydrate", () => {
       state.setIdenticonsEnabled(false);
       state.setSelectedDevice(99);
       state.setCommandPaletteOpen(true);
+      state.setPendingNodeSearch("temporary node search");
       // Only rasterSources should persist by partialize
       expect(useAppStore.getState().rasterSources.length).toBe(2);
     }
@@ -129,6 +136,7 @@ describe("AppStore – persistence: partialize + rehydrate", () => {
       expect(state.connectDialogOpen).toBe(false);
       expect(state.nodeNumToBeRemoved).toBe(0);
       expect(state.nodeNumDetails).toBe(0);
+      expect(state.pendingNodeSearch).toBeUndefined();
 
       // methods still work post-rehydrate:
       state.addRasterSource(makeRaster({ title: "z" }));

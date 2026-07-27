@@ -1,10 +1,14 @@
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
-import { getNodeShortName } from "@app/darkmesh/utils.ts";
+import { getNodeLongName, getNodeShortName } from "@app/darkmesh/utils.ts";
+import {
+  handleNodeSearchContextMenu,
+  useNodeSearchRequest,
+} from "@core/hooks/useNodeSearchRequest.ts";
 import { useTheme } from "@core/hooks/useTheme.ts";
 import { useAppStore, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { getColorFromNodeNum, isLightColor } from "@core/utils/color.ts";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type MouseEvent, useEffect, useRef, useState } from "react";
 import { getMissingMetricTone, type SignalTone } from "./theme.ts";
 
 interface GatewayHeaderProps {
@@ -275,6 +279,7 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
   const gatewayNode = useNodeDB((nodeDB) =>
     gateway?.nodeNum === undefined ? undefined : nodeDB.getNode(gateway.nodeNum),
   );
+  const requestNodeSearch = useNodeSearchRequest();
   const [highlight, setHighlight] = useState(false);
   const lastObservedAtRef = useRef<number | undefined>(gateway?.observedAt);
   const isDarkTheme = theme === "dark";
@@ -314,6 +319,9 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
   const gatewayShortName =
     getNodeShortName(gatewayNode) ??
     (gateway?.nodeName ? gateway.nodeName.trim().slice(0, 4).toUpperCase() : "----");
+  const gatewaySearchName = getNodeLongName(gatewayNode) ?? gateway?.nodeName;
+  const handleGatewaySearchContextMenu = (event: MouseEvent<HTMLElement>) =>
+    handleNodeSearchContextMenu(event, requestNodeSearch, gatewaySearchName);
 
   return (
     <div className={cn("w-full", className)}>
@@ -341,18 +349,20 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
           </span>
           <span
             className={cn(
-              "shrink-0 whitespace-nowrap text-[0.72rem]",
+              "shrink-0 select-none whitespace-nowrap text-[0.72rem]",
               isDarkTheme ? "text-zinc-100" : "text-zinc-800",
             )}
+            onContextMenu={handleGatewaySearchContextMenu}
           >
             Relay Confidence :
           </span>
           <span
-            className="shrink-0 rounded-md px-2 py-1 text-[0.76rem] font-semibold leading-none"
+            className="shrink-0 select-none rounded-md px-2 py-1 text-[0.76rem] font-semibold leading-none"
             style={{
               backgroundColor: confidenceTone.background,
               color: confidenceTone.value,
             }}
+            onContextMenu={handleGatewaySearchContextMenu}
           >
             {formatConfidence(gateway?.confidence)}
           </span>
@@ -436,7 +446,10 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
           >
             {gateway?.nodeName ?? "No gateway detected yet"}
           </div>
-          <div className="mt-1 flex w-full flex-nowrap items-center gap-2 text-[0.68rem] md:mt-1.5 md:w-auto md:text-[0.8125rem]">
+          <div
+            className="mt-1 flex w-full flex-nowrap items-center gap-2 text-[0.68rem] md:mt-1.5 md:w-auto md:text-[0.8125rem]"
+            onContextMenu={handleGatewaySearchContextMenu}
+          >
             <span className={isDarkTheme ? "text-zinc-400" : "text-zinc-600"}>
               Gateway Relay Confidence:
             </span>

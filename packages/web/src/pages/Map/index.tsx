@@ -24,6 +24,7 @@ import { Button } from "@components/UI/Button.tsx";
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { distanceKm, getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
 import { useMapFitting } from "@core/hooks/useMapFitting.ts";
+import { useNodeSearchRequest } from "@core/hooks/useNodeSearchRequest.ts";
 import { useTheme } from "@core/hooks/useTheme.ts";
 import { useDevice, useNodeDB } from "@core/stores";
 import { useToast } from "@core/hooks/useToast.ts";
@@ -184,6 +185,7 @@ const MapPageContent: React.FC = () => {
   const { getNode, getNodes, getMyNode } = useNodeDB();
   const connection = device.connection;
   const { toast } = useToast();
+  const requestNodeSearch = useNodeSearchRequest();
   const { t } = useTranslation();
   const mapParams = useParams({ strict: false }) as {
     long?: number;
@@ -1061,6 +1063,12 @@ const MapPageContent: React.FC = () => {
   }, [mapRef]);
 
   const isNorthMisaligned = Math.abs(mapBearing) > 1;
+  const requestNodeSearchFromMap = useCallback(
+    (nodeName: string | undefined) => {
+      requestNodeSearch(nodeName);
+    },
+    [requestNodeSearch],
+  );
 
   const markerElements = useMemo(
     () => (
@@ -1091,6 +1099,7 @@ const MapPageContent: React.FC = () => {
             return next;
           })
         }
+        onNodeSearchRequest={requestNodeSearchFromMap}
         highlightedNeighborNode={highlightedNeighborNode}
       />
     ),
@@ -1104,6 +1113,7 @@ const MapPageContent: React.FC = () => {
       tracerouteOverlay,
       visibilityState.nodeMarkers,
       highlightedNeighborNode,
+      requestNodeSearchFromMap,
       clearSelectedTraceRoute,
       deviceId,
       setPendingTraceRouteRequest,
