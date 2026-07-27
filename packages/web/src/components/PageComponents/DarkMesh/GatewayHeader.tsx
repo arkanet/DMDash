@@ -1,14 +1,14 @@
 import { useDarkMeshStore } from "@app/darkmesh/store.ts";
 import { getNodeLongName, getNodeShortName } from "@app/darkmesh/utils.ts";
 import {
-  handleNodeSearchContextMenu,
+  createNodeSearchLongPressHandlers,
   useNodeSearchRequest,
 } from "@core/hooks/useNodeSearchRequest.ts";
 import { useTheme } from "@core/hooks/useTheme.ts";
 import { useAppStore, useNodeDB } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { getColorFromNodeNum, isLightColor } from "@core/utils/color.ts";
-import { type CSSProperties, type MouseEvent, useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { getMissingMetricTone, type SignalTone } from "./theme.ts";
 
 interface GatewayHeaderProps {
@@ -320,8 +320,10 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
     getNodeShortName(gatewayNode) ??
     (gateway?.nodeName ? gateway.nodeName.trim().slice(0, 4).toUpperCase() : "----");
   const gatewaySearchName = getNodeLongName(gatewayNode) ?? gateway?.nodeName;
-  const handleGatewaySearchContextMenu = (event: MouseEvent<HTMLElement>) =>
-    handleNodeSearchContextMenu(event, requestNodeSearch, gatewaySearchName);
+  const gatewaySearchLongPressHandlers = createNodeSearchLongPressHandlers<HTMLDivElement>(
+    requestNodeSearch,
+    gatewaySearchName,
+  );
 
   return (
     <div className={cn("w-full", className)}>
@@ -340,7 +342,10 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
             : {}),
         }}
       >
-        <div className="flex min-w-0 items-center gap-2">
+        <div
+          className="flex min-w-0 touch-manipulation select-none items-center gap-2 [-webkit-touch-callout:none]"
+          {...gatewaySearchLongPressHandlers}
+        >
           <span
             className="shrink-0 rounded-full px-2.5 py-1 text-[0.76rem] font-semibold leading-none"
             style={getSimplifiedAvatarStyle(gateway?.nodeNum)}
@@ -352,7 +357,6 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
               "shrink-0 select-none whitespace-nowrap text-[0.72rem]",
               isDarkTheme ? "text-zinc-100" : "text-zinc-800",
             )}
-            onContextMenu={handleGatewaySearchContextMenu}
           >
             Relay Confidence :
           </span>
@@ -362,7 +366,6 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
               backgroundColor: confidenceTone.background,
               color: confidenceTone.value,
             }}
-            onContextMenu={handleGatewaySearchContextMenu}
           >
             {formatConfidence(gateway?.confidence)}
           </span>
@@ -447,8 +450,8 @@ export function GatewayHeader({ className }: GatewayHeaderProps) {
             {gateway?.nodeName ?? "No gateway detected yet"}
           </div>
           <div
-            className="mt-1 flex w-full flex-nowrap items-center gap-2 text-[0.68rem] md:mt-1.5 md:w-auto md:text-[0.8125rem]"
-            onContextMenu={handleGatewaySearchContextMenu}
+            className="mt-1 flex w-full touch-manipulation select-none flex-nowrap items-center gap-2 text-[0.68rem] [-webkit-touch-callout:none] md:mt-1.5 md:w-auto md:text-[0.8125rem]"
+            {...gatewaySearchLongPressHandlers}
           >
             <span className={isDarkTheme ? "text-zinc-400" : "text-zinc-600"}>
               Gateway Relay Confidence:

@@ -13,10 +13,9 @@ import { NodeDetail } from "@components/PageComponents/Map/Popups/NodeDetail.tsx
 import type { PopupState } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
 import { PopupWrapper } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
 import { useAppStore, useNodeDB } from "@core/stores";
-import { handleNodeSearchContextMenu } from "@core/hooks/useNodeSearchRequest.ts";
 import { hasPos, toLngLat } from "@core/utils/geo.ts";
 import type { Protobuf } from "@meshtastic/core";
-import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
@@ -110,12 +109,6 @@ export const NodesLayer = ({
       const isHead = i === 0;
       const nodeSearchName =
         getNodeLongName(node) ?? `!${numberToHexUnpadded(node.num).toUpperCase()}`;
-      const handleNodeContextMenu = (event: ReactMouseEvent<HTMLButtonElement>) =>
-        handleNodeSearchContextMenu(
-          event,
-          onNodeSearchRequest ?? (() => undefined),
-          nodeSearchName,
-        );
 
       rendered.push(
         <NodeMarker
@@ -133,6 +126,8 @@ export const NodesLayer = ({
           showMobileLabel={true}
           labelPosition="below"
           isVisible={isVisible}
+          nodeSearchName={nodeSearchName}
+          onNodeSearchRequest={onNodeSearchRequest}
           onClick={(num, e) => {
             e.originalEvent?.stopPropagation();
             if (!isExpanded && !isHead) {
@@ -142,7 +137,6 @@ export const NodesLayer = ({
             }
             onMarkerClick(num, expandedOffsets?.[i] ?? [0, 0], e);
           }}
-          onContextMenu={handleNodeContextMenu}
         />,
       );
     }
@@ -199,12 +193,6 @@ export const NodesLayer = ({
     const [lng, lat] = toLngLat(myNode.position);
     const myNodeSearchName =
       getNodeLongName(myNode) ?? `!${numberToHexUnpadded(myNode.num).toUpperCase()}`;
-    const handleMyNodeContextMenu = (event: ReactMouseEvent<HTMLButtonElement>) =>
-      handleNodeSearchContextMenu(
-        event,
-        onNodeSearchRequest ?? (() => undefined),
-        myNodeSearchName,
-      );
     rendered.push(
       <NodeMarker
         key={`node-${myNode.num}`}
@@ -219,8 +207,9 @@ export const NodesLayer = ({
         showLabel={identiconsEnabled}
         showMobileLabel={true}
         labelPosition="below"
+        nodeSearchName={myNodeSearchName}
+        onNodeSearchRequest={onNodeSearchRequest}
         onClick={(_, e) => onMarkerClick(myNode.num, [0, 0], e)}
-        onContextMenu={handleMyNodeContextMenu}
       />,
     );
   }

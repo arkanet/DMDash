@@ -33,7 +33,7 @@ import useLang from "@core/hooks/useLang.ts";
 import { useFavoriteNode } from "@core/hooks/useFavoriteNode.ts";
 import { useIgnoreNode } from "@core/hooks/useIgnoreNode.ts";
 import {
-  handleNodeSearchContextMenu,
+  createNodeSearchLongPressHandlers,
   useNodeSearchRequest,
 } from "@core/hooks/useNodeSearchRequest.ts";
 import { useToast } from "@core/hooks/useToast.ts";
@@ -109,7 +109,6 @@ import {
   type ComponentType,
   type CSSProperties,
   type JSX,
-  type MouseEvent as ReactMouseEvent,
   type ReactNode,
   useCallback,
   useDeferredValue,
@@ -1653,15 +1652,13 @@ const NodesPage = (): JSX.Element => {
     [toast],
   );
 
-  const handleMobileNodeSearchContextMenu = useCallback(
-    (event: ReactMouseEvent<HTMLElement>, nodeName: string | undefined) =>
-      handleNodeSearchContextMenu(event, requestNodeSearch, nodeName),
-    [requestNodeSearch],
-  );
-
   const mobileNodeCards = mobileNodes.map((node) => {
     const shortName = getNodeShortName(node) ?? `!${numberToHexUnpadded(node.num).toUpperCase()}`;
     const longName = getNodeLongName(node) ?? `!${numberToHexUnpadded(node.num).toUpperCase()}`;
+    const nodeSearchLongPressHandlers = createNodeSearchLongPressHandlers<HTMLDivElement>(
+      requestNodeSearch,
+      longName,
+    );
     const isLocalNode = node.num === hardware.myNodeNum;
     const distanceVal =
       myNode && hasPos(myNode.position) && hasPos(node.position)
@@ -1882,8 +1879,8 @@ const NodesPage = (): JSX.Element => {
     return (
       <div
         key={node.num}
-        className="select-none rounded-md bg-background-secondary p-2.5 text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] dark:bg-[#303030] dark:text-zinc-100 dark:shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
-        onContextMenu={(event) => handleMobileNodeSearchContextMenu(event, longName)}
+        className="touch-manipulation select-none rounded-md bg-background-secondary p-2.5 text-text-primary shadow-[0_2px_8px_rgba(0,0,0,0.2)] [-webkit-touch-callout:none] dark:bg-[#303030] dark:text-zinc-100 dark:shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
+        {...nodeSearchLongPressHandlers}
       >
         <div className="grid grid-cols-[auto_auto_auto_minmax(0,1fr)_auto_auto] items-center gap-1">
           <Popover

@@ -1,6 +1,7 @@
 import { cn } from "@app/core/utils/cn";
 import type { PxOffset } from "@components/PageComponents/Map/cluster.ts";
 import { Avatar } from "@components/UI/Avatar.tsx";
+import { createNodeSearchLongPressHandlers } from "@core/hooks/useNodeSearchRequest.ts";
 import {
   Tooltip,
   TooltipArrow,
@@ -27,8 +28,10 @@ export const NodeMarker = memo(function NodeMarker({
   showMobileLabel = false,
   labelPosition = "above",
   isVisible = true,
+  nodeSearchName,
   onClick,
   onContextMenu,
+  onNodeSearchRequest,
 }: {
   id: number;
   lng: number;
@@ -44,10 +47,18 @@ export const NodeMarker = memo(function NodeMarker({
   showMobileLabel?: boolean;
   labelPosition?: "above" | "below";
   isVisible?: boolean;
+  nodeSearchName?: string;
   onClick: (id: number, e: { originalEvent: globalThis.MouseEvent }) => void;
   onContextMenu?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+  onNodeSearchRequest?: (nodeName: string | undefined) => void;
 }) {
   const [dx, dy] = offset ?? [0, 0];
+  const nodeSearchHandlers = onNodeSearchRequest
+    ? createNodeSearchLongPressHandlers<HTMLButtonElement>(
+        onNodeSearchRequest,
+        nodeSearchName ?? longLabel ?? tooltipLabel ?? label,
+      )
+    : { onContextMenu };
 
   const style = {
     "--dx": `${dx}px`,
@@ -82,10 +93,10 @@ export const NodeMarker = memo(function NodeMarker({
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="will-change-transform cursor-pointer animate-fan-out"
+              className="will-change-transform cursor-pointer touch-manipulation select-none animate-fan-out [-webkit-touch-callout:none]"
               style={style}
+              {...nodeSearchHandlers}
               onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
-              onContextMenu={onContextMenu}
             >
               <span className="hidden h-10 w-8 flex-col items-center max-md:flex">
                 <span className="relative flex size-8 items-center justify-center rounded-full border-2 border-white bg-[#2f8fe8] shadow-[0_2px_5px_rgba(0,0,0,0.45)]">
@@ -122,13 +133,13 @@ export const NodeMarker = memo(function NodeMarker({
         <button
           type="button"
           className={cn(
-            "absolute left-1/2 whitespace-nowrap rounded bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-900 backdrop-blur-xs cursor-pointer max-md:text-sm",
+            "absolute left-1/2 touch-manipulation select-none whitespace-nowrap rounded bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-900 backdrop-blur-xs cursor-pointer [-webkit-touch-callout:none] max-md:text-sm",
             labelVisibilityClass,
             labelPosition === "below" ? "top-11 max-md:top-11" : "top-16 max-md:top-7",
           )}
           style={labelStyle}
+          {...nodeSearchHandlers}
           onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
-          onContextMenu={onContextMenu}
         >
           {label}
         </button>
@@ -136,10 +147,10 @@ export const NodeMarker = memo(function NodeMarker({
       {longLabel && ( // only show label if there's a longLabel
         <button
           type="button"
-          className="absolute top-21 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-white/70 px-2 py-0.5 text-xs text-slate-900 backdrop-blur-xs cursor-pointer"
+          className="absolute top-21 left-1/2 touch-manipulation select-none -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-white/70 px-2 py-0.5 text-xs text-slate-900 backdrop-blur-xs cursor-pointer [-webkit-touch-callout:none]"
           style={style}
+          {...nodeSearchHandlers}
           onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
-          onContextMenu={onContextMenu}
         >
           {longLabel}
         </button>
