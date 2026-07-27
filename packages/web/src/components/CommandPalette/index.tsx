@@ -11,13 +11,17 @@ import { useAppStore, useDevice } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { useCommandState } from "cmdk";
 import {
+  BarChart2Icon,
+  BatteryWarningIcon,
   BoxSelectIcon,
   BugIcon,
   FactoryIcon,
   HardDriveUpload,
+  InfoIcon,
   type LucideIcon,
   Pin,
   PowerIcon,
+  RadioTowerIcon,
   RefreshCwIcon,
   TrashIcon,
 } from "lucide-react";
@@ -55,6 +59,34 @@ export const CommandPalette = () => {
   const { t } = useTranslation("commandPalette");
 
   const groups: Group[] = [
+    {
+      id: "darkmeshGroup",
+      label: t("darkmesh.label", "DarkMesh"),
+      icon: RadioTowerIcon,
+      commands: [
+        {
+          label: t("darkmesh.command.batteryAlerts", "Battery Alerts"),
+          icon: BatteryWarningIcon,
+          action() {
+            setDialogOpen("batteryAlerts", true);
+          },
+        },
+        {
+          label: t("darkmesh.command.meshStats", "Mesh Stats"),
+          icon: BarChart2Icon,
+          action() {
+            setDialogOpen("meshStats", true);
+          },
+        },
+        {
+          label: t("darkmesh.command.information", "Information"),
+          icon: InfoIcon,
+          action() {
+            setDialogOpen("appInformation", true);
+          },
+        },
+      ],
+    },
     {
       id: "contextualGroup",
       label: t("contextual.label"),

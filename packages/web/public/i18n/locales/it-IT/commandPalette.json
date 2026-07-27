@@ -25,6 +25,14 @@
       "connectNewNode": "Connetti Nuovo Nodo"
     }
   },
+  "darkmesh": {
+    "label": "DarkMesh",
+    "command": {
+      "batteryAlerts": "Battery Alerts",
+      "meshStats": "Mesh Stats",
+      "information": "Informazioni"
+    }
+  },
   "contextual": {
     "label": "Contestuale",
     "command": {

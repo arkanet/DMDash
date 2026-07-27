@@ -16,6 +16,16 @@ const ClearAllStoresDialog = lazy(() =>
     default: module.ClearAllStoresDialog,
   })),
 );
+const AppInformationDialog = lazy(() =>
+  import("@components/Dialog/AppInformationDialog.tsx").then((module) => ({
+    default: module.AppInformationDialog,
+  })),
+);
+const BatteryAlertsDialog = lazy(() =>
+  import("@components/Dialog/BatteryAlertsDialog.tsx").then((module) => ({
+    default: module.BatteryAlertsDialog,
+  })),
+);
 const ClientNotificationDialog = lazy(() =>
   import("@components/Dialog/ClientNotificationDialog/ClientNotificationDialog.tsx").then(
     (module) => ({ default: module.ClientNotificationDialog }),
@@ -69,6 +79,11 @@ const RemoveNodeDialog = lazy(() =>
 const ResetNodeDbDialog = lazy(() =>
   import("@components/Dialog/ResetNodeDbDialog/ResetNodeDbDialog.tsx").then((module) => ({
     default: module.ResetNodeDbDialog,
+  })),
+);
+const MeshStatsDialog = lazy(() =>
+  import("@components/Dialog/MeshStatsDialog.tsx").then((module) => ({
+    default: module.MeshStatsDialog,
   })),
 );
 const ShutdownDialog = lazy(() =>
@@ -214,6 +229,30 @@ export const DialogManager = () => {
           open={dialog.factoryResetConfig}
           onOpenChange={(open) => {
             setDialogOpen("factoryResetConfig", open);
+          }}
+        />
+      ) : null}
+      {dialog.batteryAlerts ? (
+        <BatteryAlertsDialog
+          open={dialog.batteryAlerts}
+          onOpenChange={(open) => {
+            setDialogOpen("batteryAlerts", open);
+          }}
+        />
+      ) : null}
+      {dialog.meshStats ? (
+        <MeshStatsDialog
+          open={dialog.meshStats}
+          onOpenChange={(open) => {
+            setDialogOpen("meshStats", open);
+          }}
+        />
+      ) : null}
+      {dialog.appInformation ? (
+        <AppInformationDialog
+          open={dialog.appInformation}
+          onOpenChange={(open) => {
+            setDialogOpen("appInformation", open);
           }}
         />
       ) : null}

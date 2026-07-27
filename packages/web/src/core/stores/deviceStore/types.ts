@@ -20,6 +20,9 @@ interface Dialogs {
   clearAllStores: boolean;
   factoryResetDevice: boolean;
   factoryResetConfig: boolean;
+  batteryAlerts: boolean;
+  meshStats: boolean;
+  appInformation: boolean;
 }
 
 type DialogVariant = keyof Dialogs;

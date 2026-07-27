@@ -36,9 +36,13 @@ describe("CommandPalette", () => {
     mockNavigate.mockReset();
   });
 
-  it("shows only the contextual section with the requested commands", () => {
+  it("shows the DarkMesh and contextual sections with the requested commands", () => {
     render(<CommandPalette />);
 
+    expect(screen.getByText("DarkMesh")).toBeInTheDocument();
+    expect(screen.getByText("Battery Alerts")).toBeInTheDocument();
+    expect(screen.getByText("Mesh Stats")).toBeInTheDocument();
+    expect(screen.getByText("Information")).toBeInTheDocument();
     expect(screen.getByText("Contextual")).toBeInTheDocument();
     expect(screen.getByText("Debug Panel")).toBeInTheDocument();
     expect(screen.getByText("Node Import")).toBeInTheDocument();
@@ -54,6 +58,21 @@ describe("CommandPalette", () => {
     expect(screen.queryByText("QR Code")).not.toBeInTheDocument();
     expect(screen.queryByText("Enter DFU Mode")).not.toBeInTheDocument();
     expect(screen.queryByText("Disconnect")).not.toBeInTheDocument();
+  });
+
+  it("shows mesh stats under battery alerts and before information", () => {
+    render(<CommandPalette />);
+
+    const batteryAlerts = screen.getByText("Battery Alerts");
+    const meshStats = screen.getByText("Mesh Stats");
+    const information = screen.getByText("Information");
+
+    expect(
+      batteryAlerts.compareDocumentPosition(meshStats) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      meshStats.compareDocumentPosition(information) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("shows the debug panel command before node import", () => {
@@ -82,6 +101,15 @@ describe("CommandPalette", () => {
     fireEvent.click(screen.getByText("Node Import"));
 
     expect(mockSetDialogOpen).toHaveBeenCalledWith("nodeImport", true);
+    expect(mockSetCommandPaletteOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("opens mesh stats from the DarkMesh section", () => {
+    render(<CommandPalette />);
+
+    fireEvent.click(screen.getByText("Mesh Stats"));
+
+    expect(mockSetDialogOpen).toHaveBeenCalledWith("meshStats", true);
     expect(mockSetCommandPaletteOpen).toHaveBeenCalledWith(false);
   });
 });
