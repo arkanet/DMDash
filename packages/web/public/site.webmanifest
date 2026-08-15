@@ -1,8 +1,12 @@
 {
 	"name": "DarkMesh Dashboard",
-	"short_name": "DarkMesh Dashboard",
+	"short_name": "DMDash",
+	"id": "/",
 	"start_url": "/",
-	"description": "DarkMesh Dashboard",
+	"scope": "/",
+	"description": "DarkMesh web dashboard for Meshtastic-compatible nodes.",
+	"lang": "en",
+	"dir": "ltr",
 	"icons": [
 		{
 			"src": "/darkmesh-dashboard-192.png",
@@ -12,10 +16,59 @@
 		{
 			"src": "/darkmesh-dashboard-512.png",
 			"sizes": "512x512",
-			"type": "image/png"
+			"type": "image/png",
+			"purpose": "any maskable"
 		}
 	],
 	"theme_color": "#D32F2F",
 	"background_color": "#000000",
-	"display": "standalone"
+	"display": "standalone",
+	"display_override": [
+		"standalone",
+		"minimal-ui",
+		"browser"
+	],
+	"orientation": "any",
+	"categories": [
+		"utilities",
+		"productivity"
+	],
+	"shortcuts": [
+		{
+			"name": "Connections",
+			"short_name": "Connect",
+			"description": "Open saved device connections.",
+			"url": "/connections",
+			"icons": [
+				{
+					"src": "/darkmesh-dashboard-192.png",
+					"sizes": "192x192"
+				}
+			]
+		},
+		{
+			"name": "Messages",
+			"short_name": "Messages",
+			"description": "Open DarkMesh messages.",
+			"url": "/messages",
+			"icons": [
+				{
+					"src": "/darkmesh-dashboard-192.png",
+					"sizes": "192x192"
+				}
+			]
+		},
+		{
+			"name": "Map",
+			"short_name": "Map",
+			"description": "Open the node map.",
+			"url": "/map",
+			"icons": [
+				{
+					"src": "/darkmesh-dashboard-192.png",
+					"sizes": "192x192"
+				}
+			]
+		}
+	]
 }

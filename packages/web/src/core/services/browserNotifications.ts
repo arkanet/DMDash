@@ -2,6 +2,12 @@ import type {
   Notification as StoredNotification,
   NotificationType,
 } from "@core/stores/notificationsStore/index.ts";
+import { getAppServiceWorkerRegistration } from "@core/services/pwa.ts";
+import {
+  isIosLikeDevice,
+  isSecureAppContext,
+  isStandalonePwa,
+} from "@core/utils/pwaEnvironment.ts";
 
 export type BrowserNotificationPermission = NotificationPermission | "unsupported";
 export type BrowserNotificationEventType = "messages" | "nodes" | "distress" | "battery" | "system";
@@ -20,8 +26,6 @@ type WindowWithWebkitAudio = Window &
     webkitAudioContext?: typeof AudioContext;
   };
 
-const NOTIFICATION_WORKER_URL = "/darkmesh-notifications-sw.js";
-const NOTIFICATION_WORKER_SCOPE = "/darkmesh-notifications/";
 const DEFAULT_ICON = "/darkmesh-dashboard-192.png";
 const DEFAULT_BADGE = "/darkmesh-dashboard-180.png";
 const DEFAULT_SOUND_VOLUME = 0.16;
@@ -33,11 +37,15 @@ function hasNotificationSupport(): boolean {
 }
 
 function isSecureNotificationContext(): boolean {
-  return typeof window !== "undefined" && window.isSecureContext;
+  return isSecureAppContext();
 }
 
 export function getBrowserNotificationPermission(): BrowserNotificationPermission {
-  if (!hasNotificationSupport() || !isSecureNotificationContext()) {
+  if (
+    !hasNotificationSupport() ||
+    !isSecureNotificationContext() ||
+    (isIosLikeDevice() && !isStandalonePwa())
+  ) {
     return "unsupported";
   }
 
@@ -45,8 +53,9 @@ export function getBrowserNotificationPermission(): BrowserNotificationPermissio
 }
 
 export async function requestBrowserNotificationPermission(): Promise<BrowserNotificationPermission> {
-  if (!hasNotificationSupport() || !isSecureNotificationContext()) {
-    return "unsupported";
+  const currentPermission = getBrowserNotificationPermission();
+  if (currentPermission === "unsupported") {
+    return currentPermission;
   }
 
   const permission = await Notification.requestPermission();
@@ -61,26 +70,7 @@ export async function requestBrowserNotificationPermission(): Promise<BrowserNot
 export async function registerBrowserNotificationWorker(): Promise<
   ServiceWorkerRegistration | undefined
 > {
-  if (
-    typeof navigator === "undefined" ||
-    !("serviceWorker" in navigator) ||
-    !isSecureNotificationContext()
-  ) {
-    return undefined;
-  }
-
-  try {
-    const existing = await navigator.serviceWorker.getRegistration(NOTIFICATION_WORKER_SCOPE);
-    return (
-      existing ??
-      (await navigator.serviceWorker.register(NOTIFICATION_WORKER_URL, {
-        scope: NOTIFICATION_WORKER_SCOPE,
-      }))
-    );
-  } catch (error) {
-    console.warn("Unable to register browser notification service worker", error);
-    return undefined;
-  }
+  return getAppServiceWorkerRegistration();
 }
 
 function getAudioContextConstructor(): typeof AudioContext | undefined {

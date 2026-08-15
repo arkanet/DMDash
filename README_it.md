@@ -229,6 +229,14 @@ Alcuni comportamenti dell'app Android DarkMesh dipendono da servizi foreground a
 
 Questa è un'approssimazione intenzionale lato browser, non una rottura del protocollo.
 
+L'app web è configurata come PWA con manifest adatto a iOS, metadata Apple touch icon, Service Worker root, cache runtime offline e banner di installazione personalizzato per iPhone/iPad. Il supporto Web Push è presente lato client e Service Worker; configura queste variabili di deploy per registrare le subscription nel tuo backend push:
+
+- `VITE_WEB_PUSH_PUBLIC_KEY`
+- `VITE_WEB_PUSH_SUBSCRIBE_URL`
+- `VITE_WEB_PUSH_UNSUBSCRIBE_URL`
+
+Su iOS/iPadOS, Web Push richiede che il sito sia installato sulla Home Screen e aperto come web app standalone. iOS continua a non esporre Web Bluetooth a Safari o alle PWA installate, quindi le connessioni Bluetooth richiedono un browser/piattaforma con Web Bluetooth oppure un wrapper/app companion nativa basata su CoreBluetooth.
+
 Anche alcune sezioni di Settings e Remote Admin possono comparire o sparire in base al firmware e al ruolo del nodo target.
 
 Anche la modalita di compressione e firmware-aware: DMDash preferisce la compressione lato app per `2.7.26-darkmesh` e firmware compatibili piu recenti, mantenendo la richiesta di compressione lato firmware per i nodi DarkMesh legacy.

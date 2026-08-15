@@ -1,4 +1,5 @@
 import { DeviceWrapper } from "@app/DeviceWrapper.tsx";
+import { PwaInstallBanner } from "@components/PwaInstallBanner.tsx";
 import { ThemeDocumentController } from "@components/ThemeDocumentController.tsx";
 import { Toaster } from "@components/Toaster.tsx";
 import {
@@ -390,6 +391,7 @@ export function App() {
         }}
       /> */}
       <Toaster />
+      <PwaInstallBanner />
       <LostConnectionDialog
         notice={lostConnectionNotice}
         onDismiss={() => setLostConnectionNotice(null)}

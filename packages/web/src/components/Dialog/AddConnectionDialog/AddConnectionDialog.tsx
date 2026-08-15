@@ -20,6 +20,7 @@ import {
   useBrowserFeatureDetection,
 } from "@core/hooks/useBrowserFeatureDetection.ts";
 import { useToast } from "@core/hooks/useToast.ts";
+import { isIosLikeDevice } from "@core/utils/pwaEnvironment.ts";
 import { TransportWebBluetooth } from "@meshtastic/transport-web-bluetooth";
 import {
   AlertCircle,
@@ -263,6 +264,7 @@ export default function AddConnectionDialog({
 
   const bluetoothSupported = typeof navigator !== "undefined" && "bluetooth" in navigator;
   const serialSupported = typeof navigator !== "undefined" && "serial" in navigator;
+  const iosLikeDevice = isIosLikeDevice();
   const isURLHTTPS = isHTTPS;
 
   const reset = useCallback(() => {
@@ -673,6 +675,12 @@ export default function AddConnectionDialog({
               labelSupported={t("addConnection.bluetoothConnection.supported.title")}
               labelUnsupported={t("addConnection.bluetoothConnection.notSupported.title")}
             />
+            {iosLikeDevice && !bluetoothSupported ? (
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+                iOS non espone Web Bluetooth a Safari o alle PWA installate. Usa HTTP(S) verso un
+                gateway/nodo raggiungibile in rete, oppure un wrapper nativo con CoreBluetooth.
+              </div>
+            ) : null}
             <PickerRow
               label={t("addConnection.bluetoothConnection.device")}
               buttonText={t("addConnection.bluetoothConnection.selectDevice")}

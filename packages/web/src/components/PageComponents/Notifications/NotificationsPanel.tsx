@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from "react";
+import { useCallback, useMemo, useEffect, useState } from "react";
 import { Protobuf } from "@meshtastic/core";
 import { useNotifications } from "@core/hooks/useNotifications.ts";
 import NotificationItem from "./NotificationItem";
@@ -13,10 +13,54 @@ import {
   type BrowserNotificationEventType,
   type BrowserNotificationSound,
 } from "@core/services/browserNotifications.ts";
+import {
+  getWebPushStatus,
+  subscribeToWebPush,
+  unsubscribeFromWebPush,
+  type WebPushState,
+} from "@core/services/webPush.ts";
 import useLocalStorage from "@core/hooks/useLocalStorage.ts";
 import { filterNodesByQuery } from "@core/utils/filterNodes.ts";
 import { useTranslation } from "react-i18next";
 import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils";
+
+function getWebPushStatusLabel(state: WebPushState): string {
+  switch (state) {
+    case "subscribed":
+      return "Subscribed";
+    case "ready":
+      return "Ready";
+    case "requires-install":
+      return "Install required";
+    case "missing-public-key":
+      return "Missing VAPID key";
+    case "missing-subscribe-endpoint":
+      return "Missing subscribe endpoint";
+    case "permission-denied":
+      return "Permission blocked";
+    default:
+      return "Unsupported";
+  }
+}
+
+function getWebPushStatusDescription(state: WebPushState): string {
+  switch (state) {
+    case "subscribed":
+      return "This browser has an active Push API subscription registered with the configured endpoint.";
+    case "ready":
+      return "Web Push is configured and can request permission from a user gesture.";
+    case "requires-install":
+      return "On iPhone and iPad, add DMDash to the Home Screen and open it from there before enabling Web Push.";
+    case "missing-public-key":
+      return "Set VITE_WEB_PUSH_PUBLIC_KEY to the public VAPID key used by the push sender.";
+    case "missing-subscribe-endpoint":
+      return "Set VITE_WEB_PUSH_SUBSCRIBE_URL to the server endpoint that stores Push API subscriptions.";
+    case "permission-denied":
+      return "Re-enable notifications from browser or OS notification settings.";
+    default:
+      return "Web Push requires Push API, Notifications API, Service Workers, and a secure context.";
+  }
+}
 
 export function NotificationsPanel() {
   const { notifications, markAllSeen, setConfig } = useNotifications();
@@ -82,7 +126,11 @@ export function NotificationsPanel() {
     if (!q) return;
     const nodesForFilter = nodeOptions.map((o) => ({
       num: o.num,
-      user: { shortName: o.shortName, longName: o.longName, nameHex: o.nameHex },
+      user: {
+        shortName: o.shortName,
+        longName: o.longName,
+        nameHex: o.nameHex,
+      },
     }));
     const matched = filterNodesByQuery(nodesForFilter, q) as { num: number }[];
     if (matched.length === 1) {
@@ -111,6 +159,9 @@ export function NotificationsPanel() {
 
   const unread = notifications.filter((n) => !n.seen).length;
   const [browserPermission, setBrowserPermission] = useState(getBrowserNotificationPermission);
+  const [webPushState, setWebPushState] = useState<WebPushState>("unsupported");
+  const [webPushBusy, setWebPushBusy] = useState(false);
+  const [webPushError, setWebPushError] = useState<string | undefined>();
 
   const browserCfg = currentCfg.browserNotifications ?? {
     enabled: false,
@@ -127,6 +178,15 @@ export function NotificationsPanel() {
   };
 
   const browserNotificationsEnabled = browserCfg.enabled && browserPermission === "granted";
+
+  const refreshWebPushStatus = useCallback(async () => {
+    const status = await getWebPushStatus();
+    setWebPushState(status.state);
+  }, []);
+
+  useEffect(() => {
+    void refreshWebPushStatus();
+  }, [refreshWebPushStatus]);
 
   const updateBrowserEventType = (eventType: BrowserNotificationEventType, enabled: boolean) => {
     setConfig({
@@ -186,6 +246,35 @@ export function NotificationsPanel() {
   const testBrowserNotificationSound = async () => {
     await unlockBrowserNotificationSound();
     void playBrowserNotificationSound(3, browserCfg.sound);
+  };
+
+  const enableWebPush = async () => {
+    setWebPushBusy(true);
+    setWebPushError(undefined);
+
+    try {
+      await subscribeToWebPush();
+      await refreshWebPushStatus();
+    } catch (error) {
+      setWebPushError(error instanceof Error ? error.message : String(error));
+      await refreshWebPushStatus();
+    } finally {
+      setWebPushBusy(false);
+    }
+  };
+
+  const disableWebPush = async () => {
+    setWebPushBusy(true);
+    setWebPushError(undefined);
+
+    try {
+      await unsubscribeFromWebPush();
+      await refreshWebPushStatus();
+    } catch (error) {
+      setWebPushError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setWebPushBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -268,7 +357,9 @@ export function NotificationsPanel() {
                     num: o.num,
                     user: { shortName: o.shortName, longName: o.longName },
                   }));
-                  const matched = filterNodesByQuery(nodesForFilter, q) as { num: number }[];
+                  const matched = filterNodesByQuery(nodesForFilter, q) as {
+                    num: number;
+                  }[];
                   const matchedSet = new Set(matched.map((n) => n.num));
                   // Only include direct node options (no channels)
                   return direct
@@ -413,6 +504,42 @@ export function NotificationsPanel() {
             />
             <span>Also notify while this app is visible</span>
           </label>
+        </div>
+
+        <div className="mt-3 grid gap-3 rounded-md border border-slate-200 p-3 text-sm dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="font-medium">Web Push</div>
+              <div className="text-xs text-text-secondary">
+                Subscription: {getWebPushStatusLabel(webPushState)}
+              </div>
+            </div>
+            {webPushState === "subscribed" ? (
+              <button
+                type="button"
+                onClick={() => void disableWebPush()}
+                disabled={webPushBusy}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-zinc-700"
+              >
+                Disable Web Push
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void enableWebPush()}
+                disabled={webPushState !== "ready" || webPushBusy}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-zinc-700"
+              >
+                Enable Web Push
+              </button>
+            )}
+          </div>
+          <div className="text-xs text-text-secondary">
+            {getWebPushStatusDescription(webPushState)}
+          </div>
+          {webPushError ? (
+            <div className="text-xs text-amber-600 dark:text-amber-400">{webPushError}</div>
+          ) : null}
         </div>
       </div>
 

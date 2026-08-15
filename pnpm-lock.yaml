@@ -503,6 +503,24 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@24.12.0)(happy-dom@20.8.3)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+      workbox-cacheable-response:
+        specifier: ^7.4.0
+        version: 7.4.0
+      workbox-core:
+        specifier: ^7.4.0
+        version: 7.4.0
+      workbox-expiration:
+        specifier: ^7.4.0
+        version: 7.4.0
+      workbox-precaching:
+        specifier: ^7.4.0
+        version: 7.4.0
+      workbox-routing:
+        specifier: ^7.4.0
+        version: 7.4.0
+      workbox-strategies:
+        specifier: ^7.4.0
+        version: 7.4.0
 
 packages:
 
