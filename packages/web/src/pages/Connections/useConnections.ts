@@ -6,6 +6,12 @@ import type {
 } from "@app/core/stores/deviceStore/types";
 import { TransportTCPBridge } from "@app/pages/Connections/TransportTCPBridge";
 import {
+  TransportNativeBle,
+  hasNativeBleDevicePermission,
+  isNativeBleAvailable,
+  requestNativeBleDevice,
+} from "@app/pages/Connections/TransportNativeBle";
+import {
   createConnectionFromInput,
   testHttpReachable,
   testTcpReachable,
@@ -208,7 +214,10 @@ export function useConnections() {
         error: error || undefined,
         ...(status === "configured" ? { lastConnectedAt: Date.now() } : {}),
         ...(status === "configured"
-          ? { expectedReconnectUntil: undefined, expectedReconnectReason: undefined }
+          ? {
+              expectedReconnectUntil: undefined,
+              expectedReconnectReason: undefined,
+            }
           : {}),
       };
       if (status === "configured") {
@@ -446,6 +455,7 @@ export function useConnections() {
       transport:
         | Awaited<ReturnType<typeof TransportHTTP.create>>
         | Awaited<ReturnType<typeof TransportTCPBridge.create>>
+        | Awaited<ReturnType<typeof TransportNativeBle.createFromDeviceId>>
         | Awaited<ReturnType<typeof TransportWebBluetooth.createFromDevice>>
         | Awaited<ReturnType<typeof TransportWebSerial.createFromPort>>,
       btDevice?: BluetoothDevice,
@@ -744,6 +754,52 @@ export function useConnections() {
         }
 
         if (conn.type === "bluetooth") {
+          const shouldUseNativeBle =
+            conn.transport === "native" || (isNativeBleAvailable() && !("bluetooth" in navigator));
+
+          if (shouldUseNativeBle) {
+            let nativeDeviceId = conn.deviceId;
+            let nativeDeviceName = conn.deviceName;
+
+            const promptForNativeDevice = async () => {
+              const selected = await requestNativeBleDevice();
+              nativeDeviceId = selected.id;
+              nativeDeviceName = selected.name;
+              updateSavedConnection(id, {
+                transport: "native",
+                deviceId: nativeDeviceId,
+                deviceName: nativeDeviceName,
+                gattServiceUUID: TransportNativeBle.ServiceUuid,
+              });
+            };
+
+            if (!nativeDeviceId && opts?.allowPrompt) {
+              await promptForNativeDevice();
+            }
+
+            if (!nativeDeviceId) {
+              throw new Error("Native Bluetooth device not available. Re-select the device.");
+            }
+
+            let transport: Awaited<ReturnType<typeof TransportNativeBle.createFromDeviceId>>;
+            try {
+              transport = await TransportNativeBle.createFromDeviceId(nativeDeviceId);
+            } catch (error) {
+              if (!opts?.allowPrompt) {
+                throw error;
+              }
+              await promptForNativeDevice();
+              if (!nativeDeviceId) {
+                throw error;
+              }
+              transport = await TransportNativeBle.createFromDeviceId(nativeDeviceId);
+            }
+
+            setupMeshDevice(id, transport, undefined, undefined, opts?.background);
+            clearConnectionReconnect(id);
+            return true;
+          }
+
           if (!("bluetooth" in navigator)) {
             throw new Error("Web Bluetooth not supported");
           }
@@ -886,7 +942,13 @@ export function useConnections() {
       }
       return false;
     },
-    [handleBluetoothGattDisconnect, scheduleConnectionReconnect, setupMeshDevice, updateStatus],
+    [
+      handleBluetoothGattDisconnect,
+      scheduleConnectionReconnect,
+      setupMeshDevice,
+      updateSavedConnection,
+      updateStatus,
+    ],
   );
   connectRef.current = connect;
 
@@ -1038,7 +1100,19 @@ export function useConnections() {
           c.status !== "error",
       )
       .map(async (c) => {
+        const shouldUseNativeBle =
+          c.transport === "native" || (isNativeBleAvailable() && !("bluetooth" in navigator));
+
+        if (shouldUseNativeBle) {
+          const hasPermission = await hasNativeBleDevicePermission(c.deviceId);
+          updateSavedConnection(c.id, {
+            status: hasPermission ? "online" : "disconnected",
+          });
+          return;
+        }
+
         if (!("bluetooth" in navigator)) {
+          updateSavedConnection(c.id, { status: "disconnected" });
           return;
         }
         try {

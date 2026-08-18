@@ -37,6 +37,7 @@
         "package": "gzipper c -i html,js,css,png,ico,svg,json,webmanifest,txt dist dist/output && tar -cvf dist/build.tar -C ./dist/output/ ."
     },
     "dependencies": {
+        "@capacitor-community/bluetooth-le": "8.2.0",
         "@fortawesome/free-solid-svg-icons": "^7.2.0",
         "@fortawesome/react-fontawesome": "^3.3.1",
         "@hookform/resolvers": "^5.2.2",

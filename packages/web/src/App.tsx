@@ -258,6 +258,8 @@ export function App() {
   const device = getDevice(selectedDeviceId);
   const selectedDeviceConnection = device ? getConnectionForDevice(device.id) : undefined;
   const isPublicGuideRoute = pathname === "/guide" || pathname.startsWith("/guide/");
+  const isPublicInstallRoute = pathname === "/install/ios" || pathname.startsWith("/install/ios/");
+  const isPublicStandaloneRoute = isPublicGuideRoute || isPublicInstallRoute;
   const isConnectionsRoute = pathname === "/" || pathname === "/connections";
   const hasUsableDevice = isUsableDevice(device);
   const expectedReconnectUntil = selectedDeviceConnection?.expectedReconnectUntil ?? 0;
@@ -271,7 +273,7 @@ export function App() {
     !hasUsableDevice &&
     !isHoldingExpectedReconnect &&
     !isHoldingLocalReconnect &&
-    !isPublicGuideRoute &&
+    !isPublicStandaloneRoute &&
     !isConnectionsRoute;
   const isHoldingLostConnectionGrace = Boolean(
     device &&
@@ -289,7 +291,7 @@ export function App() {
   useCommandPaletteShortcut(Boolean(deviceForAppShell));
 
   useEffect(() => {
-    if (hasUsableDevice || isPublicGuideRoute || isConnectionsRoute) {
+    if (hasUsableDevice || isPublicStandaloneRoute || isConnectionsRoute) {
       return;
     }
 
@@ -333,7 +335,7 @@ export function App() {
     expectedReconnectUntil,
     hasUsableDevice,
     isConnectionsRoute,
-    isPublicGuideRoute,
+    isPublicStandaloneRoute,
     navigate,
     selectedDeviceId,
   ]);
@@ -424,7 +426,7 @@ export function App() {
                   </Suspense>
                   <Outlet />
                 </div>
-              ) : isPublicGuideRoute ? (
+              ) : isPublicStandaloneRoute ? (
                 <Outlet />
               ) : shouldRedirectToConnections ? null : (
                 <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">

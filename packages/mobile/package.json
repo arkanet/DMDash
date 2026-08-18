@@ -1,0 +1,27 @@
+{
+  "name": "@dmdash/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Capacitor shell for the DarkMesh iOS application.",
+  "scripts": {
+    "build": "pnpm run build:web",
+    "build:web": "VITE_DARKMESH_NATIVE_APP=true pnpm --filter meshtastic-web build",
+    "copy:ios": "cap copy ios && node ../../scripts/prune-mobile-web-assets.mjs",
+    "sync:ios": "cap sync ios && node ../../scripts/prune-mobile-web-assets.mjs",
+    "sync:all": "pnpm run build:web && pnpm run sync:ios",
+    "doctor": "cap doctor",
+    "add:ios": "cap add ios",
+    "open:ios": "cap open ios",
+    "run:ios": "cap run ios",
+    "clean": "rm -rf ios/App/App/public"
+  },
+  "dependencies": {
+    "@capacitor-community/bluetooth-le": "8.2.0",
+    "@capacitor/core": "8.3.1",
+    "@capacitor/ios": "8.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.3.1"
+  }
+}

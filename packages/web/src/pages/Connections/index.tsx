@@ -27,6 +27,7 @@ import {
 import { Separator } from "@components/UI/Separator.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
 import { useDeviceStore } from "@core/stores";
+import { isNativeAppShell } from "@core/utils/nativeShell.ts";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -55,7 +56,9 @@ const DARKMESH_RETURN_LINKS = [
   { href: "https://mesh.loracity.it/", label: "BLOG" },
 ] as const;
 
-const DARKMESH_IOS_DOWNLOAD_HREF = "https://dmdash.arkantiko.com/downloads/darkmesh.ipa";
+const NATIVE_APP_BUILD = import.meta.env.VITE_DARKMESH_NATIVE_APP === "true";
+const DARKMESH_IOS_INSTALL_HREF = NATIVE_APP_BUILD ? "" : "/install/ios";
+const DARKMESH_DEMO_HREF = NATIVE_APP_BUILD ? "" : "https://dmdemo.arkantiko.com/";
 
 export const Connections = () => {
   const {
@@ -89,9 +92,15 @@ export const Connections = () => {
     return state.getDevice(pendingConnection.meshDeviceId)?.connectionPhase;
   });
   const isURLHTTPS = useMemo(() => location.protocol === "https:", []);
+  const nativeAppShell = isNativeAppShell();
+  const showWebClientActions = !NATIVE_APP_BUILD && !nativeAppShell;
   const { t } = useTranslation("connections");
   const goToDemo = () => {
-    window.location.assign("https://dmdemo.arkantiko.com/");
+    if (!DARKMESH_DEMO_HREF) {
+      return;
+    }
+
+    window.location.assign(DARKMESH_DEMO_HREF);
   };
 
   // On first mount, sync statuses and refresh
@@ -184,22 +193,24 @@ export const Connections = () => {
                     <RouterIcon className="size-5" />
                     {t("button.addConnection")}
                   </Button>
-                  <a
-                    href={DARKMESH_IOS_DOWNLOAD_HREF}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-emerald-500/35 bg-emerald-950/60 px-4 py-2 text-sm font-medium text-zinc-100 transition-colors hover:bg-emerald-900/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-                  >
-                    <DownloadIcon className="size-4" />
-                    DarkMesh iOS
-                  </a>
-                  <Button
-                    onClick={goToDemo}
-                    className="gap-2 border border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
-                  >
-                    Demo
-                    <ExternalLink className="size-4" />
-                  </Button>
+                  {showWebClientActions ? (
+                    <>
+                      <a
+                        href={DARKMESH_IOS_INSTALL_HREF}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-emerald-500/35 bg-emerald-950/60 px-4 py-2 text-sm font-medium text-zinc-100 transition-colors hover:bg-emerald-900/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                      >
+                        <DownloadIcon className="size-4" />
+                        DarkMesh iOS
+                      </a>
+                      <Button
+                        onClick={goToDemo}
+                        className="gap-2 border border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
+                      >
+                        Demo
+                        <ExternalLink className="size-4" />
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
               </div>
               <div className="flex justify-center md:justify-end">
@@ -254,13 +265,15 @@ export const Connections = () => {
                 <RouterIcon className="size-5" />
                 {t("button.addConnection")}
               </Button>
-              <Button
-                onClick={goToDemo}
-                className="gap-2 border border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
-              >
-                Demo
-                <ExternalLink className="size-4" />
-              </Button>
+              {showWebClientActions ? (
+                <Button
+                  onClick={goToDemo}
+                  className="gap-2 border border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
+                >
+                  Demo
+                  <ExternalLink className="size-4" />
+                </Button>
+              ) : null}
             </CardFooter>
           </Card>
         ) : (

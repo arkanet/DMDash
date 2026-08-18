@@ -31,6 +31,7 @@ type Page = "dashboard" | "messages" | "map" | "settings" | "channels" | "nodes"
 
 export type ConnectionId = number;
 export type ConnectionType = "http" | "tcp" | "bluetooth" | "serial";
+export type BluetoothTransportMode = "web" | "native";
 export type ConnectionStatus =
   | "connected"
   | "connecting"
@@ -62,9 +63,11 @@ export type NewConnection =
   | {
       type: "bluetooth";
       name: string;
+      transport?: BluetoothTransportMode;
       deviceId?: string;
       deviceName?: string;
       gattServiceUUID?: string;
+      rssi?: number;
     }
   | {
       type: "serial";

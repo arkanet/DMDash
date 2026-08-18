@@ -1,6 +1,12 @@
 import { SupportBadge } from "@app/components/Badge/SupportedBadge.tsx";
 import { Switch } from "@app/components/UI/Switch.tsx";
-import type { NewConnection } from "@app/core/stores/deviceStore/types.ts";
+import type { BluetoothTransportMode, NewConnection } from "@app/core/stores/deviceStore/types.ts";
+import {
+  type NativeBleDeviceSelection,
+  isNativeBleAvailable,
+  requestNativeBleDevice,
+  scanNativeBleDevices,
+} from "@app/pages/Connections/TransportNativeBle";
 import {
   DEFAULT_TCP_PORT,
   type DiscoveredNetworkDevice,
@@ -51,7 +57,15 @@ type DialogState = {
   url: string;
   tcpPort: string;
   testStatus: TestingStatus;
-  btSelected: { id: string; name?: string; device?: BluetoothDevice } | undefined;
+  btSelected:
+    | {
+        id: string;
+        name?: string;
+        device?: BluetoothDevice;
+        transport: BluetoothTransportMode;
+        rssi?: number;
+      }
+    | undefined;
   serialSelected: { vendorId?: number; productId?: number } | undefined;
 };
 
@@ -66,7 +80,15 @@ type DialogAction =
   | { type: "SET_TEST_STATUS"; payload: TestingStatus }
   | {
       type: "SET_BT_SELECTED";
-      payload: { id: string; name?: string; device?: BluetoothDevice } | undefined;
+      payload:
+        | {
+            id: string;
+            name?: string;
+            device?: BluetoothDevice;
+            transport: BluetoothTransportMode;
+            rssi?: number;
+          }
+        | undefined;
     }
   | {
       type: "SET_SERIAL_SELECTED";
@@ -236,6 +258,23 @@ function PickerRow({
   );
 }
 
+function sortNativeBleDevices(a: NativeBleDeviceSelection, b: NativeBleDeviceSelection): number {
+  const rssiA = a.rssi ?? Number.NEGATIVE_INFINITY;
+  const rssiB = b.rssi ?? Number.NEGATIVE_INFINITY;
+  if (rssiA !== rssiB) {
+    return rssiB - rssiA;
+  }
+  return (a.name ?? a.id).localeCompare(b.name ?? b.id);
+}
+
+function formatNativeBleSignal(rssi?: number): string {
+  return typeof rssi === "number" ? `${rssi} dBm` : "RSSI n/a";
+}
+
+function getBluetoothDisplayName(device?: { id: string; name?: string }): string {
+  return device?.name || device?.id || "Unknown device";
+}
+
 const TAB_META: Array<{ key: TabKey; label: string; Icon: LucideIcon }> = [
   { key: "network", label: "Network", Icon: Network },
   { key: "bluetooth", label: "Bluetooth", Icon: Bluetooth },
@@ -261,8 +300,15 @@ export default function AddConnectionDialog({
   const { t } = useTranslation();
   const [discoveryStatus, setDiscoveryStatus] = useState<DiscoveryStatus>("idle");
   const [discoveredDevices, setDiscoveredDevices] = useState<DiscoveredNetworkDevice[]>([]);
+  const [nativeBleScanStatus, setNativeBleScanStatus] = useState<DiscoveryStatus>("idle");
+  const [nativeBleDevices, setNativeBleDevices] = useState<NativeBleDeviceSelection[]>([]);
 
-  const bluetoothSupported = typeof navigator !== "undefined" && "bluetooth" in navigator;
+  const nativeBleSupported = isNativeBleAvailable();
+  const webBluetoothSupported = typeof navigator !== "undefined" && "bluetooth" in navigator;
+  const bluetoothSupported = nativeBleSupported || webBluetoothSupported;
+  const bluetoothUnsupported = nativeBleSupported
+    ? unsupported.filter((feature) => feature !== "Web Bluetooth")
+    : unsupported;
   const serialSupported = typeof navigator !== "undefined" && "serial" in navigator;
   const iosLikeDevice = isIosLikeDevice();
   const isURLHTTPS = isHTTPS;
@@ -276,6 +322,8 @@ export default function AddConnectionDialog({
       reset();
       setDiscoveryStatus("idle");
       setDiscoveredDevices([]);
+      setNativeBleScanStatus("idle");
+      setNativeBleDevices([]);
     }
   }, [reset, open]);
 
@@ -291,7 +339,46 @@ export default function AddConnectionDialog({
     [toast],
   );
 
+  const selectNativeBluetoothDevice = useCallback(
+    (device: NativeBleDeviceSelection) => {
+      dispatch({
+        type: "SET_BT_SELECTED",
+        payload: {
+          id: device.id,
+          name: device.name,
+          transport: "native",
+          rssi: device.rssi,
+        },
+      });
+      if (!state.name || state.name === "") {
+        dispatch({
+          type: "SET_NAME",
+          payload: device.name
+            ? t("addConnection.bluetoothConnection.short", {
+                deviceName: device.name,
+              })
+            : t("addConnection.bluetoothConnection.long"),
+        });
+      }
+      toast({
+        title: "Native BLE device selected",
+        description: getBluetoothDisplayName(device),
+      });
+    },
+    [state.name, toast, t],
+  );
+
   const handlePickBluetooth = useCallback(async () => {
+    if (nativeBleSupported) {
+      try {
+        const device = await requestNativeBleDevice();
+        selectNativeBluetoothDevice(device);
+      } catch (err) {
+        makeToastErrorHandler("Bluetooth")(err);
+      }
+      return;
+    }
+
     if (!bluetoothSupported) {
       toast({
         title: t("addConnection.bluetoothConnection.notSupported.title"),
@@ -305,7 +392,12 @@ export default function AddConnectionDialog({
       });
       dispatch({
         type: "SET_BT_SELECTED",
-        payload: { id: device.id, name: device.name ?? undefined, device },
+        payload: {
+          id: device.id,
+          name: device.name ?? undefined,
+          device,
+          transport: "web",
+        },
       });
       if (!state.name || state.name === "") {
         dispatch({
@@ -324,7 +416,57 @@ export default function AddConnectionDialog({
     } catch (err) {
       makeToastErrorHandler("Bluetooth")(err);
     }
-  }, [bluetoothSupported, state.name, toast, makeToastErrorHandler, t]);
+  }, [
+    nativeBleSupported,
+    bluetoothSupported,
+    selectNativeBluetoothDevice,
+    state.name,
+    toast,
+    makeToastErrorHandler,
+    t,
+  ]);
+
+  const handleScanNativeBluetooth = useCallback(async () => {
+    if (!nativeBleSupported) {
+      return;
+    }
+
+    setNativeBleScanStatus("scanning");
+    setNativeBleDevices([]);
+    const seen = new Map<string, NativeBleDeviceSelection>();
+    let stopScan: (() => Promise<void>) | undefined;
+
+    try {
+      stopScan = await scanNativeBleDevices((device) => {
+        const previous = seen.get(device.id);
+        const next = {
+          ...previous,
+          ...device,
+          name: device.name ?? previous?.name,
+        };
+        seen.set(device.id, next);
+        setNativeBleDevices(Array.from(seen.values()).sort(sortNativeBleDevices));
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 8000));
+      await stopScan();
+      stopScan = undefined;
+      setNativeBleScanStatus(seen.size > 0 ? "done" : "failure");
+
+      if (seen.size === 0) {
+        toast({
+          title: "No Bluetooth devices found",
+          description: "Keep the Meshtastic radio nearby and make sure Bluetooth is enabled.",
+        });
+      }
+    } catch (err) {
+      if (stopScan) {
+        await stopScan().catch(() => {});
+      }
+      setNativeBleScanStatus("failure");
+      makeToastErrorHandler("Bluetooth")(err);
+    }
+  }, [nativeBleSupported, toast, makeToastErrorHandler]);
 
   const handlePickSerial = useCallback(async () => {
     if (!serialSupported) {
@@ -672,7 +814,11 @@ export default function AddConnectionDialog({
           <>
             <SupportBadge
               supported={bluetoothSupported}
-              labelSupported={t("addConnection.bluetoothConnection.supported.title")}
+              labelSupported={
+                nativeBleSupported
+                  ? "Native BLE available"
+                  : t("addConnection.bluetoothConnection.supported.title")
+              }
               labelUnsupported={t("addConnection.bluetoothConnection.notSupported.title")}
             />
             {iosLikeDevice && !bluetoothSupported ? (
@@ -681,28 +827,122 @@ export default function AddConnectionDialog({
                 gateway/nodo raggiungibile in rete, oppure un wrapper nativo con CoreBluetooth.
               </div>
             ) : null}
-            <PickerRow
-              label={t("addConnection.bluetoothConnection.device")}
-              buttonText={t("addConnection.bluetoothConnection.selectDevice")}
-              onPick={handlePickBluetooth}
-              disabled={!bluetoothSupported}
-              display={
-                state.btSelected
-                  ? state.btSelected.name || state.btSelected.id
-                  : t("addConnection.bluetoothConnection.notSelected")
-              }
-              helper={t("addConnection.bluetoothConnection.helperText")}
-            />
-            <FeatureErrorMessage missingFeatures={unsupported} tabId="bluetooth" />
+            {nativeBleSupported ? (
+              <div className="grid gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="subtle"
+                    className="gap-2"
+                    onClick={handleScanNativeBluetooth}
+                    disabled={nativeBleScanStatus === "scanning"}
+                  >
+                    {nativeBleScanStatus === "scanning" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Radar className="h-4 w-4" />
+                    )}
+                    Scan
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="subtle"
+                    className="gap-2"
+                    onClick={handlePickBluetooth}
+                    disabled={!bluetoothSupported || nativeBleScanStatus === "scanning"}
+                  >
+                    <MousePointerClick className="h-4 w-4" />
+                    iOS picker
+                  </Button>
+                  {state.btSelected ? (
+                    <div className="min-w-0 text-sm text-slate-500 dark:text-slate-400">
+                      Selected:{" "}
+                      <span className="font-medium text-slate-800 dark:text-slate-100">
+                        {getBluetoothDisplayName(state.btSelected)}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="grid max-h-64 gap-2 overflow-y-auto rounded-md border border-slate-200 p-2 dark:border-slate-800">
+                  {nativeBleDevices.length > 0 ? (
+                    nativeBleDevices.map((device) => {
+                      const selected =
+                        state.btSelected?.transport === "native" &&
+                        state.btSelected.id === device.id;
+                      return (
+                        <div
+                          key={device.id}
+                          className="flex items-center justify-between gap-3 rounded bg-slate-50 p-2 text-sm dark:bg-slate-900"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {device.name ?? "Meshtastic BLE"}
+                            </div>
+                            <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                              {device.id}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {formatNativeBleSignal(device.rssi)}
+                            </span>
+                            <Button
+                              type="button"
+                              variant={selected ? "default" : "subtle"}
+                              size="sm"
+                              onClick={() => selectNativeBluetoothDevice(device)}
+                            >
+                              {selected ? "Selected" : "Select"}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                      Scan to list nearby Meshtastic radios, or use the iOS picker to pair through
+                      CoreBluetooth.
+                    </div>
+                  )}
+                </div>
+
+                {nativeBleScanStatus === "failure" ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    No device found. Wake the radio, keep it nearby, then scan again.
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Native BLE uses iOS CoreBluetooth instead of the browser Web Bluetooth engine.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <PickerRow
+                label={t("addConnection.bluetoothConnection.device")}
+                buttonText={t("addConnection.bluetoothConnection.selectDevice")}
+                onPick={handlePickBluetooth}
+                disabled={!bluetoothSupported}
+                display={
+                  state.btSelected
+                    ? state.btSelected.name || state.btSelected.id
+                    : t("addConnection.bluetoothConnection.notSelected")
+                }
+                helper={t("addConnection.bluetoothConnection.helperText")}
+              />
+            )}
+            <FeatureErrorMessage missingFeatures={bluetoothUnsupported} tabId="bluetooth" />
           </>
         ),
         validate: () => state.name.trim().length > 0 && !!state.btSelected,
         build: () => ({
           type: "bluetooth",
           name: state.name.trim(),
+          transport: state.btSelected?.transport ?? (nativeBleSupported ? "native" : "web"),
           deviceId: state.btSelected?.id,
           deviceName: state.btSelected?.name,
           gattServiceUUID: TransportWebBluetooth.ServiceUuid,
+          rssi: state.btSelected?.rssi,
         }),
       },
       serial: {
@@ -745,9 +985,15 @@ export default function AddConnectionDialog({
     [
       state,
       bluetoothSupported,
+      nativeBleSupported,
+      nativeBleScanStatus,
+      nativeBleDevices,
+      bluetoothUnsupported,
+      iosLikeDevice,
       serialSupported,
       isURLHTTPS,
       handlePickBluetooth,
+      handleScanNativeBluetooth,
       handlePickSerial,
       handleDiscoverNetwork,
       handleTestHttp,
@@ -756,6 +1002,7 @@ export default function AddConnectionDialog({
       discoveredDevices,
       discoveryStatus,
       unsupported,
+      selectNativeBluetoothDevice,
       t,
       tcpHostValid,
       tcpPort,

@@ -19,6 +19,10 @@ const DialogManager = React.lazy(() =>
   })),
 );
 const GuidePage = React.lazy(() => import("@pages/Guide/index.tsx"));
+const InstallIOSPage =
+  import.meta.env.VITE_DARKMESH_NATIVE_APP === "true"
+    ? React.lazy(async () => ({ default: () => null }))
+    : React.lazy(() => import("@pages/InstallIOS/index.tsx"));
 const MapPage = React.lazy(() => import("@pages/Map/index.tsx"));
 const MessagesPage = React.lazy(() => import("@pages/Messages.tsx"));
 const NodesPage = React.lazy(() => import("@pages/Nodes/index.tsx"));
@@ -232,6 +236,12 @@ const guideRoute = createRoute({
   component: () => <GuidePage variant="landing" />,
 });
 
+const installIOSRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/install/ios",
+  component: InstallIOSPage,
+});
+
 const guideIndexHtmlRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/guide/index.html",
@@ -282,6 +292,7 @@ export const routeTree = rootRoute.addChildren([
   dialogWithParamsRoute,
   connectionsRoute,
   guideRoute,
+  installIOSRoute,
   guideIndexHtmlRoute,
   guideEnglishRoute,
   guideEnglishIndexHtmlRoute,

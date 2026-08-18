@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { isNativeAppShell } from "@core/utils/nativeShell.ts";
 
 type GuideVariant = "landing" | "en" | "it";
+
+const NATIVE_APP_BUILD = import.meta.env.VITE_DARKMESH_NATIVE_APP === "true";
+const DARKMESH_IOS_INSTALL_HREF = NATIVE_APP_BUILD ? "" : "/install/ios";
 
 const GUIDE_CONFIG: Record<
   GuideVariant,
@@ -28,9 +32,18 @@ const GUIDE_CONFIG: Record<
   },
 };
 
-function rewriteGuideHtml(html: string, assetBase: string): string {
+function rewriteGuideHtml(html: string, assetBase: string, nativeAppShell: boolean): string {
   const parser = new DOMParser();
   const documentNode = parser.parseFromString(html, "text/html");
+  const removeInstallContent = NATIVE_APP_BUILD || nativeAppShell;
+
+  if (removeInstallContent) {
+    documentNode.querySelector("#install-darkmesh-ios")?.remove();
+    documentNode.querySelector("#installare-darkmesh-ios")?.remove();
+    documentNode
+      .querySelectorAll('a[href="#install-darkmesh-ios"], a[href="#installare-darkmesh-ios"]')
+      .forEach((anchor) => anchor.closest("li, a")?.remove());
+  }
 
   const base = documentNode.createElement("base");
   base.setAttribute("href", assetBase);
@@ -64,11 +77,27 @@ function rewriteGuideHtml(html: string, assetBase: string): string {
     const rewrittenHref = rewriteHref(href);
     const isExternalHref = /^https?:\/\//.test(rewrittenHref);
     const isDownloadHref = /\.ipa(?:[?#].*)?$/i.test(rewrittenHref);
+    const isInstallHref =
+      rewrittenHref === "/install/ios" || rewrittenHref.startsWith("/install/ios?");
     if (rewrittenHref !== href) {
       element.setAttribute("href", rewrittenHref);
     }
 
     if (element.tagName.toLowerCase() !== "a") {
+      return;
+    }
+
+    if (isDownloadHref || isInstallHref) {
+      if (removeInstallContent) {
+        element.remove();
+        return;
+      }
+
+      element.setAttribute("href", DARKMESH_IOS_INSTALL_HREF);
+      element.setAttribute("data-dmdash-route", DARKMESH_IOS_INSTALL_HREF);
+      element.removeAttribute("download");
+      element.removeAttribute("target");
+      element.removeAttribute("rel");
       return;
     }
 
@@ -116,8 +145,8 @@ function rewriteGuideHtml(html: string, assetBase: string): string {
   `;
   documentNode.head.append(mobileFullscreenStyle);
 
-  const anchorScript = documentNode.createElement("script");
-  anchorScript.textContent = `
+  const routeScript = documentNode.createElement("script");
+  routeScript.textContent = `
     (() => {
       const navigateParent = (to) => {
         window.parent.postMessage({ type: 'dmdash:navigate', to }, '*');
@@ -172,7 +201,7 @@ function rewriteGuideHtml(html: string, assetBase: string): string {
       });
     })();
   `;
-  documentNode.body.append(anchorScript);
+  documentNode.body.append(routeScript);
 
   return `<!doctype html>\n${documentNode.documentElement.outerHTML}`;
 }
@@ -186,6 +215,7 @@ export default function GuidePage({ variant = "landing" }: GuidePageProps) {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const config = GUIDE_CONFIG[variant];
+  const nativeAppShell = isNativeAppShell();
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -225,7 +255,7 @@ export default function GuidePage({ variant = "landing" }: GuidePageProps) {
           return;
         }
 
-        setSrcDoc(rewriteGuideHtml(html, config.assetBase));
+        setSrcDoc(rewriteGuideHtml(html, config.assetBase, nativeAppShell));
         setError(null);
       })
       .catch((fetchError: unknown) => {
@@ -240,7 +270,7 @@ export default function GuidePage({ variant = "landing" }: GuidePageProps) {
       active = false;
       document.title = previousTitle;
     };
-  }, [config.assetBase, config.assetPath, config.title]);
+  }, [config.assetBase, config.assetPath, config.title, nativeAppShell]);
 
   const fallbackLink = useMemo(() => config.assetPath, [config.assetPath]);
 

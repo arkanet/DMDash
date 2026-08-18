@@ -9,12 +9,23 @@ interface BrowserSupport {
 
 export function useBrowserFeatureDetection(): BrowserSupport {
   const support = useMemo(() => {
+    const isNativeShell = Boolean(
+      (
+        globalThis as typeof globalThis & {
+          Capacitor?: { isNativePlatform?: () => boolean };
+        }
+      ).Capacitor?.isNativePlatform?.(),
+    );
+
     const features: [BrowserFeature, boolean][] = [
       ["Web Bluetooth", !!navigator.bluetooth],
       ["Web Serial", !!navigator.serial],
       [
         "Secure Context",
-        globalThis.location.protocol === "https:" || globalThis.location.hostname === "localhost",
+        isNativeShell ||
+          globalThis.isSecureContext ||
+          globalThis.location.protocol === "https:" ||
+          globalThis.location.hostname === "localhost",
       ],
     ];
 

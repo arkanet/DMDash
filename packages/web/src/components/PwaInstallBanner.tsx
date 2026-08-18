@@ -1,4 +1,5 @@
 import { isIosLikeDevice, isStandalonePwa } from "@core/utils/pwaEnvironment.ts";
+import { isNativeAppShell } from "@core/utils/nativeShell.ts";
 import { DownloadIcon, PlusSquareIcon, Share2Icon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -31,15 +32,19 @@ function dismissInstallBanner(): void {
 export function PwaInstallBanner() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
+  const nativeAppShell = isNativeAppShell();
   const iosInstallMode = isIosLikeDevice() && !installPrompt;
 
   const refreshVisibility = useCallback(
     (prompt: BeforeInstallPromptEvent | null = installPrompt) => {
       setVisible(
-        !isStandalonePwa() && !isInstallDismissed() && (isIosLikeDevice() || Boolean(prompt)),
+        !nativeAppShell &&
+          !isStandalonePwa() &&
+          !isInstallDismissed() &&
+          (isIosLikeDevice() || Boolean(prompt)),
       );
     },
-    [installPrompt],
+    [installPrompt, nativeAppShell],
   );
 
   useEffect(() => {

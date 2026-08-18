@@ -71,9 +71,11 @@ export function createConnectionFromInput(input: NewConnection): Connection {
     return {
       ...base,
       type: "bluetooth",
+      transport: input.transport,
       deviceId: input.deviceId,
       deviceName: input.deviceName,
       gattServiceUUID: input.gattServiceUUID,
+      rssi: input.rssi,
     };
   }
   return {
@@ -189,7 +191,9 @@ export function formatConnectionSubtext(conn: Connection): string {
     return `${conn.host}:${conn.port}`;
   }
   if (conn.type === "bluetooth") {
-    return conn.deviceName || conn.deviceId || "No device selected";
+    const label = conn.deviceName || conn.deviceId || "No device selected";
+    const mode = conn.transport === "native" ? "Native BLE" : "Web Bluetooth";
+    return `${mode}: ${label}`;
   }
   const v = conn.usbVendorId ? conn.usbVendorId.toString(16) : "?";
   const p = conn.usbProductId ? conn.usbProductId.toString(16) : "?";
