@@ -355,7 +355,10 @@ function getNodeStatusText(node: Protobuf.Mesh.NodeInfo): string | undefined {
   return normalizeNodeStatus((node as Protobuf.Mesh.NodeInfo & { nodeStatus?: string }).nodeStatus);
 }
 
-function getBatteryLabel(node: Protobuf.Mesh.NodeInfo): { label: string; plugged: boolean } {
+function getBatteryLabel(node: Protobuf.Mesh.NodeInfo): {
+  label: string;
+  plugged: boolean;
+} {
   const metrics = node.deviceMetrics as
     | (Protobuf.Telemetry.DeviceMetrics & {
         powerSupplyStatus?: number;
@@ -630,7 +633,10 @@ function MobileNodeStatusBadge({ status, unread }: { status: string; unread: boo
           <TooltipContent className="max-w-56 rounded bg-slate-800 px-4 py-2 text-white dark:bg-slate-600">
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-200">
-                {t("nodeDetail.statusMessage", { ns: "nodes", defaultValue: "Status Message" })}
+                {t("nodeDetail.statusMessage", {
+                  ns: "nodes",
+                  defaultValue: "Status Message",
+                })}
               </p>
               <p className="whitespace-pre-wrap break-words text-xs font-normal italic text-white/95">
                 {status}
@@ -895,8 +901,14 @@ const NodesPage = (): JSX.Element => {
   const navigate = useNavigate({ from: "/" });
   const requestNodeSearch = useNodeSearchRequest();
 
-  const { identiconsEnabled, pendingNodeSearch, setNodeNumDetails, setPendingNodeSearch } =
-    useAppStore();
+  const {
+    identiconsEnabled,
+    pendingNodeInfoAction,
+    pendingNodeSearch,
+    setNodeNumDetails,
+    setPendingNodeInfoAction,
+    setPendingNodeSearch,
+  } = useAppStore();
   const { nodeFilter, defaultFilterValues, isFilterDirty } = useFilterNode();
 
   const [selectedTraceroute, setSelectedTraceroute] = useState<
@@ -1167,11 +1179,6 @@ const NodesPage = (): JSX.Element => {
     [pendingMetadataNode, toast],
   );
 
-  function handleNodeInfoDialog(nodeNum: number): void {
-    setNodeNumDetails(nodeNum);
-    setDialogOpen("nodeDetails", true);
-  }
-
   useEffect(() => {
     if (!connection) {
       return;
@@ -1267,6 +1274,62 @@ const NodesPage = (): JSX.Element => {
 
   const nodeDB = useNodeDB();
   const myNode = nodeDB.getNode ? nodeDB.getNode(hardware.myNodeNum) : undefined;
+  const pinNodeSearchFilter = useCallback(
+    (nodeNum: number) => {
+      const targetNode = nodeDB.getNode(nodeNum);
+      const nodeName = targetNode ? getNodeDisplayName(targetNode) : formatNameHex(nodeNum);
+
+      setFilterState((prev) =>
+        prev.nodeName === nodeName
+          ? prev
+          : {
+              ...prev,
+              nodeName,
+            },
+      );
+      setPendingNodeSearch(undefined);
+    },
+    [nodeDB, setPendingNodeSearch],
+  );
+
+  const openMoreNodeInfo = useCallback(
+    (nodeNum: number) => {
+      pinNodeSearchFilter(nodeNum);
+      setSelectedNodeInfo(nodeNum);
+    },
+    [pinNodeSearchFilter],
+  );
+
+  const openPlusNodeInfo = useCallback(
+    (nodeNum: number) => {
+      pinNodeSearchFilter(nodeNum);
+      setNodeNumDetails(nodeNum);
+      setDialogOpen("nodeDetails", true);
+    },
+    [pinNodeSearchFilter, setDialogOpen, setNodeNumDetails],
+  );
+
+  const closeMoreNodeInfo = useCallback(() => {
+    if (selectedNodeInfo !== undefined) {
+      pinNodeSearchFilter(selectedNodeInfo);
+    }
+    setSelectedNodeInfo(undefined);
+  }, [pinNodeSearchFilter, selectedNodeInfo]);
+
+  useEffect(() => {
+    if (!pendingNodeInfoAction) {
+      return;
+    }
+
+    if (pendingNodeInfoAction.variant === "more") {
+      openMoreNodeInfo(pendingNodeInfoAction.nodeNum);
+    } else {
+      openPlusNodeInfo(pendingNodeInfoAction.nodeNum);
+    }
+
+    setPendingNodeInfoAction(undefined);
+  }, [openMoreNodeInfo, openPlusNodeInfo, pendingNodeInfoAction, setPendingNodeInfoAction]);
+
   const mobileNodes = useMemo(() => {
     const sorted = filteredNodes
       .filter((node) => includeUnknownNodes || !isUnknownNode(node))
@@ -1401,10 +1464,10 @@ const NodesPage = (): JSX.Element => {
           content: (
             <button
               type="button"
-              onMouseDown={() => handleNodeInfoDialog(node.num)}
+              onMouseDown={() => openPlusNodeInfo(node.num)}
               onKeyUp={(evt) => {
                 if (evt.key === "Enter") {
-                  handleNodeInfoDialog(node.num);
+                  openPlusNodeInfo(node.num);
                 }
               }}
               className="cursor-pointer ml-2 whitespace-break-spaces text-left"
@@ -1646,7 +1709,10 @@ const NodesPage = (): JSX.Element => {
         await navigator.clipboard.writeText(fromByteArray(publicKey));
         toast({ title: "Public key copiata" });
       } catch {
-        toast({ title: "Copia public key non riuscita", variant: "destructive" });
+        toast({
+          title: "Copia public key non riuscita",
+          variant: "destructive",
+        });
       }
     },
     [toast],
@@ -1858,7 +1924,7 @@ const NodesPage = (): JSX.Element => {
           type="button"
           onClick={() => {
             setMobileActionNode(undefined);
-            setSelectedNodeInfo(node.num);
+            openMoreNodeInfo(node.num);
           }}
         >
           More Node Info
@@ -1868,7 +1934,7 @@ const NodesPage = (): JSX.Element => {
           type="button"
           onClick={() => {
             setMobileActionNode(undefined);
-            handleNodeInfoDialog(node.num);
+            openPlusNodeInfo(node.num);
           }}
         >
           Plus Node Info
@@ -2328,7 +2394,14 @@ const NodesPage = (): JSX.Element => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!selectedNodeInfoNode} onOpenChange={() => setSelectedNodeInfo(undefined)}>
+      <Dialog
+        open={!!selectedNodeInfoNode}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeMoreNodeInfo();
+          }
+        }}
+      >
         <DialogContent
           aria-describedby={undefined}
           className="inset-0 h-dvh max-h-dvh w-screen max-w-none rounded-none bg-[#111] p-0 text-zinc-100 dark:bg-[#111] sm:max-w-none sm:rounded-none"
@@ -2337,7 +2410,7 @@ const NodesPage = (): JSX.Element => {
             <MobileNodeInfoDialog
               node={selectedNodeInfoNode}
               neighborRecords={neighborDiscoveryRecords[selectedNodeInfoNode.num] ?? []}
-              onClose={() => setSelectedNodeInfo(undefined)}
+              onClose={closeMoreNodeInfo}
             />
           ) : null}
         </DialogContent>
@@ -2385,10 +2458,16 @@ export function MobileNodeInfoDialog({
       (node.num === device.hardware.myNodeNum
         ? device.metadata.get(0)?.firmwareVersion
         : undefined) ??
-      (node as Protobuf.Mesh.NodeInfo & { metadata?: { firmwareVersion?: string } }).metadata
-        ?.firmwareVersion ??
-      (node as Protobuf.Mesh.NodeInfo & { deviceMetadata?: { firmwareVersion?: string } })
-        .deviceMetadata?.firmwareVersion,
+      (
+        node as Protobuf.Mesh.NodeInfo & {
+          metadata?: { firmwareVersion?: string };
+        }
+      ).metadata?.firmwareVersion ??
+      (
+        node as Protobuf.Mesh.NodeInfo & {
+          deviceMetadata?: { firmwareVersion?: string };
+        }
+      ).deviceMetadata?.firmwareVersion,
   );
   const hasNeighborInfo =
     neighborRecords.length > 0 || Boolean(device.getNeighborInfo(node.num)?.neighbors?.length);

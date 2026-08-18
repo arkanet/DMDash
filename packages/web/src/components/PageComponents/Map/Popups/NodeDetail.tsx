@@ -60,6 +60,7 @@ import { getNodeShortName, getNodeLongName } from "@app/darkmesh/utils.ts";
 import { numberToHexUnpadded } from "@noble/curves/abstract/utils";
 import {
   BarChart2,
+  BookUserIcon,
   FileTextIcon,
   KeyRoundIcon,
   LockIcon,
@@ -92,6 +93,10 @@ export interface NodeDetailProps {
 const MAP_POPUP_TOOLTIP_CONTENT_CLASS =
   "z-[1000] rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm";
 
+function isMobileNodeInfoViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+}
+
 function formatFirmwareVersion(value?: string): string | undefined {
   const trimmed = value?.trim();
   if (!trimmed) {
@@ -119,10 +124,11 @@ export const NodeDetail = ({
     metadata: deviceMetadata,
     channels,
   } = useDevice();
-  const { setNodeNumDetails } = useAppStore();
+  const { setNodeNumDetails, setPendingNodeInfoAction, setPendingNodeSearch } = useAppStore();
   const nodeDB = useNodeDB();
   const { updateFavorite } = useFavoriteNode();
   const setSelectedTraceRoute = useDarkMeshStore((state) => state.setSelectedTraceRoute);
+  const setMapPopupNode = useDarkMeshStore((state) => state.setMapPopupNode);
   const setPendingTraceRouteTarget = useDarkMeshStore((state) => state.setPendingTraceRouteTarget);
   const setPendingTraceRouteRequest = useDarkMeshStore(
     (state) => state.setPendingTraceRouteRequest,
@@ -138,6 +144,10 @@ export const NodeDetail = ({
   const [shareUrl, setShareUrl] = useState<string>("");
 
   const name = getNodeLongName(node) ?? `!${numberToHexUnpadded(node.num)}`;
+  const nodeSearchName =
+    getNodeLongName(node) ??
+    getNodeShortName(node) ??
+    `!${numberToHexUnpadded(node.num).toUpperCase()}`;
 
   function findValidUrlInText(text: string) {
     const tokens = text.split(/\s+/);
@@ -183,10 +193,16 @@ export const NodeDetail = ({
   const firmwareVersion = formatFirmwareVersion(
     deviceMetadata.get(node.num)?.firmwareVersion ??
       (node.num === hardware.myNodeNum ? deviceMetadata.get(0)?.firmwareVersion : undefined) ??
-      (node as ProtobufType.Mesh.NodeInfo & { metadata?: { firmwareVersion?: string } }).metadata
-        ?.firmwareVersion ??
-      (node as ProtobufType.Mesh.NodeInfo & { deviceMetadata?: { firmwareVersion?: string } })
-        .deviceMetadata?.firmwareVersion,
+      (
+        node as ProtobufType.Mesh.NodeInfo & {
+          metadata?: { firmwareVersion?: string };
+        }
+      ).metadata?.firmwareVersion ??
+      (
+        node as ProtobufType.Mesh.NodeInfo & {
+          deviceMetadata?: { firmwareVersion?: string };
+        }
+      ).deviceMetadata?.firmwareVersion,
   );
   const hardwareDetails = [hardwareType !== t("unset") ? hardwareType : undefined, firmwareVersion]
     .filter(Boolean)
@@ -232,17 +248,23 @@ export const NodeDetail = ({
             onClick={async () => {
               try {
                 toastRef?.dismiss();
-                toast({ title: t("nodeDetail.requestingPublicKey", "Requesting public key...") });
+                toast({
+                  title: t("nodeDetail.requestingPublicKey", "Requesting public key..."),
+                });
 
                 requestNodeInfo(connection, node.num, (err) => {
                   logger.warn?.("public key request failed", err);
-                  toast({ title: t("nodeDetail.requestFailed", "Failed to request public key") });
+                  toast({
+                    title: t("nodeDetail.requestFailed", "Failed to request public key"),
+                  });
                 });
 
                 toast({ title: t("nodeDetail.requestSent", "Request sent") });
               } catch (err) {
                 logger.warn?.("public key request failed", err);
-                toast({ title: t("nodeDetail.requestFailed", "Failed to request public key") });
+                toast({
+                  title: t("nodeDetail.requestFailed", "Failed to request public key"),
+                });
               }
             }}
           >
@@ -282,7 +304,9 @@ export const NodeDetail = ({
     }
 
     try {
-      toast({ title: t("nodeDetail.neighbor.requestSent", "Request Neighbor Info Sent...") });
+      toast({
+        title: t("nodeDetail.neighbor.requestSent", "Request Neighbor Info Sent..."),
+      });
       if (!connection) {
         throw new Error("No active connection to device");
       }
@@ -317,7 +341,9 @@ export const NodeDetail = ({
     }
 
     try {
-      toast({ title: t("nodeDetail.metrics.requestSent", "Request Environmental Info Sent...") });
+      toast({
+        title: t("nodeDetail.metrics.requestSent", "Request Environmental Info Sent..."),
+      });
       await requestEnvironmentMetrics(connection, node.num);
       setShowNeighbor(false);
       setShowPowerMetrics(false);
@@ -348,12 +374,26 @@ export const NodeDetail = ({
 
   async function handleRequestDeviceMetadata() {
     try {
-      toast({ title: t("nodeDetail.metadata.requestSent", "Request metadata sent") });
+      toast({
+        title: t("nodeDetail.metadata.requestSent", "Request metadata sent"),
+      });
       await requestDeviceMetadata(connection, node.num, resolveAdminChannelIndex(channels));
     } catch (error) {
       logger.warn?.("popup metadata request failed", error);
-      toast({ title: t("nodeDetail.metadata.error", "Failed to request metadata") });
+      toast({
+        title: t("nodeDetail.metadata.error", "Failed to request metadata"),
+      });
     }
+  }
+
+  function handleOpenNodeInfo() {
+    setPendingNodeSearch(nodeSearchName);
+    setPendingNodeInfoAction({
+      nodeNum: node.num,
+      variant: isMobileNodeInfoViewport() ? "more" : "plus",
+    });
+    setMapPopupNode(deviceId, node.num);
+    navigate({ to: "/nodes" });
   }
 
   function handlePublicKeyClick() {
@@ -623,7 +663,9 @@ export const NodeDetail = ({
                          // console.warn("failed to build shared contact url", _err);
                         */
                         logger.warn?.("failed to build shared contact url", _err);
-                        toast({ title: t("nodeDetail.shareError", "Failed to build share URL") });
+                        toast({
+                          title: t("nodeDetail.shareError", "Failed to build share URL"),
+                        });
                       }
                     }}
                   >
@@ -677,10 +719,14 @@ export const NodeDetail = ({
 
                         requestNodeInfo(connection, node.num, (err) => {
                           logger.warn?.("node info request failed", err);
-                          toast({ title: t("Request Node Info Error", { ns: "ui" }) });
+                          toast({
+                            title: t("Request Node Info Error", { ns: "ui" }),
+                          });
                         });
 
-                        toast({ title: t("Request Node Info ...", { ns: "ui" }) });
+                        toast({
+                          title: t("Request Node Info ...", { ns: "ui" }),
+                        });
                       } catch (err) {
                         /*
                          Silenced non-blocking nodeinfo popup request warning.
@@ -734,6 +780,28 @@ export const NodeDetail = ({
                 </TooltipPortal>
               </Tooltip>
 
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t("nodeDetail.nodeInfo", "Node Info")}
+                    onClick={handleOpenNodeInfo}
+                  >
+                    <BookUserIcon size={15} className="cursor-pointer hover:text-blue-500" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipPortal>
+                  <TooltipContent
+                    side="top"
+                    align="center"
+                    sideOffset={6}
+                    className={MAP_POPUP_TOOLTIP_CONTENT_CLASS}
+                  >
+                    {t("nodeDetail.nodeInfo", "Node Info")}
+                  </TooltipContent>
+                </TooltipPortal>
+              </Tooltip>
+
               <Dialog open={shareOpen} onOpenChange={setShareOpen}>
                 <DialogContent>
                   <DialogHeader>
@@ -753,7 +821,9 @@ export const NodeDetail = ({
                                 title: t("nodeDetail.shareCopied", "Copied URL to clipboard"),
                               });
                             } catch {
-                              toast({ title: t("nodeDetail.shareCopyError", "Failed to copy") });
+                              toast({
+                                title: t("nodeDetail.shareCopyError", "Failed to copy"),
+                              });
                             }
                           }}
                         >
@@ -913,11 +983,15 @@ export const NodeDetail = ({
                     }
 
                     if (!connection) {
-                      toast({ title: t("nodeDetail.gps.noConnection", "No connection") });
+                      toast({
+                        title: t("nodeDetail.gps.noConnection", "No connection"),
+                      });
                       return;
                     }
 
-                    toast({ title: t("nodeDetail.gps.request", "GPS data request") });
+                    toast({
+                      title: t("nodeDetail.gps.request", "GPS data request"),
+                    });
 
                     try {
                       await connection.requestPosition(num);
@@ -975,7 +1049,9 @@ export const NodeDetail = ({
                          // console.warn("failed to open node details panel", err);
                         */
                         logger.warn?.("failed to open node details panel", err);
-                        toast({ title: t("nodeDetail.gps.missing", "GPS data missing") });
+                        toast({
+                          title: t("nodeDetail.gps.missing", "GPS data missing"),
+                        });
                       }
                     }
                   })();
@@ -1044,8 +1120,11 @@ export const NodeDetail = ({
             <NodeSignalChart
               snr={node.snr}
               rssi={
-                (node as unknown as ProtobufType.Mesh.NodeInfo & { rxRssi?: number }).rxRssi ??
-                undefined
+                (
+                  node as unknown as ProtobufType.Mesh.NodeInfo & {
+                    rxRssi?: number;
+                  }
+                ).rxRssi ?? undefined
               }
               noBackground={true}
               invertOrder={true}

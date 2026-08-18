@@ -74,6 +74,15 @@ describe("AppStore – basic state & actions", () => {
 
     state.setPendingNodeSearch(undefined);
     expect(useAppStore.getState().pendingNodeSearch).toBeUndefined();
+
+    state.setPendingNodeInfoAction({ nodeNum: 888, variant: "more" });
+    expect(useAppStore.getState().pendingNodeInfoAction).toEqual({
+      nodeNum: 888,
+      variant: "more",
+    });
+
+    state.setPendingNodeInfoAction(undefined);
+    expect(useAppStore.getState().pendingNodeInfoAction).toBeUndefined();
   });
 
   it("setRasterSources replaces; addRasterSource appends; removeRasterSource splices by index", async () => {
@@ -137,6 +146,7 @@ describe("AppStore – persistence: partialize + rehydrate", () => {
       expect(state.nodeNumToBeRemoved).toBe(0);
       expect(state.nodeNumDetails).toBe(0);
       expect(state.pendingNodeSearch).toBeUndefined();
+      expect(state.pendingNodeInfoAction).toBeUndefined();
 
       // methods still work post-rehydrate:
       state.addRasterSource(makeRaster({ title: "z" }));

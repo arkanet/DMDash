@@ -14,6 +14,11 @@ type AppData = {
   identiconsEnabled: boolean;
 };
 
+export type PendingNodeInfoAction = {
+  nodeNum: number;
+  variant: "more" | "plus";
+};
+
 export interface AppState extends AppData {
   // Ephemeral state (not persisted)
   selectedDeviceId: number;
@@ -22,6 +27,7 @@ export interface AppState extends AppData {
   nodeNumDetails: number;
   commandPaletteOpen: boolean;
   pendingNodeSearch: string | undefined;
+  pendingNodeInfoAction: PendingNodeInfoAction | undefined;
 
   setRasterSources: (sources: RasterSource[]) => void;
   addRasterSource: (source: RasterSource) => void;
@@ -30,6 +36,7 @@ export interface AppState extends AppData {
   setSelectedDevice: (deviceId: number) => void;
   setCommandPaletteOpen: (open: boolean) => void;
   setPendingNodeSearch: (nodeName: string | undefined) => void;
+  setPendingNodeInfoAction: (action: PendingNodeInfoAction | undefined) => void;
   setNodeNumToBeRemoved: (nodeNum: number) => void;
   setConnectDialogOpen: (open: boolean) => void;
   setNodeNumDetails: (nodeNum: number) => void;
@@ -41,6 +48,7 @@ export const deviceStoreInitializer: StateCreator<AppState> = (set, _get) => ({
   identiconsEnabled: true,
   commandPaletteOpen: false,
   pendingNodeSearch: undefined,
+  pendingNodeInfoAction: undefined,
   connectDialogOpen: false,
   nodeNumToBeRemoved: 0,
   nodeNumDetails: 0,
@@ -88,6 +96,13 @@ export const deviceStoreInitializer: StateCreator<AppState> = (set, _get) => ({
     set(
       produce<AppState>((draft) => {
         draft.pendingNodeSearch = nodeName;
+      }),
+    );
+  },
+  setPendingNodeInfoAction: (action) => {
+    set(
+      produce<AppState>((draft) => {
+        draft.pendingNodeInfoAction = action;
       }),
     );
   },
