@@ -30,6 +30,7 @@ import { useDeviceStore } from "@core/stores";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  DownloadIcon,
   ExternalLink,
   LinkIcon,
   MoreHorizontal,
@@ -53,6 +54,8 @@ const DARKMESH_RETURN_LINKS = [
   { href: "https://maps.loracity.it", label: "MAPS" },
   { href: "https://mesh.loracity.it/", label: "BLOG" },
 ] as const;
+
+const DARKMESH_IOS_DOWNLOAD_HREF = "https://dmdash.arkantiko.com/downloads/darkmesh.ipa";
 
 export const Connections = () => {
   const {
@@ -181,6 +184,15 @@ export const Connections = () => {
                     <RouterIcon className="size-5" />
                     {t("button.addConnection")}
                   </Button>
+                  <a
+                    href={DARKMESH_IOS_DOWNLOAD_HREF}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-emerald-500/35 bg-emerald-950/60 px-4 py-2 text-sm font-medium text-zinc-100 transition-colors hover:bg-emerald-900/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                  >
+                    <DownloadIcon className="size-4" />
+                    DarkMesh iOS
+                  </a>
                   <Button
                     onClick={goToDemo}
                     className="gap-2 border border-white/15 bg-black/20 text-zinc-100 hover:bg-white/10 hover:text-white"
@@ -200,7 +212,7 @@ export const Connections = () => {
                   key={link.href}
                   href={link.href}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-full border border-[#7a2424] bg-[#2a0f0f] px-3 py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-[#3a1515]"
                 >
                   {link.label}

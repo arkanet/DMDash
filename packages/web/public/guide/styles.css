@@ -39,6 +39,15 @@ a:hover {
     color: white;
 }
 
+code {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    padding: 2px 8px;
+    color: white;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.95em;
+}
+
 .shell {
     width: min(1120px, calc(100% - 32px));
     margin: 0 auto;
@@ -138,6 +147,15 @@ a:hover {
     color: #f2c9c9;
 }
 
+.button-download {
+    border-color: rgba(125, 211, 166, 0.32);
+    background: linear-gradient(180deg, rgba(7, 83, 59, 0.95), rgba(9, 48, 37, 0.95));
+}
+
+.button-download span {
+    color: #d6f7e4;
+}
+
 .toc {
     margin-top: 24px;
     padding: 20px 24px;
@@ -187,6 +205,58 @@ a:hover {
     padding: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.03);
+}
+
+.timeline {
+    counter-reset: install-step;
+    display: grid;
+    gap: 18px;
+    margin-top: 18px;
+}
+
+.timeline-step {
+    counter-increment: install-step;
+    position: relative;
+    padding: 18px 18px 18px 68px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.timeline-step::before {
+    content: counter(install-step);
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    color: white;
+    font-weight: 700;
+}
+
+.timeline-step h3 {
+    margin-top: 0;
+}
+
+.timeline-step .kicker {
+    margin: -2px 0 12px;
+    color: var(--muted);
+    font-style: italic;
+}
+
+.split-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.split-list .mini p {
+    margin-bottom: 0;
 }
 
 .callout {
@@ -265,6 +335,10 @@ a:hover {
     .brand {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .timeline-step {
+        padding: 64px 18px 18px;
     }
 }
 

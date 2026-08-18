@@ -14,17 +14,17 @@ const GUIDE_CONFIG: Record<
   landing: {
     assetPath: "/guide/index.html",
     assetBase: "/guide/",
-    title: "DMDash User Guide",
+    title: "DarkMesh iOS and DMDash User Guide",
   },
   en: {
     assetPath: "/guide/en/index.html",
     assetBase: "/guide/en/",
-    title: "DMDash User Guide (English)",
+    title: "DarkMesh iOS and DMDash User Guide (English)",
   },
   it: {
     assetPath: "/guide/it/index.html",
     assetBase: "/guide/it/",
-    title: "Guida utente DMDash",
+    title: "Guida utente DarkMesh iOS e DMDash",
   },
 };
 
@@ -62,6 +62,8 @@ function rewriteGuideHtml(html: string, assetBase: string): string {
     }
 
     const rewrittenHref = rewriteHref(href);
+    const isExternalHref = /^https?:\/\//.test(rewrittenHref);
+    const isDownloadHref = /\.ipa(?:[?#].*)?$/i.test(rewrittenHref);
     if (rewrittenHref !== href) {
       element.setAttribute("href", rewrittenHref);
     }
@@ -75,15 +77,15 @@ function rewriteGuideHtml(html: string, assetBase: string): string {
       return;
     }
 
-    if (rewrittenHref.startsWith("/")) {
+    if (rewrittenHref.startsWith("/") && !isDownloadHref) {
       element.removeAttribute("target");
       element.setAttribute("data-dmdash-route", rewrittenHref);
       return;
     }
 
-    element.setAttribute("target", "_top");
-    if (/^https?:\/\//.test(rewrittenHref)) {
-      element.setAttribute("rel", "noreferrer");
+    element.setAttribute("target", "_blank");
+    if (isExternalHref || isDownloadHref) {
+      element.setAttribute("rel", "noopener noreferrer");
     }
   });
 
@@ -254,7 +256,7 @@ export default function GuidePage({ variant = "landing" }: GuidePageProps) {
           <a
             href={fallbackLink}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="mt-5 inline-flex items-center rounded-full border border-[#7a2424] bg-[#551717] px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-[#6c1d1d] hover:text-white"
           >
             Open raw guide

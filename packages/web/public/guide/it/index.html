@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Guida utente DMDash</title>
+    <title>Guida utente DarkMesh iOS e DMDash</title>
     <link rel="icon" type="image/png" href="/darkmesh-logo.png" />
     <link rel="icon" href="/darkmesh-logo.png" />
     <link rel="apple-touch-icon" href="/darkmesh-logo.png" sizes="180x180" />
@@ -18,24 +18,29 @@
                 <img src="/darkmesh-logo.png" alt="Logo DarkMesh" />
                 <div>
                     <div class="eyebrow">Guida italiana</div>
-                    <h1>Come Usare DMDash</h1>
+                    <h1>Come usare DarkMesh iOS e DMDash</h1>
                     <p>
-                        DMDash è una dashboard web orientata a DarkMesh costruita sopra il client web Meshtastic.
-                        Questa guida è pensata per chi vuole usare bene l'app nella pratica: collegare il nodo,
-                        messaggiare, leggere la mappa, gestire i settings e sfruttare davvero gli strumenti del
-                        dashboard DarkMesh.
+                        DarkMesh iOS impacchetta la dashboard DMDash in una shell nativa iOS con Bluetooth nativo.
+                        Questa guida copre sia l'installazione dell'app su iPhone sia l'uso quotidiano: collegare la
+                        radio, messaggiare, leggere mappa e nodi, gestire i settings e sfruttare gli strumenti
+                        DarkMesh del dashboard.
                     </p>
                 </div>
             </div>
 
             <div class="actions">
+                <a class="button button-download" href="https://dmdash.arkantiko.com/downloads/darkmesh.ipa"
+                    target="_blank" rel="noopener noreferrer">
+                    <strong>DarkMesh iOS</strong>
+                    <span>Scarica il file <code>.ipa</code> dell'app.</span>
+                </a>
+                <a class="button" href="#installare-darkmesh-ios">
+                    <strong>Installa su iPhone</strong>
+                    <span>Segui la procedura AltServer, AltStore, autorizzazioni iOS e installazione IPA.</span>
+                </a>
                 <a class="button" href="/connections">
                     <strong>Apri Connessioni</strong>
                     <span>Parti da qui se devi ancora collegare o autorizzare il nodo.</span>
-                </a>
-                <a class="button" href="/dashboard">
-                    <strong>Apri Dashboard</strong>
-                    <span>Qui trovi notifiche, schedulazioni, beacon distress, hunting e manutenzione rapida.</span>
                 </a>
                 <a class="button" href="../en/">
                     <strong>Need English?</strong>
@@ -48,6 +53,8 @@
             <strong>Indice</strong>
             <ol>
                 <li><a href="#prima-di-iniziare">Prima di iniziare</a></li>
+                <li><a href="#installare-darkmesh-ios">Installare DarkMesh iOS su iPhone</a></li>
+                <li><a href="#usare-web-client-bridge">Usare il web client con Bluefy</a></li>
                 <li><a href="#collegare-il-nodo">Collegare il nodo</a></li>
                 <li><a href="#capire-le-aree-principali">Capire le aree principali</a></li>
                 <li><a href="#usare-il-dashboard-darkmesh">Usare il dashboard DarkMesh</a></li>
@@ -64,37 +71,190 @@
             <section class="panel" id="prima-di-iniziare">
                 <h2>Prima di iniziare</h2>
                 <ul>
-                    <li>DMDash gira nel browser, quindi alcune automazioni funzionano solo mentre la tab resta aperta e
-                        connessa.</li>
-                    <li>Bluetooth e Serial richiedono un browser con supporto Web Bluetooth o Web Serial. Chrome ed Edge
-                        sono le scelte più sicure.</li>
-                    <li>HTTP(S) è spesso il trasporto più semplice se il nodo o il gateway espone già un endpoint
-                        raggiungibile.</li>
+                    <li>Su iPhone, usa DarkMesh iOS: la shell nativa usa il Bluetooth iOS invece delle API Bluetooth
+                        del browser.</li>
+                    <li>Nel browser desktop, alcune automazioni funzionano solo mentre la tab resta aperta e connessa.
+                    </li>
+                    <li>Bluetooth e Serial web richiedono un browser con supporto Web Bluetooth o Web Serial. Chrome ed
+                        Edge sono le scelte più sicure.</li>
+                    <li>Su iPhone, se usi il web client invece dell'app nativa, aprilo con Bluefy o con un wrapper iOS
+                        che supporta Web Bluetooth: Safari non basta per il collegamento BLE.</li>
+                    <li>HTTP(S) e Network TCP verso bridge o gateway funzionano solo se anche DMDash è servito da un
+                        server locale sulla LAN, non da un dominio esterno.</li>
                     <li>Non tutti i nodi mostrano gli stessi tab: DMDash nasconde le sezioni che il firmware o il ruolo
                         del nodo non supportano.</li>
                 </ul>
                 <div class="callout">
-                    <strong>Percorso consigliato:</strong> collega prima il nodo, controlla che compaia nella sidebar e
-                    poi passa a Dashboard, Messaggi, Mappa e Settings.
+                    <strong>Percorso consigliato:</strong> su iPhone installa prima DarkMesh iOS, poi collega la radio
+                    da Connessioni e verifica che il nodo compaia nella sidebar. Da lì passa a Messaggi, Mappa,
+                    Dashboard e Settings.
+                </div>
+            </section>
+
+            <section class="panel" id="installare-darkmesh-ios">
+                <h2>Installare DarkMesh iOS su iPhone</h2>
+                <p>
+                    La procedura seguente usa AltServer e AltStore per installare il file <code>.ipa</code> di DarkMesh
+                    iOS su un iPhone. I passaggi sono in ordine cronologico.
+                </p>
+                <div class="actions">
+                    <a class="button button-download" href="https://dmdash.arkantiko.com/downloads/darkmesh.ipa"
+                        target="_blank" rel="noopener noreferrer">
+                        <strong>DarkMesh iOS</strong>
+                        <span>Scarica <code>darkmesh.ipa</code>.</span>
+                    </a>
+                </div>
+                <div class="timeline">
+                    <article class="timeline-step">
+                        <h3>Configurazione iniziale, solo la prima volta</h3>
+                        <p>
+                            Installa AltServer sul computer Windows o Mac, poi usa AltServer per trasferire AltStore
+                            sull'iPhone.
+                        </p>
+                        <div class="split-list">
+                            <div class="mini">
+                                <strong>Windows</strong>
+                                <p>Scarica e installa AltServer da <a href="https://altstore.io/" target="_blank"
+                                        rel="noopener noreferrer">altstore.io</a>.
+                                    Installa anche le versioni desktop ufficiali di iTunes e iCloud, non quelle del
+                                    Microsoft Store.</p>
+                            </div>
+                            <div class="mini">
+                                <strong>Mac</strong>
+                                <p>Scarica AltServer, aprilo e concedi i permessi di accessibilità richiesti dal
+                                    sistema.</p>
+                            </div>
+                        </div>
+                        <ol>
+                            <li>Collega l'iPhone al computer via cavo.</li>
+                            <li>Clicca l'icona di AltServer nella barra del computer.</li>
+                            <li>Seleziona <strong>Install AltStore &gt; [Nome iPhone]</strong>.</li>
+                            <li>Inserisci le credenziali del tuo Apple ID personale: servono ad Apple per generare il
+                                certificato gratuito locale.</li>
+                        </ol>
+                    </article>
+
+                    <article class="timeline-step">
+                        <h3>Autorizzazioni su iPhone</h3>
+                        <p class="kicker">Fondamentale: AltStore compare nella Home, ma non si apre finché iOS non
+                            autorizza il profilo sviluppatore.</p>
+                        <ol>
+                            <li>Vai in <strong>Impostazioni &gt; Generali &gt; VPN e gestione dispositivi</strong>.</li>
+                            <li>Sotto <strong>App sviluppatore</strong>, tocca l'indirizzo e-mail del tuo Apple ID.</li>
+                            <li>Premi <strong>Autorizza [Tua Email]</strong> e conferma di nuovo con
+                                <strong>Autorizza</strong>.</li>
+                            <li>Su iOS 16 o successivo, vai in <strong>Impostazioni &gt; Privacy e sicurezza &gt;
+                                    Modalità sviluppatore</strong>.</li>
+                            <li>Attiva l'interruttore, riavvia l'iPhone quando richiesto, sblocca lo schermo e conferma
+                                con <strong>Attiva</strong>.</li>
+                        </ol>
+                    </article>
+
+                    <article class="timeline-step">
+                        <h3>Installazione dell'app tramite file IPA</h3>
+                        <ol>
+                            <li>Scarica il file <code>.ipa</code> di DarkMesh iOS dal bottone qui sopra e salvalo
+                                nell'app File dell'iPhone.</li>
+                            <li>Lascia l'iPhone collegato al computer oppure sulla stessa rete Wi-Fi del computer su cui
+                                AltServer è attivo.</li>
+                            <li>Apri AltStore sull'iPhone.</li>
+                            <li>Vai nella scheda <strong>My Apps</strong> in basso.</li>
+                            <li>Tocca il tasto <strong>+</strong> in alto a sinistra.</li>
+                            <li>Seleziona il file <code>.ipa</code> di DarkMesh iOS.</li>
+                            <li>Attendi: AltStore ri-firma l'app con l'Apple ID e la installa direttamente nella Home
+                                screen.</li>
+                        </ol>
+                    </article>
+
+                    <article class="timeline-step">
+                        <h3>Uso quotidiano e rinnovo ogni 7 giorni</h3>
+                        <ul>
+                            <li><strong>Uso quotidiano:</strong> apri DarkMesh iOS normalmente dall'icona nella Home
+                                screen.</li>
+                            <li><strong>Rinnovo:</strong> ogni 7 giorni la licenza gratuita scade. Apri AltStore,
+                                entra in <strong>My Apps</strong> e premi <strong>Refresh All</strong> mentre l'iPhone è
+                                collegato al computer o sulla stessa rete Wi-Fi del computer con AltServer attivo.</li>
+                            <li>Puoi anche lasciare che AltStore provi il refresh automatico in background, ma AltServer
+                                deve comunque essere raggiungibile.</li>
+                        </ul>
+                    </article>
+                </div>
+            </section>
+
+            <section class="panel" id="usare-web-client-bridge">
+                <h2>Usare il web client con Bluefy</h2>
+                <p>
+                    Il flusso del video usa Bluefy come browser-wrapper Web Bluetooth per iPhone. Non è un bridge TCP
+                    sulla LAN: serve a permettere al sito DMDash di aprire il picker Bluetooth di iOS e parlare
+                    direttamente con il nodo. Questo percorso è utile anche sugli iPhone datati dove l'App Store non
+                    permette di installare il client Meshtastic ufficiale per requisito iOS.
+                </p>
+                <ol>
+                    <li>Installa e apri <strong>Bluefy</strong> dall'iPhone.</li>
+                    <li>Quando richiesto, consenti a Bluefy l'uso di <strong>Bluetooth</strong> e
+                        <strong>Notifiche</strong>.</li>
+                    <li>Nella barra indirizzi di Bluefy apri <a href="https://dmdash.arkantiko.com" target="_blank"
+                            rel="noopener noreferrer">https://dmdash.arkantiko.com</a>.</li>
+                    <li>Dal menu di Bluefy puoi entrare in <strong>modalità a schermo intero</strong> per usare DMDash
+                        con un'esperienza simile a un'app.</li>
+                    <li>In DMDash premi <strong>Add Connection</strong> e scegli la scheda
+                        <strong>Bluetooth</strong>.</li>
+                    <li>Premi <strong>Select device</strong>, seleziona il nodo nel picker Bluetooth di iOS e lascia
+                        attiva l'opzione per consentire al sito connessioni future o in background.</li>
+                    <li>Quando il nome viene compilato come <strong>BT: [Nome nodo]</strong>, premi
+                        <strong>Save connection</strong>.</li>
+                    <li>Se la connessione non parte da sola, premi <strong>Connect</strong> sulla card appena creata.</li>
+                    <li>Attendi il completamento di <strong>Configuring device</strong>: DMDash scarica nodi,
+                        configurazione e messaggi pregressi.</li>
+                    <li>Quando si apre Mappa o Nodi e lo stato in alto diventa verde, puoi usare messaggi, mappa,
+                        dettagli nodo, traceroute e menu contestuali.</li>
+                </ol>
+                <div class="callout">
+                    <strong>Aggiornamento rispetto al video YouTube:</strong> nel flusso originale l'app Meshtastic
+                    ufficiale serviva solo per fare il pairing iniziale e poi veniva scollegata per liberare il canale
+                    Bluetooth. Con il flusso Bluefy aggiornato, e con DarkMesh iOS, non serve più installarla: la
+                    selezione e il pairing partono dal picker Bluetooth di iOS.
+                </div>
+                <div class="note">
+                    <strong>Bridge di rete:</strong> se invece hai un gateway o un bridge locale sempre acceso sulla
+                    LAN, usa <strong>Network TCP</strong> o <strong>HTTP(S)</strong> in Connessioni solo da una copia
+                    di DMDash servita sulla stessa rete locale. Questo percorso non funziona da domini esterni ed è
+                    diverso da Bluefy.
                 </div>
             </section>
 
             <section class="panel" id="collegare-il-nodo">
                 <h2>Collegare il nodo</h2>
-                <h3>Opzione 1: HTTP(S)</h3>
+                <h3>Opzione 1: Bluetooth nativo iOS</h3>
                 <p>
-                    Sceglila quando il nodo o il gateway è già raggiungibile in rete. DMDash include un test connessione
-                    prima del salvataggio.
+                    Nell'app DarkMesh iOS scegli Bluetooth dalla pagina Connessioni. La selezione del device passa dal
+                    picker iOS e la connessione viene salvata per i riavvii successivi.
                 </p>
-                <h3>Opzione 2: Bluetooth</h3>
+                <h3>Opzione 2: HTTP(S)</h3>
                 <p>
-                    Utile quando il nodo è vicino e il browser supporta Web Bluetooth. Il browser ti chiederà di
-                    selezionare il device.
+                    Sceglila quando il nodo o il gateway è già raggiungibile in rete e stai usando DMDash da un server
+                    locale nella stessa LAN. DMDash include un test connessione prima del salvataggio.
                 </p>
-                <h3>Opzione 3: Serial</h3>
+                <h3>Opzione 3: Network TCP</h3>
+                <p>
+                    Usa Network TCP quando hai un endpoint Meshtastic TCP sulla LAN e il client DMDash è servito dalla
+                    LAN. Non usare questa modalità dal dominio pubblico: DMDash deve girare da un host locale, per
+                    esempio un computer o server nella stessa rete del gateway.
+                </p>
+                <h3>Opzione 4: Bluetooth web</h3>
+                <p>
+                    Utile quando il nodo è vicino e il browser supporta Web Bluetooth. Su iPhone usa Bluefy: il picker
+                    iOS ti chiede di selezionare il device e di autorizzare le connessioni future in background.
+                </p>
+                <h3>Opzione 5: Serial</h3>
                 <p>
                     Utile quando il nodo è collegato via USB e il browser supporta Web Serial.
                 </p>
+                <div class="callout">
+                    <strong>Reconnect:</strong> se una connessione BLE o Serial cade, l'app prova a ripristinarla senza
+                    chiederti subito di riselezionare il device. Se il retry fallisce, torna in Connessioni e ripeti il
+                    pairing.
+                </div>
                 <div class="note">
                     <strong>Se HTTP(S) fallisce:</strong> se il nodo usa un certificato self-signed, apri una volta
                     l'endpoint in una tab separata, accetta l'avviso del certificato e poi riprova il test da DMDash.
@@ -108,6 +268,11 @@
                         <strong>Dashboard</strong>
                         <span>Workflow DarkMesh: notifiche, traceroute, messaggi schedulati, beacon distress, hunt
                             forwarding, import/export, pruning.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Connessioni</strong>
+                        <span>Pairing radio, connessioni salvate, retry, default connection, BLE nativo iOS, Network TCP,
+                            HTTP(S), Bluetooth web e Serial.</span>
                     </div>
                     <div class="mini">
                         <strong>Messaggi</strong>
@@ -131,6 +296,11 @@
                         <strong>Remote Admin</strong>
                         <span>Lettura e scrittura remota per nodi compatibili, sempre divisa in Radio, Device e
                             Module.</span>
+                    </div>
+                    <div class="mini">
+                        <strong>Debug</strong>
+                        <span>Pannello tecnico dal Menu comandi per ispezionare eventi, stato runtime e diagnostica
+                            quando qualcosa non torna.</span>
                     </div>
                 </div>
             </section>
@@ -161,6 +331,11 @@
                 <p>
                     Il dashboard può validare e attivare le modalità di forwarding hunt locali o remote quando servono
                     davvero.
+                </p>
+                <h3>Mesh Stats e compressione</h3>
+                <p>
+                    Mesh Stats tiene traccia dei risparmi di compressione testo e ti permette di scegliere tra modalità
+                    compatibili con firmware DarkMesh legacy o con app-side compression di DarkMesh 2.7.26 e successivi.
                 </p>
                 <h3>Import, export e manutenzione</h3>
                 <p>
@@ -193,6 +368,10 @@
                     <li>Il badge Status Message compare sugli avatar quando il nodo pubblica uno status.</li>
                     <li>Il badge pulsa finché non apri popup mappa o dialog dettagli nodo, poi resta fisso.</li>
                     <li>Popup e dialog mostrano anche il testo completo dello Status Message quando esiste.</li>
+                    <li>Il traceroute visuale può essere avviato da popup e dettagli nodo per controllare il percorso.
+                    </li>
+                    <li>Quando il nodo pubblica power metrics, la mappa e i dettagli nodo mostrano tensione e corrente
+                        dei canali disponibili.</li>
                 </ul>
             </section>
 
@@ -258,12 +437,18 @@
                 <p>Di solito significa che il firmware corrente o il ruolo del nodo non li supporta.</p>
                 <h3>Bluetooth o Serial sono disabilitati</h3>
                 <p>Il browser probabilmente non ha il supporto Web API necessario o i permessi del contesto sicuro.</p>
+                <h3>AltStore o DarkMesh iOS non si aprono su iPhone</h3>
+                <p>Controlla di aver autorizzato il profilo sviluppatore in iOS e, su iOS 16 o successivo, di aver
+                    attivato la Modalità sviluppatore con riavvio completato.</p>
+                <h3>DarkMesh iOS scade dopo qualche giorno</h3>
+                <p>È normale con la firma gratuita via AltStore. Esegui <strong>Refresh All</strong> entro 7 giorni con
+                    AltServer raggiungibile dal telefono.</p>
                 <h3>Un'automazione non parte</h3>
                 <p>Tieni aperta la tab di DMDash e il device connesso. Le automazioni browser non sopravvivono come un
                     servizio foreground Android.</p>
                 <h3>HTTP(S) non si collega</h3>
-                <p>Apri prima l'endpoint direttamente nel browser e accetta l'avviso del certificato se il nodo usa un
-                    certificato self-signed.</p>
+                <p>Verifica prima che DMDash sia aperto da un server locale sulla LAN. Se l'endpoint usa un certificato
+                    self-signed, aprilo direttamente nel browser e accetta l'avviso del certificato.</p>
                 <div class="callout">
                     <strong>Buona pratica:</strong> considera DMDash una console operativa web molto ricca. Per workflow
                     lunghi e unattended, ricorda sempre che la sessione browser fa parte del runtime.
@@ -272,7 +457,7 @@
         </div>
 
         <div class="footer">
-            Built from the DMDash web package. Close this window for return to when you are ready.
+            Guida aggiornata per DarkMesh iOS, shell nativa e dashboard DMDash.
         </div>
     </main>
 </body>

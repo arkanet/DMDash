@@ -61,7 +61,7 @@ export const LocationResponseDialog = ({
                       point?.longitude ?? 0
                     }&layers=N`}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                   >
                     {" "}
                     {point?.latitude}, {point?.longitude}

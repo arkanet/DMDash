@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DMDash User Guide</title>
+    <title>DarkMesh iOS and DMDash User Guide</title>
     <link rel="icon" type="image/png" href="/darkmesh-logo.png" />
     <link rel="icon" href="/darkmesh-logo.png" />
     <link rel="apple-touch-icon" href="/darkmesh-logo.png" sizes="180x180" />
@@ -17,16 +17,16 @@
             <div class="brand">
                 <img src="/darkmesh-logo.png" alt="DarkMesh logo" />
                 <div>
-                    <div class="eyebrow">DMDash Web Guide</div>
-                    <h1>DMDash user documentation</h1>
+                    <div class="eyebrow">DarkMesh iOS Guide</div>
+                    <h1>DarkMesh iOS user documentation</h1>
                     <p>
-                        This guide is meant for people who want to use DMDash well without reading the source code
-                        first.
-                        It explains the real workflows currently exposed by the web app: connections, dashboard,
-                        messages, map, nodes, local settings, and Remote Admin.
+                        DarkMesh iOS packages the DMDash dashboard in a native iPhone shell with native Bluetooth.
+                        This guide explains installation, connections, dashboard workflows, messages, map, nodes, local
+                        settings, and Remote Admin.
                     </p>
                     <div class="kpis">
-                        <span>HTTP(S) / Bluetooth / Serial</span>
+                        <span>Native iOS BLE</span>
+                        <span>HTTP(S) / TCP / Bluetooth / Serial</span>
                         <span>Dashboard + automations</span>
                         <span>Messages + map + nodes</span>
                         <span>Local settings + Remote Admin</span>
@@ -35,14 +35,19 @@
             </div>
 
             <div class="actions">
+                <a class="button button-download" href="https://dmdash.arkantiko.com/downloads/darkmesh.ipa"
+                    target="_blank" rel="noopener noreferrer">
+                    <strong>DarkMesh iOS</strong>
+                    <span>Download the app <code>.ipa</code>.</span>
+                </a>
                 <a class="button" href="./en/">
                     <strong>Open the English guide</strong>
-                    <span>Task-oriented walkthrough for daily use, troubleshooting, and advanced features.</span>
+                    <span>Task-oriented walkthrough for installation, daily use, troubleshooting, and advanced
+                        features.</span>
                 </a>
                 <a class="button" href="./it/">
                     <strong>Apri la guida in italiano</strong>
-                    <span>Percorso completo per chi vuole usare DMDash in modo pratico senza entrare nei dettagli
-                        tecnici.</span>
+                    <span>Installazione iPhone, uso pratico di DMDash e flussi DarkMesh aggiornati.</span>
                 </a>
             </div>
         </section>
@@ -52,56 +57,66 @@
                 <h2>Quick start</h2>
                 <div class="card-grid">
                     <div class="mini">
-                        <strong>1. Connect a node</strong>
-                        <p>Use the Connections page to add an HTTP(S), Bluetooth, or Serial transport.</p>
+                        <strong>1. Install DarkMesh iOS</strong>
+                        <p>Use AltServer and AltStore to install the signed <code>.ipa</code> on your iPhone.</p>
+                        <a class="path" href="https://dmdash.arkantiko.com/downloads/darkmesh.ipa" target="_blank"
+                            rel="noopener noreferrer">darkmesh.ipa</a>
+                    </div>
+                    <div class="mini">
+                        <strong>2. Connect a node</strong>
+                        <p>Use native iOS BLE from the app, Bluefy/Web Bluetooth from the web client, or Network
+                            TCP/HTTP(S) only when DMDash is served from the same LAN as the bridge or gateway.</p>
                         <span class="path">/connections</span>
                     </div>
                     <div class="mini">
-                        <strong>2. Open the main app</strong>
+                        <strong>3. Use the dashboard</strong>
                         <p>Once a device is connected, move between Dashboard, Messages, Map, Settings, and Nodes from
                             the sidebar.</p>
                     </div>
                     <div class="mini">
-                        <strong>3. Keep the tab open for automations</strong>
-                        <p>Scheduled sends, distress beacons, hunt forwarding, and live notification loops work while
-                            the browser tab stays open and connected.</p>
+                        <strong>4. Keep the runtime active</strong>
+                        <p>In the browser, scheduled sends, distress beacons, hunt forwarding, and live notification
+                            loops work while the tab stays open and connected.</p>
                     </div>
                 </div>
                 <div class="note">
-                    <strong>Important:</strong> Bluetooth and Serial require browser support. HTTP(S) connections can
-                    require you to accept a self-signed certificate first.
+                    <strong>Important:</strong> Bluetooth and Serial require browser support. HTTP(S) and Network TCP
+                    bridge/gateway connections require DMDash to run from a local LAN server, not from an external
+                    domain.
                 </div>
             </section>
 
             <section class="panel">
-                <h2>What the current build already covers</h2>
-                <div class="link-grid">
+                <h2>Web client with Bluefy</h2>
+                <p>
+                    The DMDash web client can also run from iPhone through Bluefy. Bluefy acts as a Web Bluetooth
+                    wrapper, opens the iOS Bluetooth picker, and lets the site talk directly to the node.
+                </p>
+                <div class="card-grid">
                     <div class="mini">
-                        <strong>Dashboard</strong>
-                        <span>Notifications, traceroute history, scheduled message rules, distress beacon, hunt
-                            forwarding, import/export, pruning.</span>
+                        <strong>1. Open Bluefy</strong>
+                        <span>Allow Bluetooth and notifications, then open <code>dmdash.arkantiko.com</code>.</span>
                     </div>
                     <div class="mini">
-                        <strong>Messages</strong>
-                        <span>Broadcast and direct chats, replies, mentions, reactions, emoji picker, compression hints,
-                            inline node status.</span>
+                        <strong>2. Go full screen</strong>
+                        <span>Use the Bluefy menu to enter full screen mode when you want an app-like surface.</span>
                     </div>
                     <div class="mini">
-                        <strong>Map and nodes</strong>
-                        <span>Live markers, node popups, details dialog, status badges, environment metrics, neighbor
-                            info, filters, favorites.</span>
+                        <strong>3. Pair from DMDash</strong>
+                        <span>Open Add Connection, choose Bluetooth, select the device, and allow future background
+                            connections.</span>
                     </div>
                     <div class="mini">
-                        <strong>Settings and Remote Admin</strong>
-                        <span>Radio, device, and module configuration locally and remotely, with firmware-aware tab
-                            availability.</span>
+                        <strong>No Meshtastic app required</strong>
+                        <span>The older video used the official Meshtastic app only for first pairing; the updated flow
+                            starts pairing from the iOS Bluetooth picker.</span>
                     </div>
                 </div>
             </section>
         </section>
 
         <div class="footer">
-            Built from the DMDash web package. Close this window for return to when you are ready.
+            Built from the DarkMesh iOS and DMDash web packages.
         </div>
     </main>
 </body>

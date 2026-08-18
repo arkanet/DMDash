@@ -8,6 +8,7 @@ import { cn } from "@core/utils/cn.ts";
 import { useConnections } from "@pages/Connections/useConnections.ts";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
+  BookOpenIcon,
   CloudIcon,
   CrosshairIcon,
   MapIcon,
@@ -282,6 +283,17 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
             className="w-[min(18rem,calc(100vw-1.5rem))] border-slate-200 bg-white p-0 text-slate-900 shadow-xl dark:border-zinc-800 dark:bg-[#101010] dark:text-zinc-100"
           >
             <div className="flex flex-col py-2 text-[1.05rem]">
+              <button
+                type="button"
+                onClick={() => {
+                  navigate({ to: "/guide" });
+                  setOverflowOpen(false);
+                }}
+                className="flex items-center gap-3 px-5 py-3 text-left text-slate-800 hover:bg-slate-100 dark:text-zinc-100 dark:hover:bg-[#242424]"
+              >
+                <BookOpenIcon className="size-5" />
+                GUIDE
+              </button>
               <button
                 type="button"
                 onClick={() => {

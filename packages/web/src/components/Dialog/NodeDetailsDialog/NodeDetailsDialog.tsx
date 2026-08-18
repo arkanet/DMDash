@@ -253,10 +253,16 @@ export const NodeDetailsDialog = ({
       (currentNode.num === hardware.myNodeNum
         ? deviceMetadata.get(0)?.firmwareVersion
         : undefined) ??
-      (currentNode as Protobuf.Mesh.NodeInfo & { metadata?: { firmwareVersion?: string } }).metadata
-        ?.firmwareVersion ??
-      (currentNode as Protobuf.Mesh.NodeInfo & { deviceMetadata?: { firmwareVersion?: string } })
-        .deviceMetadata?.firmwareVersion,
+      (
+        currentNode as Protobuf.Mesh.NodeInfo & {
+          metadata?: { firmwareVersion?: string };
+        }
+      ).metadata?.firmwareVersion ??
+      (
+        currentNode as Protobuf.Mesh.NodeInfo & {
+          deviceMetadata?: { firmwareVersion?: string };
+        }
+      ).deviceMetadata?.firmwareVersion,
   );
   const currentPositionPoint = positionPoint(currentNode?.position);
   const computedShortName = getNodeShortName(currentNode) ?? t("unknown.shortName");
@@ -479,7 +485,9 @@ export const NodeDetailsDialog = ({
 
   async function handleRequestDeviceMetadata() {
     try {
-      toast({ title: t("nodeDetails.metadataRequestSent", "Request metadata sent") });
+      toast({
+        title: t("nodeDetails.metadataRequestSent", "Request metadata sent"),
+      });
       await requestDeviceMetadata(connection, currentNode.num, resolveAdminChannelIndex(channels));
     } catch (error) {
       logger.warn?.("dialog metadata request failed", error);
@@ -1048,7 +1056,7 @@ export const NodeDetailsDialog = ({
                                 className="text-blue-500 dark:text-blue-400"
                                 href={`https://www.openstreetmap.org/?mlat=${currentPositionPoint.latitude}&mlon=${currentPositionPoint.longitude}&layers=N`}
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noopener noreferrer"
                               >
                                 {currentPositionPoint.latitude}, {currentPositionPoint.longitude}
                               </a>
