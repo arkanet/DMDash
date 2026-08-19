@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 
 const NATIVE_APP_BUILD = import.meta.env.VITE_DARKMESH_NATIVE_APP === "true";
 const FALLBACK_PUBLIC_ORIGIN = "https://dmdash.arkantiko.com";
-const DARKMESH_IOS_BUNDLE_IDENTIFIER = "org.darkmesh.dmdash";
 const DARKMESH_IOS_IPA_PATH = "/downloads/darkmesh.ipa";
 const DARKMESH_IOS_SOURCE_PATH = "/altstore/source.json";
 
@@ -46,13 +45,6 @@ function getAbsolutePublicUrl(path: string, origin: string): string {
   return new URL(path, origin).href;
 }
 
-function getAltStoreSourceShareUrl(sourceUrl: string): string {
-  const source = new URL(sourceUrl);
-  return `https://altstore.io/source/${source.host}${source.pathname}?app=${encodeURIComponent(
-    DARKMESH_IOS_BUNDLE_IDENTIFIER,
-  )}`;
-}
-
 export default function InstallIOSPage() {
   const navigate = useNavigate();
   const nativeAppShell = isNativeAppShell();
@@ -67,7 +59,6 @@ export default function InstallIOSPage() {
     return {
       altStoreInstallSchemeUrl: `altstore://install?url=${encodeURIComponent(ipaUrl)}`,
       altStoreSourceSchemeUrl: `altstore://source?url=${encodeURIComponent(sourceUrl)}`,
-      altStoreSourceShareUrl: getAltStoreSourceShareUrl(sourceUrl),
       ipaUrl,
       sourceUrl,
     };
@@ -82,7 +73,7 @@ export default function InstallIOSPage() {
     const timeout = window.setTimeout(() => {
       setRedirectAttempted(true);
       if (browserProfile.isIOSLike) {
-        window.location.assign(links.altStoreSourceShareUrl);
+        window.location.assign(links.altStoreSourceSchemeUrl);
         return;
       }
 
@@ -92,7 +83,7 @@ export default function InstallIOSPage() {
     return () => window.clearTimeout(timeout);
   }, [
     browserProfile.isIOSLike,
-    links.altStoreSourceShareUrl,
+    links.altStoreSourceSchemeUrl,
     links.ipaUrl,
     nativeAppShell,
     navigate,
@@ -131,20 +122,13 @@ export default function InstallIOSPage() {
             </div>
           </div>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <a
-              href={links.altStoreSourceShareUrl}
+              href={links.altStoreSourceSchemeUrl}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-emerald-500/35 bg-emerald-950/60 px-4 py-3 text-sm font-semibold text-zinc-100 transition-colors hover:bg-emerald-900/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
             >
               <StoreIcon className="size-4" />
               AltStore source
-            </a>
-            <a
-              href={links.altStoreSourceSchemeUrl}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-white/15 bg-black/20 px-4 py-3 text-sm font-semibold text-zinc-100 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-            >
-              <ExternalLink className="size-4" />
-              Source direct
             </a>
             <a
               href={links.altStoreInstallSchemeUrl}
@@ -173,14 +157,6 @@ export default function InstallIOSPage() {
             >
               Torna a Connessioni
             </Button>
-            <a
-              href={links.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-zinc-400 underline-offset-4 hover:text-zinc-100 hover:underline"
-            >
-              Source JSON
-            </a>
           </div>
         </section>
       </main>
