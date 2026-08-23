@@ -206,6 +206,156 @@
   transition: width 150ms linear;
 }
 
+.darkmesh-config-panel {
+  --darkmesh-config-panel-bg: #111111;
+  --darkmesh-config-row-bg: #2f2f2f;
+  --darkmesh-config-row-border: #585858;
+  --darkmesh-config-text: #e8edf5;
+  --darkmesh-config-muted: #a3a3a3;
+  color: var(--darkmesh-config-text);
+}
+
+.darkmesh-config-panel [role="tabpanel"] {
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.darkmesh-config-panel .darkmesh-dynamic-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.darkmesh-config-panel .darkmesh-form-group {
+  gap: 0;
+}
+
+.darkmesh-config-panel .darkmesh-form-group + .darkmesh-form-group {
+  margin-top: 2rem;
+}
+
+.darkmesh-config-panel .darkmesh-form-group-header {
+  margin-bottom: 1.25rem;
+}
+
+.darkmesh-config-panel .darkmesh-form-group-header h4 {
+  font-size: clamp(1.65rem, 2.6vw, 2.4rem);
+  line-height: 1.15;
+  color: var(--darkmesh-config-text);
+}
+
+.darkmesh-config-panel .darkmesh-form-group-header p {
+  max-width: 52rem;
+  margin-top: 0.55rem;
+  color: var(--darkmesh-config-muted);
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.darkmesh-config-panel .darkmesh-form-group-header p:empty,
+.darkmesh-config-panel .darkmesh-field-description:empty {
+  display: none;
+}
+
+.darkmesh-config-panel .darkmesh-field-wrapper {
+  padding-top: 0;
+  border-top: 1px solid #2a2a2a;
+}
+
+.darkmesh-config-panel .darkmesh-field-wrapper:first-of-type {
+  border-top: 0;
+}
+
+.darkmesh-config-panel .darkmesh-field-grid {
+  display: flex;
+  min-height: 4.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+}
+
+.darkmesh-config-panel .darkmesh-field-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--darkmesh-config-text);
+  font-size: clamp(1.05rem, 1.6vw, 1.45rem);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.darkmesh-config-panel .darkmesh-field-body {
+  display: flex;
+  min-width: 0;
+  max-width: none;
+  flex: 0 1 58%;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.darkmesh-config-panel .darkmesh-field-description {
+  color: var(--darkmesh-config-muted);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.darkmesh-config-panel .darkmesh-field-control {
+  width: 100%;
+  margin-top: 0;
+}
+
+.darkmesh-config-panel .darkmesh-field-control-inner {
+  justify-content: flex-end;
+}
+
+.darkmesh-config-panel .darkmesh-field-control input,
+.darkmesh-config-panel .darkmesh-field-control textarea,
+.darkmesh-config-panel .darkmesh-field-control button[role="combobox"] {
+  min-height: 3.15rem;
+  border-color: var(--darkmesh-config-row-border);
+  background: var(--darkmesh-config-row-bg);
+  color: var(--darkmesh-config-text);
+  font-size: 1.15rem;
+}
+
+.darkmesh-config-panel .darkmesh-field-control input,
+.darkmesh-config-panel .darkmesh-field-control textarea {
+  width: 100%;
+}
+
+.darkmesh-config-panel .darkmesh-field-control button[role="combobox"] {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.darkmesh-config-panel .darkmesh-field-control button[role="switch"] {
+  border: 0;
+}
+
+.darkmesh-config-panel .darkmesh-field-control input:disabled,
+.darkmesh-config-panel .darkmesh-field-control textarea:disabled,
+.darkmesh-config-panel .darkmesh-field-control button:disabled {
+  opacity: 0.48;
+}
+
+@media (max-width: 950px) {
+  .darkmesh-config-panel .darkmesh-field-grid {
+    min-height: 4.35rem;
+    padding: 0.75rem 0;
+  }
+
+  .darkmesh-config-panel .darkmesh-field-label {
+    font-size: 1.2rem;
+  }
+
+  .darkmesh-config-panel .darkmesh-field-body {
+    flex-basis: 48%;
+  }
+}
+
 /* Accordion Animations */
 @keyframes accordion-down {
   from {

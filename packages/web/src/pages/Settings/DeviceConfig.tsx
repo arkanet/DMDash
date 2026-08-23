@@ -21,6 +21,7 @@ interface ConfigProps {
   onTabChange?: (value: string) => void;
   loadedTabs?: ReadonlySet<string>;
   loadingTabs?: ReadonlySet<string>;
+  hideTabs?: boolean;
 }
 
 type TabItem = {
@@ -36,6 +37,7 @@ export const DeviceConfig = ({
   onTabChange,
   loadedTabs,
   loadingTabs,
+  hideTabs,
 }: ConfigProps) => {
   const device = useDevice();
   const { hasConfigChange, hasUserChange } = useConfigTarget();
@@ -111,19 +113,21 @@ export const DeviceConfig = ({
 
   return (
     <Tabs {...tabsProps}>
-      <TabsList className="w-full dark:bg-slate-700">
-        {tabs.map((tab) => (
-          <TabsTrigger key={tab.case} value={tab.case} className="dark:text-white relative">
-            {tab.label}
-            {flags.get(tab.case) && (
-              <span className="absolute -top-0.5 -right-0.5 z-50 flex size-3">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-500 opacity-25" />
-                <span className="relative inline-flex size-3 rounded-full bg-sky-500" />
-              </span>
-            )}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      {!hideTabs && (
+        <TabsList className="w-full dark:bg-slate-700">
+          {tabs.map((tab) => (
+            <TabsTrigger key={tab.case} value={tab.case} className="dark:text-white relative">
+              {tab.label}
+              {flags.get(tab.case) && (
+                <span className="absolute -top-0.5 -right-0.5 z-50 flex size-3">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-500 opacity-25" />
+                  <span className="relative inline-flex size-3 rounded-full bg-sky-500" />
+                </span>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      )}
       {isLazyMode && !activeTab ? (
         <div className="mt-4 rounded-md border border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
           {t(

@@ -1,7 +1,13 @@
 import { ErrorPage } from "@components/UI/ErrorPage.tsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@components/UI/DropdownMenu.tsx";
 import { Spinner } from "@components/UI/Spinner.tsx";
 import { cn } from "@core/utils/cn.ts";
-import type { LucideIcon } from "lucide-react";
+import { ChevronDownIcon, type LucideIcon } from "lucide-react";
 import type React from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { MobileAppNav } from "./MobileAppNav.tsx";
@@ -10,12 +16,13 @@ export interface ActionItem {
   key: string;
   icon?: LucideIcon;
   iconClasses?: string;
-  onClick: () => void;
+  onClick?: () => void;
   disabled?: boolean;
   isLoading?: boolean;
   ariaLabel?: string;
   label?: string;
   className?: string;
+  subActions?: ActionItem[];
 }
 
 export interface PageLayoutProps {
@@ -78,11 +85,68 @@ export const PageLayout = ({
             <div className="flex min-w-0 items-center justify-end max-md:hidden">
               <div className="flex items-center space-x-1 md:space-x-2 shrink-0 pr-6">
                 {actions?.map((action) => {
+                  const Icon = action.icon;
+                  const isDisabled = action.disabled || action.isLoading;
+
+                  if (action.subActions?.length) {
+                    return (
+                      <DropdownMenu key={action.key}>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            disabled={isDisabled}
+                            className={cn(
+                              "flex items-center space-x-2 py-2 px-3 rounded-md",
+                              "text-foreground transition-colors duration-200",
+                              "disabled:opacity-50 disabled:cursor-not-allowed",
+                              action.className,
+                            )}
+                            aria-label={action.ariaLabel || action.label || `Action ${action.key}`}
+                            aria-disabled={action.disabled}
+                            aria-busy={action.isLoading}
+                          >
+                            {Icon &&
+                              (action.isLoading ? (
+                                <Spinner size="md" />
+                              ) : (
+                                <Icon className={cn("h-5 w-5", action.iconClasses)} />
+                              ))}
+                            {action.label && (
+                              <span className="text-sm px-1 pt-0.5">{action.label}</span>
+                            )}
+                            <ChevronDownIcon className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" sideOffset={8} className="w-64">
+                          {action.subActions.map((subAction) => {
+                            const SubIcon = subAction.icon;
+                            return (
+                              <DropdownMenuItem
+                                key={subAction.key}
+                                disabled={subAction.disabled || subAction.isLoading}
+                                className={cn("gap-2 cursor-pointer", subAction.className)}
+                                onSelect={() => subAction.onClick?.()}
+                              >
+                                {SubIcon &&
+                                  (subAction.isLoading ? (
+                                    <Spinner size="sm" />
+                                  ) : (
+                                    <SubIcon className={cn("h-4 w-4", subAction.iconClasses)} />
+                                  ))}
+                                {subAction.label ? <span>{subAction.label}</span> : null}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    );
+                  }
+
                   return (
                     <button
                       key={action.key}
                       type="button"
-                      disabled={action.disabled || action.isLoading}
+                      disabled={isDisabled}
                       className={cn(
                         "flex items-center space-x-2 py-2 px-3 rounded-md",
                         "text-foreground transition-colors duration-200",
@@ -94,11 +158,11 @@ export const PageLayout = ({
                       aria-disabled={action.disabled}
                       aria-busy={action.isLoading}
                     >
-                      {action.icon &&
+                      {Icon &&
                         (action.isLoading ? (
                           <Spinner size="md" />
                         ) : (
-                          <action.icon className={cn("h-5 w-5", action.iconClasses)} />
+                          <Icon className={cn("h-5 w-5", action.iconClasses)} />
                         ))}
                       {action.label && <span className="text-sm px-1 pt-0.5">{action.label}</span>}
                     </button>

@@ -30,12 +30,13 @@ interface MobileActionItem {
   key: string;
   icon?: MobileNavIcon;
   iconClasses?: string;
-  onClick: () => void;
+  onClick?: () => void;
   disabled?: boolean;
   isLoading?: boolean;
   ariaLabel?: string;
   label?: string;
   className?: string;
+  subActions?: MobileActionItem[];
 }
 
 interface MobileAppNavProps {
@@ -70,6 +71,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
   const pathname = useLocation({ select: (location) => location.pathname });
   const { t } = useTranslation("ui");
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const [actionPopoverOpen, setActionPopoverOpen] = useState<string | undefined>();
   const [isAutoReconnecting, setIsAutoReconnecting] = useState(false);
   const lastAutoReconnectAtRef = useRef(0);
   const manualDisconnectConnectionIdRef = useRef<number | undefined>(undefined);
@@ -105,6 +107,7 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
 
   useEffect(() => {
     setOverflowOpen(false);
+    setActionPopoverOpen(undefined);
   }, [pathname]);
 
   useEffect(() => {
@@ -378,11 +381,89 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
           <div className="flex items-center gap-2 overflow-x-auto">
             {mobileActions.map((action) => {
               const Icon = action.icon;
+              const isDisabled = action.disabled || action.isLoading;
+
+              if (action.subActions?.length) {
+                return (
+                  <Popover
+                    key={action.key}
+                    open={actionPopoverOpen === action.key}
+                    onOpenChange={(open) => setActionPopoverOpen(open ? action.key : undefined)}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        disabled={isDisabled}
+                        aria-label={action.ariaLabel || action.label || `Action ${action.key}`}
+                        aria-disabled={action.disabled}
+                        aria-busy={action.isLoading}
+                        className={cn(
+                          "inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-slate-300 bg-background-primary px-3 text-sm font-medium text-text-primary",
+                          "disabled:cursor-not-allowed disabled:opacity-50",
+                          "hover:bg-slate-200 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900",
+                          action.className,
+                        )}
+                      >
+                        {Icon ? (
+                          action.isLoading ? (
+                            <Spinner size="sm" />
+                          ) : (
+                            <Icon className={cn("size-4", action.iconClasses)} />
+                          )
+                        ) : null}
+                        {action.label ? (
+                          <span className="whitespace-nowrap">{action.label}</span>
+                        ) : null}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      sideOffset={8}
+                      className="w-[min(18rem,calc(100vw-1.5rem))] border-slate-200 bg-white p-1 text-slate-900 shadow-xl dark:border-zinc-800 dark:bg-[#101010] dark:text-zinc-100"
+                    >
+                      <div className="flex flex-col py-1">
+                        {action.subActions.map((subAction) => {
+                          const SubIcon = subAction.icon;
+                          return (
+                            <button
+                              key={subAction.key}
+                              type="button"
+                              disabled={subAction.disabled || subAction.isLoading}
+                              onClick={() => {
+                                subAction.onClick?.();
+                                setActionPopoverOpen(undefined);
+                              }}
+                              className={cn(
+                                "flex items-center gap-2 rounded-sm px-3 py-2 text-left text-sm font-medium",
+                                "disabled:cursor-not-allowed disabled:opacity-50",
+                                "hover:bg-slate-100 dark:hover:bg-[#242424]",
+                                subAction.className,
+                              )}
+                            >
+                              {SubIcon ? (
+                                subAction.isLoading ? (
+                                  <Spinner size="sm" />
+                                ) : (
+                                  <SubIcon className={cn("size-4", subAction.iconClasses)} />
+                                )
+                              ) : null}
+                              {subAction.label ? (
+                                <span className="min-w-0 truncate">{subAction.label}</span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                );
+              }
+
               return (
                 <button
                   key={action.key}
                   type="button"
-                  disabled={action.disabled || action.isLoading}
+                  disabled={isDisabled}
                   onClick={action.onClick}
                   aria-label={action.ariaLabel || action.label || `Action ${action.key}`}
                   aria-disabled={action.disabled}

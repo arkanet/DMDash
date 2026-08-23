@@ -163,14 +163,14 @@ export function DynamicForm<T extends FieldValues>({
   return (
     <FormProvider {...methods}>
       <form
-        className="space-y-8"
+        className="darkmesh-dynamic-form space-y-8"
         {...(submitType === "onSubmit"
           ? { onSubmit: handleSubmit(onSubmit) }
           : { onChange: handleSubmit(onSubmit) })}
       >
         {fieldGroups.map((fieldGroup) => (
-          <div key={fieldGroup.label} className="space-y-8 sm:space-y-5">
-            <div>
+          <div key={fieldGroup.label} className="darkmesh-form-group space-y-8 sm:space-y-5">
+            <div className="darkmesh-form-group-header">
               <Heading as="h4" className="font-medium">
                 {fieldGroup.label}
               </Heading>
