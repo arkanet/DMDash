@@ -187,6 +187,11 @@ export const Network = ({ onFormInit }: NetworkConfigProps) => {
               type: "select",
               name: "enabledProtocols",
               label: t("network.meshViaUdp.label"),
+              disabledBy: [
+                {
+                  fieldName: "wifiEnabled",
+                },
+              ],
               properties: {
                 enumValue: Protobuf.Config.Config_NetworkConfig_ProtocolFlags,
                 formatEnumName: true,
