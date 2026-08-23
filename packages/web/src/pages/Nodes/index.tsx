@@ -134,6 +134,7 @@ import {
   RSSI_GOOD_THRESHOLD,
   RSSI_FAIR_THRESHOLD,
 } from "@components/PageComponents/DarkMesh/GatewayHeader.tsx";
+import { RemoteAdminPanel } from "@pages/RemoteAdmin/index.tsx";
 // removed unused base16 import (MAC column removed)
 
 const NODEDB_DEBOUNCE_MS = 250;
@@ -806,7 +807,7 @@ function EnvironmentInfoGrid({ metrics }: { metrics?: Protobuf.Telemetry.Environ
   );
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 gap-2">
       {visibleCards.map((card) => (
         <EnvironmentInfoCard key={card.id} {...card} />
       ))}
@@ -857,7 +858,7 @@ function PowerInfoGrid({ metrics }: { metrics?: Protobuf.Telemetry.PowerMetrics 
   }
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 gap-2">
       {visibleCards.map((card) => (
         <EnvironmentInfoCard key={card.id} {...card} />
       ))}
@@ -879,13 +880,13 @@ interface EnvironmentInfoCardProps {
 
 function EnvironmentInfoCard({ icon: Icon, label, value, rotate = 0 }: EnvironmentInfoCardProps) {
   return (
-    <div className="flex min-h-28 flex-col items-center justify-center rounded-lg bg-[#252525] px-2 py-4 text-center">
+    <div className="flex min-h-20 flex-col items-center justify-center rounded-md bg-[#252525] px-1.5 py-2 text-center">
       <Icon
-        className="mb-2 size-8 text-zinc-100"
+        className="mb-1.5 size-6 text-zinc-100"
         style={rotate ? { transform: `rotate(${rotate}deg)` } : undefined}
       />
-      <div className="text-sm font-semibold leading-tight text-zinc-200">{label}</div>
-      <div className="mt-1 break-words text-2xl leading-tight text-zinc-100">{value}</div>
+      <div className="text-[11px] font-semibold leading-tight text-zinc-200">{label}</div>
+      <div className="mt-1 break-words text-lg leading-tight text-zinc-100">{value}</div>
     </div>
   );
 }
@@ -2404,7 +2405,7 @@ const NodesPage = (): JSX.Element => {
       >
         <DialogContent
           aria-describedby={undefined}
-          className="inset-0 h-dvh max-h-dvh w-screen max-w-none rounded-none bg-[#111] p-0 text-zinc-100 dark:bg-[#111] sm:max-w-none sm:rounded-none"
+          className="max-md:inset-0 max-md:h-dvh max-md:max-h-dvh max-md:w-screen max-md:max-w-none max-md:rounded-none bg-[#111] p-0 text-zinc-100 dark:bg-[#111] md:left-1/2 md:top-1/2 md:h-[min(90vh,44rem)] md:w-[512px] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-visible md:rounded-lg"
         >
           {selectedNodeInfoNode ? (
             <MobileNodeInfoDialog
@@ -2435,6 +2436,7 @@ export function MobileNodeInfoDialog({
   const identiconsEnabled = useAppStore((s) => s.identiconsEnabled);
   const [shareOpen, setShareOpen] = useState(false);
   const [activeLog, setActiveLog] = useState<"traceroute" | "neighbor" | undefined>();
+  const [remoteAdminOpen, setRemoteAdminOpen] = useState(false);
   const [selectedTraceLog, setSelectedTraceLog] = useState<
     Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery> | undefined
   >();
@@ -2507,11 +2509,7 @@ export function MobileNodeInfoDialog({
   };
 
   const openRemoteAdmin = () => {
-    onClose();
-    navigate({
-      to: "/remote-admin/$nodeNum/radio",
-      params: { nodeNum: String(node.num) },
-    });
+    setRemoteAdminOpen(true);
   };
 
   const registryRows = [
@@ -2536,44 +2534,44 @@ export function MobileNodeInfoDialog({
   ] as const;
 
   return (
-    <div className="flex h-full flex-col bg-[#111] text-zinc-100">
-      <div className="flex items-center gap-3 border-b border-zinc-800 bg-[#202020] px-4 py-3">
+    <div className="relative flex h-full min-h-0 flex-col bg-[#111] text-zinc-100">
+      <div className="flex items-center gap-2.5 border-b border-zinc-800 bg-[#202020] px-3 py-2">
         <button
           type="button"
-          className="rounded-full p-2 text-zinc-100 hover:bg-white/10"
+          className="rounded-full p-1.5 text-zinc-100 hover:bg-white/10"
           onClick={onClose}
           aria-label="Close node info"
         >
-          <ArrowLeftIcon className="size-6" />
+          <ArrowLeftIcon className="size-5" />
         </button>
-        <DialogTitle className="min-w-0 text-base font-semibold text-zinc-100">
+        <DialogTitle className="min-w-0 text-sm font-semibold text-zinc-100">
           <span className="block truncate">{longName}</span>
-          <span className="block truncate text-sm font-normal text-zinc-300">
+          <span className="block truncate text-xs font-normal text-zinc-300">
             {hardwareModel ?? "UNSET"}
           </span>
         </DialogTitle>
         <DialogClose className="sr-only" />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {identiconsEnabled ? (
           <InfoSection title="Personal Identicon">
-            <div className="flex justify-center rounded-md bg-[#202020] py-4">
+            <div className="flex justify-center rounded-md bg-[#202020] py-3">
               <div
-                className="inline-flex items-center gap-3 rounded-full px-3 py-2"
+                className="inline-flex items-center gap-2 rounded-full px-3 py-1.5"
                 style={getNodeBaseColorStyle(node.num)}
               >
                 <Avatar nodeNum={node.num} size="lg" showStatusIndicator={false} />
-                <span className="text-xl font-semibold">{shortName}</span>
+                <span className="text-lg font-semibold">{shortName}</span>
               </div>
             </div>
           </InfoSection>
         ) : (
           <InfoSection title="Personal Info">
-            <div className="flex justify-center rounded-md bg-[#202020] py-5">
+            <div className="flex justify-center rounded-md bg-[#202020] py-3">
               {hardwareModelKey ? (
                 <DeviceImage
-                  className="h-32 max-w-full rounded-lg border-4 border-zinc-700 bg-zinc-100 p-3 object-contain"
+                  className="h-24 max-w-full rounded-lg border-4 border-zinc-700 bg-zinc-100 p-2 object-contain"
                   deviceType={hardwareModelKey}
                 />
               ) : (
@@ -2590,7 +2588,7 @@ export function MobileNodeInfoDialog({
 
         {hardwareModel ? (
           <InfoSection title="Device">
-            <div className="rounded-md bg-[#202020] p-4">
+            <div className="rounded-md bg-[#202020] p-3">
               <InfoLine
                 icon={CpuIcon}
                 label="Hardware"
@@ -2603,8 +2601,8 @@ export function MobileNodeInfoDialog({
 
         {nodeStatus ? (
           <InfoSection title="Status Message">
-            <div className="flex min-h-24 items-center justify-center rounded-md bg-[#202020] p-4 text-center">
-              <p className="whitespace-pre-wrap break-words italic text-zinc-200">
+            <div className="flex min-h-20 items-center justify-center rounded-md bg-[#202020] p-3 text-center">
+              <p className="whitespace-pre-wrap break-words text-sm italic text-zinc-200">
                 <ValidatedLinkText text={nodeStatus} />
               </p>
             </div>
@@ -2612,7 +2610,7 @@ export function MobileNodeInfoDialog({
         ) : null}
 
         <InfoSection title="Details">
-          <div className="rounded-md bg-[#202020] p-4">
+          <div className="rounded-md bg-[#202020] p-3">
             <InfoLine
               icon={HashIcon}
               label="Node Number"
@@ -2661,7 +2659,7 @@ export function MobileNodeInfoDialog({
         <InfoSection title="Share">
           <button
             type="button"
-            className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-4 py-3 text-left"
+            className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-3 py-2.5 text-left text-sm"
             onClick={() => setShareOpen(true)}
           >
             <span className="flex items-center gap-3">
@@ -2690,7 +2688,7 @@ export function MobileNodeInfoDialog({
               <button
                 type="button"
                 key={label}
-                className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-4 py-3 text-left"
+                className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-3 py-2.5 text-left text-sm"
                 onClick={onClick}
               >
                 <span
@@ -2712,7 +2710,7 @@ export function MobileNodeInfoDialog({
         <InfoSection title="Amministrazione">
           <button
             type="button"
-            className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-4 py-3 text-left"
+            className="flex w-full items-center justify-between rounded-sm bg-[#252525] px-3 py-2.5 text-left text-sm"
             onClick={openRemoteAdmin}
           >
             <span className="flex items-center gap-3">
@@ -2726,18 +2724,18 @@ export function MobileNodeInfoDialog({
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
         <DialogContent
           aria-describedby={undefined}
-          className="max-h-[86vh] max-w-[min(92vw,28rem)] rounded-2xl bg-[#151515] p-6 text-zinc-100"
+          className="max-h-[86vh] max-w-[min(92vw,24rem)] rounded-lg bg-[#151515] p-4 text-zinc-100"
         >
-          <DialogTitle className="text-center text-xl">Condividi</DialogTitle>
+          <DialogTitle className="text-center text-lg">Condividi</DialogTitle>
           <p className="text-center text-cyan-400">{longName}</p>
           <div className="mx-auto bg-white p-3">
-            <QRCode value={sharedContactUrl} size={260} qrStyle="squares" />
+            <QRCode value={sharedContactUrl} size={220} qrStyle="squares" />
           </div>
           <div className="flex items-start gap-3">
             <p className="min-w-0 flex-1 break-all text-cyan-400">{sharedContactUrl}</p>
             <button
               type="button"
-              className="rounded-full bg-cyan-700 p-3 text-white"
+              className="rounded-full bg-cyan-700 p-2.5 text-white"
               onClick={() => copyValue("Share Contact", sharedContactUrl)}
             >
               <CopyIcon className="size-5" />
@@ -2781,14 +2779,24 @@ export function MobileNodeInfoDialog({
         open={!!selectedTraceLog}
         onOpenChange={() => setSelectedTraceLog(undefined)}
       />
+      {remoteAdminOpen ? (
+        <div
+          role="dialog"
+          aria-modal="false"
+          aria-label="Remote Admin"
+          className="absolute z-[70] max-md:inset-0 max-md:h-dvh max-md:max-h-dvh max-md:w-screen max-md:max-w-none bg-[#111] text-zinc-100 shadow-2xl ring-1 ring-white/10 md:left-[calc(50%+8rem)] md:top-1/2 md:h-[min(90vh,44rem)] md:w-[512px] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-hidden md:rounded-lg"
+        >
+          <RemoteAdminPanel nodeNum={node.num} onClose={() => setRemoteAdminOpen(false)} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function InfoSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="mb-6">
-      <h2 className="mb-2 text-lg font-medium text-zinc-100">{title}</h2>
+    <section className="mb-4">
+      <h2 className="mb-2 text-base font-medium text-zinc-100">{title}</h2>
       {children}
     </section>
   );
@@ -2831,7 +2839,7 @@ function NodeLogPanel({
 }
 
 function MetricCard({ children }: { children: ReactNode }) {
-  return <div className="mb-3 rounded-md bg-[#202020] p-4 text-lg">{children}</div>;
+  return <div className="mb-2 rounded-md bg-[#202020] p-3 text-sm">{children}</div>;
 }
 
 function TraceRouteLog({
@@ -2858,10 +2866,10 @@ function TraceRouteLog({
             <button
               key={`${route.from}-${getPacketRxTimeMs(route.rxTime)}-${index}`}
               type="button"
-              className="flex w-full items-center gap-4 rounded-md bg-[#252525] p-4 text-left text-xl"
+              className="flex w-full items-center gap-3 rounded-md bg-[#252525] p-3 text-left text-base"
               onClick={() => onOpen(route)}
             >
-              <UsersIcon className="size-7 shrink-0" />
+              <UsersIcon className="size-6 shrink-0" />
               <span>
                 {formatLogDate(route.rxTime)} - {label}
               </span>
@@ -2910,10 +2918,10 @@ function NeighborLog({
             <button
               key={record.id}
               type="button"
-              className="flex w-full items-center gap-4 rounded-md bg-[#252525] p-4 text-left text-xl"
+              className="flex w-full items-center gap-3 rounded-md bg-[#252525] p-3 text-left text-base"
               onClick={() => setSelectedRecord(record)}
             >
-              <UsersIcon className="size-7 shrink-0" />
+              <UsersIcon className="size-6 shrink-0" />
               <span className="min-w-0 flex-1">
                 {formatLogDate(new Date(record.observedAt))} - {neighbors.length} nodi
               </span>
@@ -3023,11 +3031,11 @@ function InfoLine({
 }) {
   const content = (
     <>
-      <span className="flex min-w-0 items-center gap-3 text-zinc-200">
-        <Icon className={good ? "size-5 text-[#00e531]" : "size-5 text-zinc-100"} />
+      <span className="flex min-w-0 items-center gap-2 text-zinc-200">
+        <Icon className={good ? "size-4 text-[#00e531]" : "size-4 text-zinc-100"} />
         <span className="truncate">{label}</span>
       </span>
-      <span className="text-right text-zinc-100">{value}</span>
+      <span className="break-words text-right text-zinc-100">{value}</span>
     </>
   );
 
@@ -3035,7 +3043,7 @@ function InfoLine({
     return (
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-4 py-2 text-left text-sm"
+        className="flex w-full items-center justify-between gap-3 py-1.5 text-left text-xs"
         onClick={onClick}
       >
         {content}
@@ -3043,7 +3051,7 @@ function InfoLine({
     );
   }
 
-  return <div className="flex items-center justify-between gap-4 py-2 text-sm">{content}</div>;
+  return <div className="flex items-center justify-between gap-3 py-1.5 text-xs">{content}</div>;
 }
 
 export default NodesPage;

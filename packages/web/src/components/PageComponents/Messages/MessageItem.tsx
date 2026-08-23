@@ -1083,7 +1083,7 @@ export const MessageItem = ({
       >
         <DialogContent
           aria-describedby={undefined}
-          className="inset-0 h-dvh max-h-dvh w-screen max-w-none rounded-none bg-[#111] p-0 text-zinc-100 dark:bg-[#111] sm:max-w-none sm:rounded-none"
+          className="max-md:inset-0 max-md:h-dvh max-md:max-h-dvh max-md:w-screen max-md:max-w-none max-md:rounded-none bg-[#111] p-0 text-zinc-100 dark:bg-[#111] md:left-1/2 md:top-1/2 md:h-[min(90vh,44rem)] md:w-[512px] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-hidden md:rounded-lg"
         >
           {moreNodeInfo ? (
             <MobileNodeInfoDialog
