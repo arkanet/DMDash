@@ -13,7 +13,7 @@ export function ThemeDocumentController({ pathname }: ThemeDocumentControllerPro
 
   useEffect(() => {
     if (nativeShell) {
-      document.title = "DarkMesh iOS";
+      document.title = "DarkMesh";
     }
     document.documentElement.setAttribute("data-theme", documentTheme);
     document.documentElement.classList.toggle("darkmesh-ios-shell", nativeShell);

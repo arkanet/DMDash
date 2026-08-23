@@ -56,6 +56,8 @@ const GaugeHighIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const NATIVE_APP_BUILD = import.meta.env.VITE_DARKMESH_NATIVE_APP === "true";
+
 export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
   const { unreadCounts } = useDevice();
   const { getNodesLength } = useNodeDB();
@@ -238,7 +240,9 @@ export function MobileAppNav({ actions, subNav }: MobileAppNavProps) {
             <span className="truncate text-[1.9rem] font-semibold italic leading-none">
               DarkMesh
             </span>
-            <img src="/logo_web.svg" alt="WEB" className="h-6 w-auto shrink-0 object-contain" />
+            {!NATIVE_APP_BUILD ? (
+              <img src="/logo_web.svg" alt="WEB" className="h-6 w-auto shrink-0 object-contain" />
+            ) : null}
           </div>
         </div>
         <span

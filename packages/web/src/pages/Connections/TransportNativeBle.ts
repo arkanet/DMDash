@@ -53,7 +53,7 @@ export function isNativeBleAvailable(): boolean {
 
 export async function ensureNativeBleInitialized(): Promise<void> {
   if (!isNativeBleAvailable()) {
-    throw new Error("Native Bluetooth is only available inside the DarkMesh iOS mobile app.");
+    throw new Error("Native Bluetooth is only available inside the DarkMesh app for iOS.");
   }
 
   initializePromise ??= (async () => {

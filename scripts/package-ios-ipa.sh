@@ -6,8 +6,9 @@ IOS_DIR="$ROOT_DIR/packages/mobile/ios"
 BUILD_DIR="$IOS_DIR/build"
 WEB_DOWNLOADS_DIR="$ROOT_DIR/packages/web/public/downloads"
 IPA_PATH="$BUILD_DIR/darkmesh.ipa"
+PAYLOAD_APP_NAME="${DARKMESH_PAYLOAD_APP_NAME:-${DARKMESH_IOS_PAYLOAD_APP_NAME:-DarkMesh.app}}"
 
-APP_PATH="${DARKMESH_IOS_APP_PATH:-}"
+APP_PATH="${DARKMESH_APP_PATH:-${DARKMESH_IOS_APP_PATH:-}}"
 
 if [[ -z "$APP_PATH" ]]; then
   APP_PATH="$IOS_DIR/DerivedData/Build/Products/Debug-iphoneos/App.app"
@@ -27,8 +28,8 @@ fi
 
 rm -rf "$BUILD_DIR/Payload"
 mkdir -p "$BUILD_DIR/Payload" "$WEB_DOWNLOADS_DIR"
-cp -R "$APP_PATH" "$BUILD_DIR/Payload/App.app"
-node "$ROOT_DIR/scripts/prune-mobile-web-assets.mjs" "$BUILD_DIR/Payload/App.app/public"
+cp -R "$APP_PATH" "$BUILD_DIR/Payload/$PAYLOAD_APP_NAME"
+node "$ROOT_DIR/scripts/prune-mobile-web-assets.mjs" "$BUILD_DIR/Payload/$PAYLOAD_APP_NAME/public"
 
 rm -f "$IPA_PATH"
 (cd "$BUILD_DIR" && zip -qry "$(basename "$IPA_PATH")" Payload)

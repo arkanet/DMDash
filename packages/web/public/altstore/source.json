@@ -1,7 +1,7 @@
 {
-  "name": "DarkMesh iOS",
-  "subtitle": "DMDash iOS builds",
-  "description": "DarkMesh iOS packages DMDash in an iPhone shell with native Bluetooth LE support.",
+  "name": "DarkMesh",
+  "subtitle": "DarkMesh app for iOS builds from DMDash",
+  "description": "DarkMesh packages the DMDash dashboard in an iPhone shell with native Bluetooth LE support.",
   "website": "https://dmdash.arkantiko.com/",
   "iconURL": "https://dmdash.arkantiko.com/darkmesh-logo.png",
   "tintColor": "#0f5a42",
@@ -10,7 +10,7 @@
   ],
   "apps": [
     {
-      "name": "DarkMesh iOS",
+      "name": "DarkMesh",
       "bundleIdentifier": "org.darkmesh.dmdash",
       "developerName": "arkanet",
       "subtitle": "DMDash with native iOS BLE",
@@ -22,11 +22,11 @@
         {
           "version": "1.0",
           "buildVersion": "1",
-          "date": "2026-08-19",
-          "localizedDescription": "Current DarkMesh iOS build.",
+          "date": "2026-08-24",
+          "localizedDescription": "Current DarkMesh app for iOS build.",
           "downloadURL": "https://dmdash.arkantiko.com/downloads/darkmesh.ipa",
-          "size": 6617102,
-          "sha256": "a186dca5d0b03814c869bd7da0bfcf5021c90de743b329abc86eba2106db95db"
+          "size": 6629541,
+          "sha256": "d3fc9859ef310cbba923271c56c1d25db4f6cb1df31f495a1f48d03e96b4aaab"
         }
       ]
     }

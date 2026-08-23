@@ -1,17 +1,17 @@
 {
-  "name": "@meshtastic/web",
+  "name": "@dmdash/monorepo",
   "version": "2.7.0-0",
   "type": "module",
-  "description": "Meshtastic web client monorepo",
+  "description": "DMDash web client and DarkMesh iOS app monorepo",
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/meshtastic/web.git"
+    "url": "git+https://github.com/arkanet/DMDash.git"
   },
   "bugs": {
-    "url": "https://github.com/meshtastic/web/issues"
+    "url": "https://github.com/arkanet/DMDash/issues"
   },
-  "homepage": "https://meshtastic.org",
+  "homepage": "https://github.com/arkanet/DMDash",
   "lint-staged": {
     "*.{ts,tsx}": [
       "oxlint",
@@ -43,7 +43,7 @@
     "mobile:package:ios": "bash ./scripts/package-ios-ipa.sh",
     "mobile:build:ios": "pnpm mobile:sync && xcodebuild -project packages/mobile/ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath packages/mobile/ios/DerivedData CODE_SIGNING_ALLOWED=NO build && pnpm mobile:package:ios",
     "mobile:build:ios:device": "test -n \"$IOS_DEVICE_ID\" || (echo \"Set IOS_DEVICE_ID=<device-udid>\" && exit 1); pnpm mobile:sync && xcodebuild -project packages/mobile/ios/App/App.xcodeproj -scheme App -configuration Debug -destination \"platform=iOS,id=$IOS_DEVICE_ID\" -derivedDataPath packages/mobile/ios/DerivedData -allowProvisioningUpdates build && pnpm mobile:package:ios",
-    "mobile:archive:ios": "pnpm mobile:sync && xcodebuild -project packages/mobile/ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath packages/mobile/ios/build/DarkMesh-iOS.xcarchive archive && DARKMESH_IOS_APP_PATH=packages/mobile/ios/build/DarkMesh-iOS.xcarchive/Products/Applications/App.app pnpm mobile:package:ios",
+    "mobile:archive:ios": "pnpm mobile:sync && xcodebuild -project packages/mobile/ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath packages/mobile/ios/build/DarkMesh.xcarchive archive && DARKMESH_APP_PATH=packages/mobile/ios/build/DarkMesh.xcarchive/Products/Applications/App.app pnpm mobile:package:ios",
     "mobile:ios": "pnpm --filter @dmdash/mobile run open:ios",
     "mobile:doctor": "pnpm --filter @dmdash/mobile run doctor",
     "test": "vitest",

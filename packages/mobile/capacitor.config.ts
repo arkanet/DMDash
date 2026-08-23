@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "org.darkmesh.dmdash",
-  appName: "DarkMesh iOS",
+  appName: "DarkMesh",
   webDir: "../web/dist",
 };
 

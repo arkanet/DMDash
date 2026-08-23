@@ -40,16 +40,16 @@ const buildVersion = readBuildSetting(projectText, "CURRENT_PROJECT_VERSION", "1
 const today = getLocalDateString();
 
 const source = {
-  name: "DarkMesh iOS",
-  subtitle: "DMDash iOS builds",
-  description: "DarkMesh iOS packages DMDash in an iPhone shell with native Bluetooth LE support.",
+  name: "DarkMesh",
+  subtitle: "DarkMesh app for iOS builds from DMDash",
+  description: "DarkMesh packages the DMDash dashboard in an iPhone shell with native Bluetooth LE support.",
   website: publicUrl("/"),
   iconURL: publicUrl("/darkmesh-logo.png"),
   tintColor: "#0f5a42",
   featuredApps: [bundleIdentifier],
   apps: [
     {
-      name: "DarkMesh iOS",
+      name: "DarkMesh",
       bundleIdentifier,
       developerName: "arkanet",
       subtitle: "DMDash with native iOS BLE",
@@ -63,7 +63,7 @@ const source = {
           version,
           buildVersion,
           date: today,
-          localizedDescription: "Current DarkMesh iOS build.",
+          localizedDescription: "Current DarkMesh app for iOS build.",
           downloadURL: publicUrl("/downloads/darkmesh.ipa"),
           size: ipaStats.size,
           sha256,

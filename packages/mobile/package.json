@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Capacitor shell for the DarkMesh iOS application.",
+  "description": "Capacitor shell for the DarkMesh app for iOS built from the DMDash web client.",
   "scripts": {
     "build": "pnpm run build:web",
     "build:web": "VITE_DARKMESH_NATIVE_APP=true pnpm --filter meshtastic-web build",
