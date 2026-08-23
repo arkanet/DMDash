@@ -13,13 +13,14 @@ import { attachTcpBridgeProxy } from "./server/tcpProxy";
 
 let hash = "";
 let version = "v0.0.0";
+const vercelCommitHash = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
 try {
   hash = execSync("git rev-parse --short HEAD", {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
   }).trim();
 } catch {
-  hash = "DEV";
+  hash = vercelCommitHash || "DEV";
 }
 
 try {

@@ -1,9 +1,14 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createRequire } from "node:module";
-import type { Answer } from "dns-packet";
 
 const requireMdns = createRequire(import.meta.url);
 const mdns = requireMdns("multicast-dns") as typeof import("multicast-dns");
+
+type DnsAnswer = {
+  name: string;
+  type: string;
+  data?: unknown;
+};
 
 type NetworkProtocol = "http" | "tcp";
 
@@ -30,8 +35,8 @@ type ServiceRecord = {
   services: Map<NetworkProtocol, number>;
 };
 
-function answerData(answer: Answer): unknown {
-  return (answer as { data?: unknown }).data;
+function answerData(answer: DnsAnswer): unknown {
+  return answer.data;
 }
 
 function serviceProtocol(serviceType: string): NetworkProtocol | undefined {
@@ -56,12 +61,12 @@ function isLikelyMeshtasticDevice(device: NetworkDiscoveryDevice): boolean {
   );
 }
 
-function dataString(answer: Answer): string | undefined {
+function dataString(answer: DnsAnswer): string | undefined {
   const data = answerData(answer);
   return typeof data === "string" ? data : undefined;
 }
 
-function dataHostPort(answer: Answer): { target?: string; port?: number } | undefined {
+function dataHostPort(answer: DnsAnswer): { target?: string; port?: number } | undefined {
   const data = answerData(answer);
   if (!data || typeof data !== "object") {
     return undefined;
@@ -95,7 +100,7 @@ function getOrCreateRecord(records: Map<string, ServiceRecord>, name: string): S
   return created;
 }
 
-function collectAnswers(records: Map<string, ServiceRecord>, answers: Answer[]) {
+function collectAnswers(records: Map<string, ServiceRecord>, answers: DnsAnswer[]) {
   const hostAddresses = new Map<string, Set<string>>();
 
   for (const answer of answers) {
