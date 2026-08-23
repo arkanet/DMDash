@@ -151,14 +151,28 @@ function linkArrowFeatureCollection(
   return { type: "FeatureCollection", features };
 }
 
-function buildTraceCoordinates(
+type TracePositionStep = {
+  node: Protobuf.Mesh.NodeInfo;
+  coordinate: [number, number];
+  routeIndex: number;
+};
+
+function buildTracePositionSteps(
   nodes: Array<Protobuf.Mesh.NodeInfo | undefined>,
-): [number, number][] {
-  return nodes
-    .filter((node): node is Protobuf.Mesh.NodeInfo =>
-      Boolean(node?.position && hasPos(node.position)),
-    )
-    .map((node) => toLngLat(node.position));
+): TracePositionStep[] {
+  return nodes.flatMap((node, routeIndex) => {
+    if (!node?.position || !hasPos(node.position)) {
+      return [];
+    }
+
+    return [
+      {
+        node,
+        coordinate: toLngLat(node.position),
+        routeIndex,
+      },
+    ];
+  });
 }
 
 function pathDistanceKm(coords: [number, number][]): number {
@@ -169,6 +183,18 @@ function pathDistanceKm(coords: [number, number][]): number {
     total += distanceKm({ latitude: lat1, longitude: lon1 }, { latitude: lat2, longitude: lon2 });
   }
   return total;
+}
+
+function getTraceSegmentSnr(
+  values: readonly number[] | undefined,
+  fromStep: TracePositionStep,
+  toStep: TracePositionStep,
+): number | undefined {
+  const directValue = values?.[fromStep.routeIndex];
+  const bridgedValue = values?.[Math.max(0, toStep.routeIndex - 1)];
+  const value = directValue ?? bridgedValue;
+
+  return typeof value === "number" ? value / 4 : undefined;
 }
 
 function isMobileResponsiveViewport(): boolean {
@@ -803,10 +829,6 @@ const MapPageContent: React.FC = () => {
     const sourceNode = getNode(selectedTraceRoute.to);
     const destinationNode = getNode(selectedTraceRoute.from);
 
-    if (!sourceNode || !destinationNode) {
-      return undefined;
-    }
-
     const route = Array.isArray(selectedTraceRoute.data?.route)
       ? selectedTraceRoute.data.route
       : [];
@@ -824,8 +846,10 @@ const MapPageContent: React.FC = () => {
       ...routeBack.map((nodeNum) => getNode(nodeNum)),
       sourceNode,
     ].filter((node): node is Protobuf.Mesh.NodeInfo => Boolean(node));
-    const forwardCoordinates = buildTraceCoordinates(forwardNodes);
-    const backwardCoordinates = buildTraceCoordinates(backwardNodes);
+    const forwardSteps = buildTracePositionSteps(forwardNodes);
+    const backwardSteps = buildTracePositionSteps(backwardNodes);
+    const forwardCoordinates = forwardSteps.map((step) => step.coordinate);
+    const backwardCoordinates = backwardSteps.map((step) => step.coordinate);
 
     if (forwardCoordinates.length < 2 && backwardCoordinates.length < 2) {
       return undefined;
@@ -834,74 +858,70 @@ const MapPageContent: React.FC = () => {
     const involvedNodes = [...forwardNodes, ...backwardNodes].filter(
       (node, index, all) => all.findIndex((candidate) => candidate.num === node.num) === index,
     );
-    const positionedInvolvedNodes = involvedNodes.filter((node): node is Protobuf.Mesh.NodeInfo =>
-      Boolean(node.position && hasPos(node.position)),
+    const positionedInvolvedNodes = [...forwardSteps, ...backwardSteps]
+      .map((step) => step.node)
+      .filter(
+        (node, index, all) => all.findIndex((candidate) => candidate.num === node.num) === index,
+      );
+
+    const makeLineFeatures = (
+      steps: TracePositionStep[],
+      role: "forward" | "backward",
+      snrValues: readonly number[] | undefined,
+    ) =>
+      steps.slice(0, -1).map((step, i) => {
+        const nextStep = steps[i + 1] as TracePositionStep;
+        const a = step.coordinate;
+        const b = nextStep.coordinate;
+        const snr = getTraceSegmentSnr(snrValues, step, nextStep);
+
+        return {
+          type: "Feature" as const,
+          properties: {
+            role,
+            from: step.node.num,
+            to: nextStep.node.num,
+            snr,
+            snrForward: role === "forward" ? snr : undefined,
+            snrBackward: role === "backward" ? snr : undefined,
+            lengthKm: distanceKm(
+              { latitude: a[1], longitude: a[0] },
+              { latitude: b[1], longitude: b[0] },
+            ),
+          },
+          geometry: {
+            type: "LineString" as const,
+            coordinates: [a, b],
+          },
+        };
+      });
+
+    const sourceLabel = sourceNode
+      ? (getNodeLongName(sourceNode) ?? undefined)
+      : `!${numberToHexUnpadded(selectedTraceRoute.to).toUpperCase()}`;
+    const destinationLabel = destinationNode
+      ? (getNodeLongName(destinationNode) ?? undefined)
+      : `!${numberToHexUnpadded(selectedTraceRoute.from).toUpperCase()}`;
+
+    const knownPositionedNodeNums = new Set(positionedInvolvedNodes.map((node) => node.num));
+    const hasMissingNodePositions = involvedNodes.some(
+      (node) => !knownPositionedNodeNums.has(node.num),
     );
 
     return {
       trace: selectedTraceRoute,
       involvedNodes,
       positionedInvolvedNodes,
-      hasMissingNodePositions: positionedInvolvedNodes.length !== involvedNodes.length,
+      hasMissingNodePositions,
       involvedNodeNums: new Set(involvedNodes.map((node) => node.num)),
-      sourceLabel: getNodeLongName(sourceNode) ?? undefined,
-      destinationLabel: getNodeLongName(destinationNode) ?? undefined,
+      sourceLabel,
+      destinationLabel,
       totalDistance: pathDistanceKm(forwardCoordinates) + pathDistanceKm(backwardCoordinates),
       featureCollection: {
         type: "FeatureCollection" as const,
         features: [
-          ...(forwardCoordinates.length >= 2
-            ? forwardCoordinates.slice(0, -1).map((_, i) => {
-                const a = forwardCoordinates[i] as [number, number];
-                const b = forwardCoordinates[i + 1] as [number, number];
-                const fromNode = forwardNodes[i];
-                const toNode = forwardNodes[i + 1];
-                const snrVal = selectedTraceRoute.data?.snrTowards?.[i];
-                return {
-                  type: "Feature" as const,
-                  properties: {
-                    role: "forward",
-                    from: fromNode?.num,
-                    to: toNode?.num,
-                    snrForward: typeof snrVal === "number" ? snrVal / 4 : undefined,
-                    lengthKm: distanceKm(
-                      { latitude: a[1], longitude: a[0] },
-                      { latitude: b[1], longitude: b[0] },
-                    ),
-                  },
-                  geometry: {
-                    type: "LineString" as const,
-                    coordinates: [a as [number, number], b as [number, number]],
-                  },
-                };
-              })
-            : []),
-          ...(backwardCoordinates.length >= 2
-            ? backwardCoordinates.slice(0, -1).map((_, i) => {
-                const a = backwardCoordinates[i] as [number, number];
-                const b = backwardCoordinates[i + 1] as [number, number];
-                const fromNode = backwardNodes[i];
-                const toNode = backwardNodes[i + 1];
-                const snrVal = selectedTraceRoute.data?.snrBack?.[i];
-                return {
-                  type: "Feature" as const,
-                  properties: {
-                    role: "backward",
-                    from: fromNode?.num,
-                    to: toNode?.num,
-                    snrBackward: typeof snrVal === "number" ? snrVal / 4 : undefined,
-                    lengthKm: distanceKm(
-                      { latitude: a[1], longitude: a[0] },
-                      { latitude: b[1], longitude: b[0] },
-                    ),
-                  },
-                  geometry: {
-                    type: "LineString" as const,
-                    coordinates: [a as [number, number], b as [number, number]],
-                  },
-                };
-              })
-            : []),
+          ...makeLineFeatures(forwardSteps, "forward", selectedTraceRoute.data?.snrTowards),
+          ...makeLineFeatures(backwardSteps, "backward", selectedTraceRoute.data?.snrBack),
           ...positionedInvolvedNodes.map((n) => ({
             type: "Feature" as const,
             properties: {
