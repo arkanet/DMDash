@@ -35,7 +35,7 @@ import {
   shouldBlockDirectMessageNavigation,
 } from "@core/utils/directMessageKeyExchange.ts";
 import { resolveTextCompressionModeForFirmware } from "@core/utils/settingsCapabilities.ts";
-import { requestNodeInfo } from "@core/services/darkmesh/nodeActions.ts";
+import { requestNodeInfo, syncDirectMessageContact } from "@core/services/darkmesh/nodeActions.ts";
 import { cn } from "@core/utils/cn.ts";
 import { randId } from "@core/utils/randId.ts";
 import { Protobuf, Types, Constants } from "@meshtastic/core";
@@ -475,6 +475,12 @@ export const MessagesPage = () => {
       let messageId: number | undefined;
 
       try {
+        if (isDirect && otherNode?.user?.publicKey && otherNode.user.publicKey.length > 0) {
+          await syncDirectMessageContact(connection, otherNode).catch((error) => {
+            console.warn("direct message contact sync failed", error);
+          });
+        }
+
         if (opts?.compress) {
           try {
             if (typeof window !== "undefined" && window.localStorage) {
@@ -562,6 +568,7 @@ export const MessagesPage = () => {
       isDirect,
       myNodeNum,
       numericChatId,
+      otherNode,
       loraSpreadFactor,
       replyTo?.messageId,
       setMessageState,

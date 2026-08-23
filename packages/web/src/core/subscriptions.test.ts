@@ -559,6 +559,39 @@ describe("subscribeAll message status updates", () => {
     expect(device.setDialogOpen).not.toHaveBeenCalledWith("refreshKeys", true);
   });
 
+  it("does not open refresh keys for PKI_UNKNOWN when the node already has a public key", () => {
+    const events = createConnectionEvents();
+    const messageStore = useMessageStore.getState().addMessageStore(9010);
+    const device = createSubscriptionDevice(9010);
+    const nodeDB = createSubscriptionNodeDB();
+    nodeDB.getNode.mockReturnValue({
+      num: 123,
+      user: { publicKey: new Uint8Array([1, 2, 3]) },
+    });
+
+    subscribeAll(device as never, { events } as never, messageStore, nodeDB as never);
+
+    events.onRoutingPacket.dispatch({
+      channel: 0,
+      from: 123,
+      to: 0,
+      id: 999,
+      data: {
+        variant: {
+          case: "errorReason",
+          value: Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY,
+        },
+      },
+      type: "direct",
+      rxTime: new Date("2026-05-12T08:00:01Z"),
+    });
+
+    expect(nodeDB.clearRecoverableNodeError).toHaveBeenCalledWith(123);
+    expect(nodeDB.setNodeError).not.toHaveBeenCalled();
+    expect(device.setRefreshKeysNodeNum).not.toHaveBeenCalled();
+    expect(device.setDialogOpen).not.toHaveBeenCalledWith("refreshKeys", true);
+  });
+
   it("closes refresh keys when a later metadata response clears PKI_UNKNOWN", () => {
     const events = createConnectionEvents();
     const messageStore = useMessageStore.getState().addMessageStore(9007);

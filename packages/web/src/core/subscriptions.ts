@@ -501,6 +501,11 @@ export const subscribeAll = (
           break;
         case Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY:
           console.error(`Routing Error: ${routingPacket.data.variant.value}`);
+          if (nodeDB.getNode(routingPacket.from)?.user?.publicKey?.length) {
+            nodeDB.clearRecoverableNodeError(routingPacket.from);
+            dismissRecoveredPkiDialog(routingPacket.from);
+            break;
+          }
           if (hasRecentNodeResponse(routingPacket.from)) {
             dismissRecoveredPkiDialog(routingPacket.from);
             break;

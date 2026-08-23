@@ -576,10 +576,18 @@ function nodeDBFactory(
           if (!nodeDB) {
             throw new Error(`No nodeDB found (id: ${id})`);
           }
-          nodeDB.nodeErrors = new Map(nodeDB.nodeErrors).set(nodeNum, {
-            node: nodeNum,
-            error,
-          });
+
+          if (
+            error === Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY &&
+            hasPublicKey(nodeDB.nodeMap.get(nodeNum)?.user?.publicKey)
+          ) {
+            const updated = new Map(nodeDB.nodeErrors);
+            updated.delete(nodeNum);
+            nodeDB.nodeErrors = updated;
+            return;
+          }
+
+          recordNodeError(nodeDB, nodeNum, error);
         }),
       ),
 

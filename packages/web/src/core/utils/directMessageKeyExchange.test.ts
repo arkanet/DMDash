@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Protobuf } from "@meshtastic/core";
 import {
   getDirectMessageNavigationBlockDescription,
   getDirectMessageKeyExchangeDescription,
@@ -30,6 +31,18 @@ describe("getDirectMessageKeyExchangeStatus", () => {
         { node: 42, error: "MISMATCH_PKI" },
       ),
     ).toBe("key-error");
+  });
+
+  it("returns ready when PKI_UNKNOWN_PUBKEY is stale and the public key exists", () => {
+    expect(
+      getDirectMessageKeyExchangeStatus(
+        {
+          user: { publicKey: new Uint8Array([1, 2, 3]) },
+          isKeyManuallyVerified: true,
+        },
+        { node: 42, error: Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY },
+      ),
+    ).toBe("ready");
   });
 
   it("returns ready when the node key exists even if it is not manually verified", () => {
@@ -82,6 +95,16 @@ describe("getDirectMessageKeyExchangeStatus", () => {
         { node: 7, error: "MISMATCH_PKI" },
       ),
     ).toBe(true);
+
+    expect(
+      shouldBlockDirectMessageNavigation(
+        {
+          user: { publicKey: new Uint8Array([1, 2, 3]) },
+          isKeyManuallyVerified: true,
+        },
+        { node: 7, error: Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY },
+      ),
+    ).toBe(false);
 
     expect(
       shouldBlockDirectMessageNavigation({

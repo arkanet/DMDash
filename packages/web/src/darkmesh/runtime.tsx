@@ -4,6 +4,7 @@ import {
   getDirectMessageKeyExchangeDescription,
   getDirectMessageKeyExchangeStatus,
 } from "@core/utils/directMessageKeyExchange.ts";
+import { syncDirectMessageContact } from "@core/services/darkmesh/nodeActions.ts";
 import { useAppStore, useDevice, useNodeDB } from "@core/stores";
 import useNotificationsStore from "@core/stores/notificationsStore/index.ts";
 import { Protobuf, type Types } from "@meshtastic/core";
@@ -378,7 +379,7 @@ export function DarkMeshRuntime() {
       connection.events.onTelemetryPacket.unsubscribe(handleHuntPacket);
       connection.events.onTraceRoutePacket.unsubscribe(handleHuntPacket);
     };
-  }, [connection, getMyNode, getNode, getNodes, selectedDeviceId]);
+  }, [connection, deviceTraceroutes, getMyNode, getNode, getNodes, notify, selectedDeviceId]);
 
   useEffect(() => {
     if (!connection || selectedDeviceId === undefined || !huntEnabled) {
@@ -505,14 +506,19 @@ export function DarkMeshRuntime() {
           try {
             const sendTarget = resolveDestination(schedule.kind, schedule.destination);
             if (schedule.kind === "direct") {
+              const targetNode = getNode(schedule.destination);
               const keyExchangeStatus = getDirectMessageKeyExchangeStatus(
-                getNode(schedule.destination),
+                targetNode,
                 getNodeError(schedule.destination),
               );
 
               if (keyExchangeStatus !== "ready") {
                 throw new Error(getDirectMessageKeyExchangeDescription(keyExchangeStatus));
               }
+
+              await syncDirectMessageContact(connection, targetNode).catch((error) => {
+                console.warn("scheduled direct contact sync failed", error);
+              });
             }
             await connection.sendText(
               schedule.text,
@@ -578,14 +584,19 @@ export function DarkMeshRuntime() {
 
             const sendTarget = resolveDestination(beaconConfig.kind, beaconConfig.destination);
             if (beaconConfig.kind === "direct") {
+              const targetNode = getNode(beaconConfig.destination);
               const keyExchangeStatus = getDirectMessageKeyExchangeStatus(
-                getNode(beaconConfig.destination),
+                targetNode,
                 getNodeError(beaconConfig.destination),
               );
 
               if (keyExchangeStatus !== "ready") {
                 throw new Error(getDirectMessageKeyExchangeDescription(keyExchangeStatus));
               }
+
+              await syncDirectMessageContact(connection, targetNode).catch((error) => {
+                console.warn("beacon direct contact sync failed", error);
+              });
             }
             await connection.sendText(message, sendTarget.destination, true, sendTarget.channel);
             useDarkMeshStore.getState().markBeaconSent(selectedDeviceId);
@@ -634,7 +645,7 @@ export function DarkMeshRuntime() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [connection, getMyNode, selectedDeviceId, toast]);
+  }, [connection, getMyNode, getNode, getNodeError, huntEnabled, notify, selectedDeviceId, toast]);
 
   return null;
 }

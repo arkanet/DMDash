@@ -40,6 +40,8 @@ type ConnectionLike = {
   getMetadata?: (nodeNum: number) => Promise<unknown>;
 };
 
+type NodeContactLike = Pick<Protobuf.Mesh.NodeInfo, "num" | "user">;
+
 export function requestNodeInfo(
   connection: ConnectionLike | undefined,
   nodeNum: number,
@@ -71,6 +73,41 @@ export function requestNodeInfo(
   void request.catch((error) => {
     onRequestError?.(error);
   });
+}
+
+export async function syncDirectMessageContact(
+  connection: ConnectionLike | undefined,
+  node: NodeContactLike | undefined,
+) {
+  if (!connection || typeof connection.sendPacket !== "function") {
+    throw new Error("No connection available");
+  }
+
+  if (!node?.user?.publicKey || node.user.publicKey.length === 0) {
+    return false;
+  }
+
+  const contact = create(Protobuf.Admin.SharedContactSchema, {
+    nodeNum: node.num,
+    user: node.user,
+  });
+  const message = create(Protobuf.Admin.AdminMessageSchema, {
+    payloadVariant: {
+      case: "addContact",
+      value: contact,
+    },
+  });
+
+  await connection.sendPacket(
+    toBinary(Protobuf.Admin.AdminMessageSchema, message),
+    Protobuf.Portnums.PortNum.ADMIN_APP,
+    "self",
+    undefined,
+    true,
+    false,
+  );
+
+  return true;
 }
 
 export async function startVisualTraceroute(

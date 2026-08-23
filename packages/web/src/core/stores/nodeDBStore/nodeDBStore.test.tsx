@@ -239,6 +239,16 @@ describe("NodeDB store", () => {
     expect(db.getNodeError(11)?.error).toBe("MISMATCH_PKI");
   });
 
+  it("does not record PKI_UNKNOWN_PUBKEY when the node already has a public key", async () => {
+    const { useNodeDBStore } = await freshStore();
+    const db = useNodeDBStore.getState().addNodeDB(1);
+
+    db.addNode(makeNode(10, { user: makeUser({ publicKey: new Uint8Array([1, 2, 3]) }) }));
+    db.setNodeError(10, Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY);
+
+    expect(db.getNodeError(10)).toBeUndefined();
+  });
+
   it("getMyNode returns undefined before setNodeNum; works after", async () => {
     const { useNodeDBStore } = await freshStore();
     const db = useNodeDBStore.getState().addNodeDB(1);

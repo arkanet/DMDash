@@ -9,7 +9,11 @@ type NodeLike = {
 
 export type NodeKeyState = "pkc" | "missing-public-key" | "error";
 
-export function isNodeKeyError(nodeError?: NodeError): boolean {
+function hasNodePublicKey(node?: NodeLike): boolean {
+  return Boolean(node?.user?.publicKey && node.user.publicKey.length > 0);
+}
+
+export function isNodeKeyError(nodeError?: NodeError, node?: NodeLike): boolean {
   if (!nodeError) {
     return false;
   }
@@ -18,15 +22,19 @@ export function isNodeKeyError(nodeError?: NodeError): boolean {
     return ["MISMATCH_PKI", "DUPLICATE_PKI", "MISMATCH_IDENTITY"].includes(nodeError.error);
   }
 
-  return nodeError.error === Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY;
+  if (nodeError.error === Protobuf.Mesh.Routing_Error.PKI_UNKNOWN_PUBKEY) {
+    return !hasNodePublicKey(node);
+  }
+
+  return false;
 }
 
 export function getNodeKeyState(node?: NodeLike, nodeError?: NodeError): NodeKeyState {
-  if (isNodeKeyError(nodeError)) {
+  if (isNodeKeyError(nodeError, node)) {
     return "error";
   }
 
-  if (node?.user?.publicKey && node.user.publicKey.length > 0) {
+  if (hasNodePublicKey(node)) {
     return "pkc";
   }
 
