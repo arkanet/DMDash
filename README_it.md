@@ -1,16 +1,18 @@
 # DMDash
 
-*`DMDash` è una dashboard web orientata a DarkMesh costruita sopra il client web Meshtastic.*
+*`DMDash` è il repository unico per la dashboard web DarkMesh e per l'app DarkMesh per iOS, entrambe costruite sopra il client web Meshtastic.*
 
-Questo repository usa `meshtastic/web` come base tecnica, applica branding e UX DarkMesh, e mantiene la compatibilità con il contratto protobuf ufficiale di Meshtastic in modo che la dashboard rimanga interoperabile con l'ecosistema Meshtastic.
+Questo repository usa `meshtastic/web` come base tecnica, applica branding e UX DarkMesh, e mantiene la compatibilità con il contratto protobuf ufficiale di Meshtastic in modo che dashboard e app nativa rimangano interoperabili con l'ecosistema Meshtastic. L'app React condivisa vive in `packages/web`; il shell iOS in `packages/mobile` la impacchetta con Capacitor e BLE nativo.
 
 ## Obiettivo del progetto
 
-L'obiettivo di `DMDash` è fornire una dashboard web-first DarkMesh che:
+L'obiettivo di `DMDash` è fornire una singola codebase DarkMesh che:
 
 - preservi la compatibilità con il protocollo Meshtastic
 - riutilizzi il runtime web, i trasporti e il modello dati di Meshtastic
-- porti i flussi utente specifici DarkMesh dall'app Android al browser
+- distribuisca da questo repository sia il client web DMDash sia l'app DarkMesh per iOS
+- usi BLE nativo iOS invece del Web Bluetooth del browser quando gira nel shell mobile
+- porti i flussi utente specifici DarkMesh dall'app Android al browser e all'app iOS nativa
 - rimanga allineata ai branch firmware DarkMesh `2.7.15-ghost`, `2.7.21-ghost` e `2.7.26-darkmesh`, confrontandosi anche con le dichiarazioni hardware del firmware Meshtastic
 
 ## Cosa puoi fare oggi
@@ -18,6 +20,7 @@ L'obiettivo di `DMDash` è fornire una dashboard web-first DarkMesh che:
 La build attuale di DMDash espone queste funzionalità reali lato utente sopra la base Meshtastic web:
 
 - gestore connessioni con trasporti `HTTP(S)`, Web Bluetooth e Web Serial
+- shell app iOS Capacitor in `packages/mobile`, con scansione, pairing, connessione, scrittura, notify e disconnessione BLE nativi tramite `@capacitor-community/bluetooth-le`
 - dashboard DarkMesh con notifiche, Mesh Stats, storico traceroute, regole per messaggi schedulati, beacon distress, forwarding hunt e strumenti di manutenzione NodeDB
 - import/export `.dmdb` basato su `SharedContact` di Meshtastic
 - messaggi diretti e broadcast con reply, mention, reazioni, emoji picker, compressione Unishox2 lato app, fallback compressione firmware legacy, indicatori di compressione e avatar cliccabili
@@ -29,7 +32,7 @@ La build attuale di DMDash espone queste funzionalità reali lato utente sopra l
 - copertura dei moduli come `Remote Hardware`, `Status Message` e `Traffic Management` quando il firmware li supporta
 - icone web DarkMesh bianche su sfondo nero per favicon, Apple touch icon e installazione PWA
 
-La disponibilita effettiva di alcune funzioni dipende comunque da browser, trasporto scelto, firmware del nodo e ruolo del device.
+La disponibilita effettiva di alcune funzioni dipende comunque da browser, permessi iOS, trasporto scelto, firmware del nodo e ruolo del device.
 
 ## Documentazione utente
 
@@ -133,11 +136,57 @@ Policy e dettagli sono documentati in [docs/upstream-policy.md](docs/upstream-po
 
 - `pnpm`
 - Node.js compatibile con le dipendenze del workspace
+- Xcode per build iOS
+- team/profilo Apple Development per build su dispositivo fisico
 
 ### Installazione
 
 ```bash
 pnpm install
+```
+
+### Sincronizzare l'app iOS nativa
+
+```bash
+pnpm mobile:sync
+```
+
+Questo comando builda `packages/web` con il flag da app nativa, copia l'output web nel shell Capacitor e sincronizza plugin e asset nativi.
+
+### Compilare l'app iOS
+
+Per l'app iOS nativa, la build web è uno degli input copiati nel shell Capacitor prima della compilazione Xcode.
+
+Compilare il progetto iOS senza signing locale, utile per validare il target nativo e produrre un archivio IPA non firmato:
+
+```bash
+pnpm mobile:build:ios
+```
+
+Compilare per un iPhone di sviluppo collegato dopo aver configurato il signing:
+
+```bash
+IOS_DEVICE_ID=<device-udid> pnpm mobile:build:ios:device
+```
+
+Creare un archivio release per upload TestFlight/App Store:
+
+```bash
+pnpm mobile:archive:ios
+```
+
+Lo script di packaging crea `packages/mobile/ios/build/darkmesh.ipa`, lo copia in `packages/web/public/downloads/darkmesh.ipa` e rigenera `packages/web/public/altstore/source.json`.
+
+### Aprire il progetto iOS
+
+```bash
+pnpm mobile:ios
+```
+
+Il progetto iOS si trova qui:
+
+```text
+packages/mobile/ios/App/App.xcodeproj
 ```
 
 ### Avviare la dashboard web
@@ -174,6 +223,12 @@ Il repository espone diversi script di utilità nel `package.json` di root. Alcu
 - **Avviare dev server (web package)**: `pnpm --filter meshtastic-web dev`
 - **Typecheck (runtime)**: `pnpm --filter meshtastic-web typecheck`
 - **Typecheck completo**: `pnpm exec tsc --noEmit -p packages/web/tsconfig.json`
+- **Sincronizzare shell iOS nativo**: `pnpm mobile:sync`
+- **Compilare app iOS nativa**: `pnpm mobile:build:ios`
+- **Compilare per iPhone collegato**: `IOS_DEVICE_ID=<device-udid> pnpm mobile:build:ios:device`
+- **Archiviare per TestFlight/App Store**: `pnpm mobile:archive:ios`
+- **Aprire progetto iOS**: `pnpm mobile:ios`
+- **Capacitor doctor**: `pnpm mobile:doctor`
 - **Build di tutti i package**: `pnpm run build:all`
 - **Pulire tutti i package**: `pnpm run clean:all`
 - **Sincronizzare upstream**: `pnpm sync:upstreams`
@@ -235,7 +290,9 @@ L'app web è configurata come PWA con manifest adatto a iOS, metadata Apple touc
 - `VITE_WEB_PUSH_SUBSCRIBE_URL`
 - `VITE_WEB_PUSH_UNSUBSCRIBE_URL`
 
-Su iOS/iPadOS, Web Push richiede che il sito sia installato sulla Home Screen e aperto come web app standalone. iOS continua a non esporre Web Bluetooth a Safari o alle PWA installate, quindi le connessioni Bluetooth richiedono un browser/piattaforma con Web Bluetooth oppure un wrapper/app companion nativa basata su CoreBluetooth.
+Su iOS/iPadOS, Web Push richiede che il sito sia installato sulla Home Screen e aperto come web app standalone. iOS continua a non esporre Web Bluetooth a Safari o alle PWA installate, quindi le connessioni Bluetooth richiedono un browser/piattaforma con Web Bluetooth oppure il shell iOS nativo.
+
+Nel shell nativo iOS, pairing BLE e comunicazione radio usano lo stack Bluetooth nativo iOS tramite Capacitor invece del motore BLE del browser.
 
 Anche alcune sezioni di Settings e Remote Admin possono comparire o sparire in base al firmware e al ruolo del nodo target.
 
