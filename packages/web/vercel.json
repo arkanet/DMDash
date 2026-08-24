@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "installCommand": "HUSKY=0 pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm -w exec node scripts/generate-altstore-source.mjs && pnpm --filter meshtastic-web build",
+  "buildCommand": "cd ../.. && bash scripts/vercel-build.sh",
   "outputDirectory": "dist",
   "functions": {
     "api/**/*.ts": {
