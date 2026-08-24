@@ -39,6 +39,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate protobuf TypeScript bindings
+        run: pnpm --filter @meshtastic/protobufs build
+
       - name: Lint and format checks
         run: pnpm check
 

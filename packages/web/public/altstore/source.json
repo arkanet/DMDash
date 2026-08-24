@@ -25,8 +25,8 @@
           "date": "2026-08-24",
           "localizedDescription": "Current DarkMesh app for iOS build.",
           "downloadURL": "https://dmdash.vercel.app/downloads/darkmesh.ipa",
-          "size": 6629385,
-          "sha256": "d3959b5253e739da2f7d81e9d5aa5f90d273a574ac2e8c54ef1ac7d351f85ee4"
+          "size": 6629492,
+          "sha256": "6b8187dc6dbbfe394fe82aad3d54d219e29e6d90346ec394e349ef22171b59e2"
         }
       ]
     }

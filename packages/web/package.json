@@ -31,6 +31,7 @@
         "i18n:fix": "node ./scripts/i18n-sync.mjs --fix",
         "test": "vitest",
         "e2e": "node e2e/run-e2e.cjs",
+        "pretypecheck": "pnpm --filter @meshtastic/protobufs build",
         "typecheck": "pnpm exec tsc --noEmit -p tsconfig.typecheck.json",
         "preview": "vite preview",
         "docker:build": "docker build -t meshtastic-web:latest -f ./infra/Containerfile .",
