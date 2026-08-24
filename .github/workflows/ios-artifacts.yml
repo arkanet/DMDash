@@ -1,0 +1,139 @@
+name: DarkMesh iOS Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (branch, tag, or SHA) to build"
+        required: false
+        default: ""
+      public_origin:
+        description: "Public base URL used in the AltStore source JSON"
+        required: false
+        default: "https://dmdash.vercel.app"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ios-artifacts.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/generate-altstore-source.mjs"
+      - "scripts/package-ios-ipa.sh"
+      - "scripts/prune-mobile-web-assets.mjs"
+      - "packages/mobile/**"
+      - "packages/protobufs/**"
+      - "packages/web/index.html"
+      - "packages/web/package.json"
+      - "packages/web/vite.config.ts"
+      - "packages/web/public/**"
+      - "packages/web/src/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-artifacts-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  DARKMESH_PUBLIC_ORIGIN: ${{ github.event.inputs.public_origin || vars.DARKMESH_PUBLIC_ORIGIN || 'https://dmdash.vercel.app' }}
+
+jobs:
+  build-ios-artifacts:
+    name: Build DarkMesh iOS artifacts
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint and format checks
+        run: pnpm check
+
+      - name: Typecheck dashboard
+        run: pnpm --filter meshtastic-web typecheck
+
+      - name: Build iOS app and package IPA
+        run: pnpm mobile:build:ios
+
+      - name: Verify generated iOS artifacts
+        run: |
+          set -euo pipefail
+          test -f packages/mobile/ios/build/darkmesh.ipa
+          test -f packages/web/public/downloads/darkmesh.ipa
+          test -f packages/web/public/altstore/source.json
+          python3 - <<'PY'
+          import json
+          import zipfile
+          from pathlib import Path
+
+          ipa_paths = [
+              Path("packages/mobile/ios/build/darkmesh.ipa"),
+              Path("packages/web/public/downloads/darkmesh.ipa"),
+          ]
+          for ipa_path in ipa_paths:
+              if not zipfile.is_zipfile(ipa_path):
+                  raise SystemExit(f"{ipa_path} is not a valid IPA/ZIP archive")
+
+          source_path = Path("packages/web/public/altstore/source.json")
+          with source_path.open("r", encoding="utf-8") as handle:
+              json.load(handle)
+          PY
+
+      - name: Summarize iOS artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## DarkMesh iOS artifacts"
+            echo
+            echo "- IPA: \`packages/mobile/ios/build/darkmesh.ipa\`"
+            echo "- Web download copy: \`packages/web/public/downloads/darkmesh.ipa\`"
+            echo "- AltStore source: \`packages/web/public/altstore/source.json\`"
+            echo "- Public origin: \`${DARKMESH_PUBLIC_ORIGIN}\`"
+            echo
+            echo "\`\`\`text"
+            shasum -a 256 packages/mobile/ios/build/darkmesh.ipa
+            ls -lh packages/mobile/ios/build/darkmesh.ipa
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload iOS IPA and AltStore source
+        uses: actions/upload-artifact@v4
+        with:
+          name: darkmesh-ios-artifacts
+          path: |
+            packages/mobile/ios/build/darkmesh.ipa
+            packages/web/public/downloads/darkmesh.ipa
+            packages/web/public/altstore/source.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload iOS build directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: darkmesh-ios-build-directory
+          path: packages/mobile/ios/build/
+          if-no-files-found: error
+          retention-days: 30
