@@ -86,13 +86,11 @@ export class TransportNodeSerial implements Types.Transport {
             ctrl.enqueue(value);
           }
           ctrl.close();
-        } catch (error) {
-          if (this.closingByUser) {
-            ctrl.close(); // graceful EOF on user
-          } else {
+        } catch {
+          if (!this.closingByUser) {
             this.emitStatus(Types.DeviceStatusEnum.DeviceDisconnected, "read-error");
-            ctrl.error(error instanceof Error ? error : new Error(String(error)));
           }
+          ctrl.close();
           try {
             await transformed.cancel();
           } catch {}

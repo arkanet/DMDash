@@ -46,11 +46,7 @@ if (!existsSync(webIndexPath)) {
 
 copyDist(rootDistDir);
 
-if (
-  extraOutputDir &&
-  extraOutputDir !== rootDistDir &&
-  extraOutputDir !== webDistDir
-) {
+if (extraOutputDir && extraOutputDir !== rootDistDir && extraOutputDir !== webDistDir) {
   copyDist(extraOutputDir);
 }
 

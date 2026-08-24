@@ -67,7 +67,8 @@ const today = getLocalDateString();
 const source = {
   name: "DarkMesh",
   subtitle: "DarkMesh app for iOS builds from DMDash",
-  description: "DarkMesh packages the DMDash dashboard in an iPhone shell with native Bluetooth LE support.",
+  description:
+    "DarkMesh packages the DMDash dashboard in an iPhone shell with native Bluetooth LE support.",
   website: publicUrl("/"),
   iconURL: publicUrl("/darkmesh-logo.png"),
   tintColor: "#0f5a42",
