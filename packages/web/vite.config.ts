@@ -37,6 +37,14 @@ try {
 const CONTENT_SECURITY_POLICY =
   "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn-cookieyes.com; style-src 'self' 'unsafe-inline' data: https://rsms.me https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' data: https://rsms.me https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self';";
 
+function normalizePublicOrigin(origin: string | undefined): string {
+  const value = origin?.trim().replace(/\/+$/g, "");
+  if (!value) {
+    return "";
+  }
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
 const VENDOR_CHUNK_GROUPS = [
   {
     name: "router",
@@ -189,6 +197,13 @@ export default defineConfig(({ mode }) => {
 
   const isProd = mode === "production";
   const useHTTPS = env.VITE_USE_HTTPS === "true";
+  const publicOrigin =
+    normalizePublicOrigin(env.VITE_DARKMESH_PUBLIC_ORIGIN) ||
+    normalizePublicOrigin(process.env.DARKMESH_PUBLIC_ORIGIN) ||
+    normalizePublicOrigin(process.env.DARKMESH_PUBLIC_BASE_URL) ||
+    normalizePublicOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL) ||
+    normalizePublicOrigin(process.env.VERCEL_BRANCH_URL) ||
+    normalizePublicOrigin(process.env.VERCEL_URL);
 
   return {
     plugins: [
@@ -289,6 +304,7 @@ export default defineConfig(({ mode }) => {
     define: {
       "import.meta.env.VITE_COMMIT_HASH": JSON.stringify(hash),
       "import.meta.env.VITE_VERSION": JSON.stringify(version),
+      "import.meta.env.VITE_DARKMESH_PUBLIC_ORIGIN": JSON.stringify(publicOrigin),
     },
     build: {
       emptyOutDir: true,

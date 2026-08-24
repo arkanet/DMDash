@@ -5,7 +5,8 @@ import { DownloadIcon, ExternalLink, StoreIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const NATIVE_APP_BUILD = import.meta.env.VITE_DARKMESH_NATIVE_APP === "true";
-const FALLBACK_PUBLIC_ORIGIN = "https://dmdash.arkantiko.com";
+const FALLBACK_PUBLIC_ORIGIN =
+  import.meta.env.VITE_DARKMESH_PUBLIC_ORIGIN || "https://dmdash.vercel.app";
 const DARKMESH_IOS_IPA_PATH = "/downloads/darkmesh.ipa";
 const DARKMESH_IOS_SOURCE_PATH = "/altstore/source.json";
 

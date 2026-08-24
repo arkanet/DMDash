@@ -5,10 +5,35 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const publicOrigin = process.env.DARKMESH_PUBLIC_ORIGIN ?? "https://dmdash.arkantiko.com";
 const ipaPath = path.join(repoRoot, "packages/web/public/downloads/darkmesh.ipa");
 const outputPath = path.join(repoRoot, "packages/web/public/altstore/source.json");
 const projectPath = path.join(repoRoot, "packages/mobile/ios/App/App.xcodeproj/project.pbxproj");
+
+function normalizeOrigin(origin) {
+  const value = origin?.trim().replace(/\/+$/g, "");
+  if (!value) {
+    return undefined;
+  }
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+function firstOrigin(...names) {
+  for (const name of names) {
+    const origin = normalizeOrigin(process.env[name]);
+    if (origin) {
+      return origin;
+    }
+  }
+  return "https://dmdash.vercel.app";
+}
+
+const publicOrigin = firstOrigin(
+  "DARKMESH_PUBLIC_ORIGIN",
+  "DARKMESH_PUBLIC_BASE_URL",
+  "VERCEL_PROJECT_PRODUCTION_URL",
+  "VERCEL_BRANCH_URL",
+  "VERCEL_URL",
+);
 
 function readBuildSetting(projectText, key, fallback) {
   const match = projectText.match(new RegExp(`${key}\\s*=\\s*([^;]+);`));
