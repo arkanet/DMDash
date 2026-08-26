@@ -25,7 +25,6 @@ permissions:
 
 env:
   CI: true
-  REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
   release-dashboard:
@@ -98,6 +97,8 @@ jobs:
         id: gen
         shell: bash
         run: |
+          REPOSITORY="${GITHUB_REPOSITORY,,}"
+          echo "registry_image=ghcr.io/${REPOSITORY}" >> "$GITHUB_OUTPUT"
           echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
           echo "shortsha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -105,7 +106,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY_IMAGE }}
+          images: ${{ steps.gen.outputs.registry_image }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -155,10 +156,10 @@ jobs:
           echo
           echo "Pull examples:"
           if [[ "${{ github.event_name }}" == "release" && "${{ github.event.release.prerelease }}" == "false" ]]; then
-            echo "  docker pull ${{ env.REGISTRY_IMAGE }}:latest"
+            echo "  docker pull ${{ steps.gen.outputs.registry_image }}:latest"
           fi
-          echo "  docker pull ${{ env.REGISTRY_IMAGE }}:${{ github.event.release.tag_name || inputs.tag_name || format('adhoc-{0}', steps.gen.outputs.shortsha) }}"
-          echo "  docker pull ${{ env.REGISTRY_IMAGE }}:sha-${{ steps.gen.outputs.shortsha }}"
+          echo "  docker pull ${{ steps.gen.outputs.registry_image }}:${{ github.event.release.tag_name || inputs.tag_name || format('adhoc-{0}', steps.gen.outputs.shortsha) }}"
+          echo "  docker pull ${{ steps.gen.outputs.registry_image }}:sha-${{ steps.gen.outputs.shortsha }}"
 
       - name: Explain no image push
         if: ${{ !(github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.tag_name != '')) }}

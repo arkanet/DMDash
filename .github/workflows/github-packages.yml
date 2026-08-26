@@ -1,21 +1,26 @@
-name: Nightly Dashboard Build
+name: GitHub Packages Container
 
 on:
-  schedule:
-    - cron: "0 5 * * *"
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: github-packages-container-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CI: true
 
 jobs:
-  nightly-build-and-push:
-    name: Build and publish nightly dashboard
+  build-and-push-container:
+    name: Build and publish dashboard container
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
@@ -53,29 +58,17 @@ jobs:
       - name: Build dashboard
         run: pnpm --filter meshtastic-web build
 
-      - name: Package dashboard artifact
-        run: pnpm --filter meshtastic-web package
-
-      - name: Upload packaged dashboard
-        uses: actions/upload-artifact@v4
-        with:
-          name: dmdash-web-nightly
-          path: packages/web/dist/build.tar
-          if-no-files-found: error
-
-      - name: Compute nightly metadata
-        id: meta
+      - name: Compute container metadata
+        id: container_meta
         shell: bash
         run: |
           set -euo pipefail
-          DATE="$(date -u +%Y%m%d)"
-          ISO_CREATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          SHORTSHA="$(git rev-parse --short=12 HEAD)"
           REPOSITORY="${GITHUB_REPOSITORY,,}"
+          SHORTSHA="$(git rev-parse --short=12 HEAD)"
+          CREATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "registry_image=ghcr.io/${REPOSITORY}" >> "$GITHUB_OUTPUT"
-          echo "moving_tag=nightly" >> "$GITHUB_OUTPUT"
-          echo "immutable_tag=nightly-${DATE}-${SHORTSHA}" >> "$GITHUB_OUTPUT"
-          echo "created=${ISO_CREATED}" >> "$GITHUB_OUTPUT"
+          echo "shortsha=${SHORTSHA}" >> "$GITHUB_OUTPUT"
+          echo "created=${CREATED}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -90,7 +83,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push nightly image
+      - name: Build and push dashboard container
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -98,15 +91,20 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: |
-            ${{ steps.meta.outputs.registry_image }}:${{ steps.meta.outputs.moving_tag }}
-            ${{ steps.meta.outputs.registry_image }}:${{ steps.meta.outputs.immutable_tag }}
+            ${{ steps.container_meta.outputs.registry_image }}:main
+            ${{ steps.container_meta.outputs.registry_image }}:edge
+            ${{ steps.container_meta.outputs.registry_image }}:sha-${{ steps.container_meta.outputs.shortsha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+            org.opencontainers.image.created=${{ steps.container_meta.outputs.created }}
+            org.opencontainers.image.title=DMDash Dashboard
+            org.opencontainers.image.description=DMDash web dashboard container image
           provenance: false
 
-      - name: Print image URLs
+      - name: Print package refs
         run: |
-          echo "Moving tag:    ${{ steps.meta.outputs.registry_image }}:${{ steps.meta.outputs.moving_tag }}"
-          echo "Immutable tag: ${{ steps.meta.outputs.registry_image }}:${{ steps.meta.outputs.immutable_tag }}"
+          echo "GitHub Packages container refs:"
+          echo "  docker pull ${{ steps.container_meta.outputs.registry_image }}:main"
+          echo "  docker pull ${{ steps.container_meta.outputs.registry_image }}:edge"
+          echo "  docker pull ${{ steps.container_meta.outputs.registry_image }}:sha-${{ steps.container_meta.outputs.shortsha }}"

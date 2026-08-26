@@ -79,24 +79,23 @@ export default function NodeSelector({
           onChange={(e) => setFilter(e.target.value)}
           onFocus={() => setShowDropdown(true)}
         />
-        <div
-          role="button"
-          tabIndex={0}
-          className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm flex items-center dark:border-zinc-700 dark:bg-zinc-900 cursor-pointer"
+        <button
+          type="button"
+          aria-expanded={showDropdown}
+          aria-haspopup="listbox"
+          className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm flex items-center text-left dark:border-zinc-700 dark:bg-zinc-900 cursor-pointer"
           onClick={() => setShowDropdown((s) => !s)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setShowDropdown((s) => !s);
-            }
-          }}
         >
-          <div className="truncate">{selectedLabel ?? "-- choose node --"}</div>
-        </div>
+          <span className="truncate">{selectedLabel ?? "-- choose node --"}</span>
+        </button>
       </div>
 
       {showDropdown && (
-        <div className="absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-md border bg-white dark:bg-slate-800">
+        <div
+          className="absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-md border bg-white dark:bg-slate-800"
+          role="listbox"
+          aria-label="Node options"
+        >
           {filtered.length === 0 && (
             <div className="p-2 text-sm text-text-secondary">No matches</div>
           )}
@@ -104,6 +103,7 @@ export default function NodeSelector({
             <div
               key={n.num}
               role="option"
+              aria-selected={n.num === value}
               tabIndex={0}
               className="px-3 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
               onMouseDown={(e) => {

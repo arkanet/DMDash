@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { filterNodesByQuery } from "@core/utils/filterNodes.ts";
 import { Button } from "@components/UI/Button.tsx";
 import {
@@ -33,12 +33,26 @@ export default function PowerNotificationPanel({
   const addSchedule = useDarkMeshStore((s) => s.addSchedule);
   const removeSchedule = useDarkMeshStore((s) => s.removeSchedule);
 
+  const destToNodeId = useCallback(
+    (value: string) => {
+      // value is encoded as "broadcast:idx" or "direct:num"
+      const [kind, raw] = value.split(":");
+      if (kind === "broadcast") {
+        const idx = Number(raw);
+        const label = destinationOptions.find((d) => d.value === value)?.label ?? `Channel ${idx}`;
+        return `${idx}^all^${label}`; // approximate Android broadcast key
+      }
+      return raw; // direct node num as string
+    },
+    [destinationOptions],
+  );
+
   useEffect(() => {
     if (!selectedDest) return;
     const nodeId = destToNodeId(selectedDest);
     const nodeIdStr = String(nodeId);
     setRules(loadScheduledMessages(nodeIdStr));
-  }, [selectedDest]);
+  }, [selectedDest, destToNodeId]);
 
   const filteredDestinationOptions = (() => {
     const q = filter.trim();
@@ -64,17 +78,6 @@ export default function PowerNotificationPanel({
     for (const d of direct) if (matchedSet.has(Number(d.value.split(":")[1]))) out.push(d);
     return out;
   })();
-
-  function destToNodeId(value: string) {
-    // value is encoded as "broadcast:idx" or "direct:num"
-    const [kind, raw] = value.split(":");
-    if (kind === "broadcast") {
-      const idx = Number(raw);
-      const label = destinationOptions.find((d) => d.value === value)?.label ?? `Channel ${idx}`;
-      return `${idx}^all^${label}`; // approximate Android broadcast key
-    }
-    return raw; // direct node num as string
-  }
 
   function handleAdd() {
     if (!selectedDest) return;

@@ -44,6 +44,16 @@ function publicUrl(pathname) {
   return new URL(pathname, publicOrigin).href;
 }
 
+function firstUrl(...names) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 function getLocalDateString(date = new Date()) {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return localDate.toISOString().slice(0, 10);
@@ -63,6 +73,9 @@ const bundleIdentifier = readBuildSetting(
 const version = readBuildSetting(projectText, "MARKETING_VERSION", "1.0");
 const buildVersion = readBuildSetting(projectText, "CURRENT_PROJECT_VERSION", "1");
 const today = getLocalDateString();
+const ipaDownloadUrl =
+  firstUrl("DARKMESH_IPA_DOWNLOAD_URL", "DARKMESH_IOS_IPA_DOWNLOAD_URL") ??
+  publicUrl("/downloads/darkmesh.ipa");
 
 const source = {
   name: "DarkMesh",
@@ -90,7 +103,7 @@ const source = {
           buildVersion,
           date: today,
           localizedDescription: "Current DarkMesh app for iOS build.",
-          downloadURL: publicUrl("/downloads/darkmesh.ipa"),
+          downloadURL: ipaDownloadUrl,
           size: ipaStats.size,
           sha256,
         },

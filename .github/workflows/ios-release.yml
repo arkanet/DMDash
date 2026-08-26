@@ -1,0 +1,188 @@
+name: DarkMesh iOS Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (branch, tag, or SHA) to build"
+        required: false
+        default: ""
+      public_origin:
+        description: "Public base URL used for non-IPA links in the AltStore source JSON"
+        required: false
+        default: "https://dmdash.vercel.app"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  DARKMESH_PUBLIC_ORIGIN: ${{ github.event.inputs.public_origin || vars.DARKMESH_PUBLIC_ORIGIN || 'https://dmdash.vercel.app' }}
+
+jobs:
+  release-ios:
+    name: Build and publish DarkMesh iOS release
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Compute release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATE="$(date -u +%Y%m%d)"
+          SHORTSHA="$(git rev-parse --short=12 HEAD)"
+          TAG_NAME="ios-main-${DATE}-${SHORTSHA}"
+          IPA_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG_NAME}/darkmesh.ipa"
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          echo "shortsha=${SHORTSHA}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "ipa_url=${IPA_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate protobuf TypeScript bindings
+        run: pnpm --filter @meshtastic/protobufs build
+
+      - name: Lint and format checks
+        run: pnpm check
+
+      - name: Typecheck dashboard
+        run: pnpm --filter meshtastic-web typecheck
+
+      - name: Build iOS app and package IPA
+        env:
+          DARKMESH_IPA_DOWNLOAD_URL: ${{ steps.release_meta.outputs.ipa_url }}
+        run: pnpm mobile:build:ios
+
+      - name: Verify generated iOS artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f packages/mobile/ios/build/darkmesh.ipa
+          test -f packages/web/public/downloads/darkmesh.ipa
+          test -f packages/web/public/altstore/source.json
+          python3 - <<'PY'
+          import json
+          import zipfile
+          from pathlib import Path
+
+          ipa_paths = [
+              Path("packages/mobile/ios/build/darkmesh.ipa"),
+              Path("packages/web/public/downloads/darkmesh.ipa"),
+          ]
+          for ipa_path in ipa_paths:
+              if not zipfile.is_zipfile(ipa_path):
+                  raise SystemExit(f"{ipa_path} is not a valid IPA/ZIP archive")
+
+          source_path = Path("packages/web/public/altstore/source.json")
+          with source_path.open("r", encoding="utf-8") as handle:
+              source = json.load(handle)
+          download_url = source["apps"][0]["versions"][0]["downloadURL"]
+          expected_url = "${{ steps.release_meta.outputs.ipa_url }}"
+          if download_url != expected_url:
+              raise SystemExit(f"Unexpected AltStore downloadURL: {download_url}")
+          PY
+
+      - name: Prepare release assets
+        id: assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_DIR="packages/mobile/ios/release"
+          IPA_PATH="${RELEASE_DIR}/darkmesh.ipa"
+          SOURCE_PATH="${RELEASE_DIR}/altstore-source.json"
+          CHECKSUM_PATH="${RELEASE_DIR}/SHA256SUMS.txt"
+          NOTES_PATH="${RELEASE_DIR}/release-notes.md"
+          mkdir -p "${RELEASE_DIR}"
+          cp packages/mobile/ios/build/darkmesh.ipa "${IPA_PATH}"
+          cp packages/web/public/altstore/source.json "${SOURCE_PATH}"
+          shasum -a 256 "${IPA_PATH}" "${SOURCE_PATH}" > "${CHECKSUM_PATH}"
+          IPA_SIZE="$(du -h "${IPA_PATH}" | awk '{print $1}')"
+          {
+            echo "DarkMesh iOS build from main."
+            echo
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Short SHA: ${{ steps.release_meta.outputs.shortsha }}"
+            echo "- IPA: darkmesh.ipa (${IPA_SIZE})"
+            echo "- AltStore source: altstore-source.json"
+            echo "- IPA download URL: ${{ steps.release_meta.outputs.ipa_url }}"
+            echo
+            echo "This IPA is produced by the repository's unsigned iOS packaging flow for sideloading/AltStore distribution."
+          } > "${NOTES_PATH}"
+          echo "release_dir=${RELEASE_DIR}" >> "$GITHUB_OUTPUT"
+          echo "ipa_path=${IPA_PATH}" >> "$GITHUB_OUTPUT"
+          echo "source_path=${SOURCE_PATH}" >> "$GITHUB_OUTPUT"
+          echo "checksum_path=${CHECKSUM_PATH}" >> "$GITHUB_OUTPUT"
+          echo "notes_path=${NOTES_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+          NOTES_PATH: ${{ steps.assets.outputs.notes_path }}
+          IPA_PATH: ${{ steps.assets.outputs.ipa_path }}
+          SOURCE_PATH: ${{ steps.assets.outputs.source_path }}
+          CHECKSUM_PATH: ${{ steps.assets.outputs.checksum_path }}
+        run: |
+          set -euo pipefail
+          TITLE="DarkMesh iOS ${TAG_NAME}"
+          if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            gh release edit "${TAG_NAME}" \
+              --title "${TITLE}" \
+              --notes-file "${NOTES_PATH}" \
+              --prerelease
+          else
+            gh release create "${TAG_NAME}" \
+              --target "${GITHUB_SHA}" \
+              --title "${TITLE}" \
+              --notes-file "${NOTES_PATH}" \
+              --prerelease
+          fi
+          gh release upload "${TAG_NAME}" \
+            "${IPA_PATH}" \
+            "${SOURCE_PATH}" \
+            "${CHECKSUM_PATH}" \
+            --clobber
+
+      - name: Summarize iOS release
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## DarkMesh iOS release"
+            echo
+            echo "- Release tag: \`${{ steps.release_meta.outputs.tag_name }}\`"
+            echo "- IPA URL: ${{ steps.release_meta.outputs.ipa_url }}"
+            echo
+            echo "\`\`\`text"
+            cat "${{ steps.assets.outputs.checksum_path }}"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
